@@ -218,7 +218,7 @@ const LEVEL_CONFIGS = {
     },
     8: {
         displayName: "7",
-        winds: [2.75, 0, 0, -5, 5, -4, 1],
+        winds: [1.75, 1.75, 1.75, -1.75, -1.75, -1.75, 1.75],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -1467,16 +1467,11 @@ function resetGame() {
 function updateNextLevelButtonVisibility() {
     if (!nextLevelBtn) return;
 
-    // Hide during play
-    if (gameState === 'PLAY') {
-        nextLevelBtn.classList.add('hidden');
-        return;
-    }
-
     const nextLv = currentLevel + 1;
     const isCleared = clearedLevels.includes(currentLevel);
     const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL";
 
+    // 이미 클리어한 레벨이거나, 이벤트 레벨이거나, 방금 클리어한 상태라면 다음 레벨 버튼 표시
     if (LEVEL_CONFIGS[nextLv] && (isCleared || isEventLevel || gameState === 'CLEAR')) {
         const nextDisplayName = LEVEL_CONFIGS[nextLv].displayName;
         nextLevelBtn.innerText = (nextDisplayName === "EVENT LEVEL") ? nextDisplayName : `LEVEL ${nextDisplayName}`;
