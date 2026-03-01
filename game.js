@@ -196,15 +196,15 @@ const LEVEL_CONFIGS = {
         platformY: 6.0
     },
     5: {
-        displayName: "5",
-        winds: [-2, 4.75, -1.75, 4.75, -1.75, 4.75, -1.75],
+        displayName: "EVENT LEVEL",
+        winds: [-2, 2, -2, 2, -2, 2, -2],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
     },
     6: {
-        displayName: "EVENT LEVEL",
-        winds: [-2, 4, -4, 4, -4, 4, -2],
+        displayName: "5",
+        winds: [-2, 4.75, -1.75, 4.75, -1.75, 4.75, -1.75],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -248,6 +248,7 @@ let pendingItemEffects = []; // 일시정지 중 선택한 아이템 대기열
 let activeGravityMultiplier = 1; // 무게추 활성화 시 중력 배수
 let activeCoins = []; // 현재 화면에 존재하는 코인들
 let sessionEventCredits = 0; // 이번 세션(이벤트 레벨)에서 획득한 크레딧
+let droppedItems = []; // 화면에 드롭된 아이템들
 
 // Initialize
 function init() {
@@ -616,6 +617,143 @@ function resumeGame() {
     storeScreen.classList.add('hidden');
 }
 
+// 아이템 배치 관련 변수
+let isPlacingItem = false;
+let currentPlacingKey = null;
+let placementPreviewEl = null;
+
+function startItemPlacement(key) {
+    if (upgrades[key] <= 0) return;
+
+    currentPlacingKey = key;
+    isPlacingItem = true;
+
+    // 인벤토리 숨기기
+    storeScreen.classList.add('hidden');
+
+    // 배치 미리보기 요소 생성
+    if (placementPreviewEl) placementPreviewEl.remove();
+    const itemData = storeData.items[key];
+    placementPreviewEl = document.createElement('div');
+    placementPreviewEl.className = 'dropped-item placement-preview';
+    placementPreviewEl.innerHTML = `<img src="${itemData.icon}" alt="${itemData.name}">`;
+    placementPreviewEl.style.opacity = "0.7";
+    placementPreviewEl.style.pointerEvents = "none";
+    gameContainer.appendChild(placementPreviewEl);
+
+    // 마우스 이동에 따라 미리보기 이동
+    const moveHandler = (e) => {
+        if (!isPlacingItem) {
+            gameContainer.removeEventListener('mousemove', moveHandler);
+            return;
+        }
+        const rect = gameContainer.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = 100 - ((e.clientY - rect.top) / rect.height) * 100;
+
+        placementPreviewEl.style.left = `${x}%`;
+        placementPreviewEl.style.bottom = `calc(7% + ${(y - 7) / 0.93 * 0.93}%)`;
+    };
+
+    gameContainer.addEventListener('mousemove', moveHandler);
+
+    // 화면 클릭 시 배치 완료
+    const clickHandler = (e) => {
+        if (!isPlacingItem) {
+            gameContainer.removeEventListener('click', clickHandler);
+            return;
+        }
+        e.stopPropagation();
+
+        const rect = gameContainer.getBoundingClientRect();
+        const dropX = ((e.clientX - rect.left) / rect.width) * 100;
+        const dropY = 100 - ((e.clientY - rect.top) / rect.height) * 100;
+        const gameY = (dropY - 7) / 0.93;
+
+        placeItemOnScreen(currentPlacingKey, dropX, gameY);
+        upgrades[currentPlacingKey]--;
+        savePlayerData();
+        updateStoreUI(true);
+
+        cancelItemPlacement();
+        if (gameState === 'PAUSED') resumeGame();
+
+        gameContainer.removeEventListener('click', clickHandler);
+    };
+
+    // 약간의 지연 후 클릭 리스너 등록 (현재 클릭이 바로 인식되지 않도록)
+    setTimeout(() => {
+        gameContainer.addEventListener('click', clickHandler);
+    }, 100);
+}
+
+function cancelItemPlacement() {
+    isPlacingItem = false;
+    currentPlacingKey = null;
+    if (placementPreviewEl) {
+        placementPreviewEl.remove();
+        placementPreviewEl = null;
+    }
+}
+
+// 드래그 앤 드랍 관련 변수
+let draggedItemKey = null;
+
+function handleDragStart(e, key) {
+    draggedItemKey = key;
+    e.dataTransfer.setData('text/plain', key);
+
+    // 드래그 시작 시 인벤토리를 즉시 숨겨서 배치하기 쉽게 함
+    setTimeout(() => {
+        storeScreen.classList.add('hidden');
+    }, 0);
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    storeScreen.style.opacity = "1";
+
+    if (!draggedItemKey) return;
+    if (gameState !== 'PLAY' && gameState !== 'PAUSED') return;
+
+    const rect = gameContainer.getBoundingClientRect();
+    const dropX = ((e.clientX - rect.left) / rect.width) * 100;
+    const dropY = 100 - ((e.clientY - rect.top) / rect.height) * 100;
+
+    // 게임 내부 좌표로 변환 (Sky 영역 기준)
+    const gameY = (dropY - 7) / 0.93;
+
+    if (upgrades[draggedItemKey] > 0) {
+        placeItemOnScreen(draggedItemKey, dropX, gameY);
+        upgrades[draggedItemKey]--;
+        savePlayerData();
+        updateStoreUI(true);
+
+        // 아이템을 드롭하면 상점 창을 닫고 게임 재개
+        if (gameState === 'PAUSED') resumeGame();
+    }
+    draggedItemKey = null;
+}
+
+function placeItemOnScreen(key, x, y) {
+    const itemData = storeData.items[key];
+    const itemEl = document.createElement('div');
+    itemEl.className = `dropped-item item-${key}`;
+    itemEl.innerHTML = `<img src="${itemData.icon}" alt="${itemData.name}">`;
+
+    itemEl.style.left = `${x}%`;
+    itemEl.style.bottom = `calc(7% + ${y * 0.93}%)`;
+
+    gameContainer.appendChild(itemEl);
+
+    droppedItems.push({
+        key: key,
+        x: x,
+        y: y,
+        el: itemEl
+    });
+}
+
 function updateStoreUI(isInventoryMode = false) {
     if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
 
@@ -744,16 +882,14 @@ function updateStoreUI(isInventoryMode = false) {
                     // If no mode selected, do nothing as requested
                 });
             } else {
-                // 인벤토리 모드: 아이템 사용 즉시 적용 및 게임 재개
+                // 인벤토리 모드: 클릭 시 배치 모드 시작 + 드래그 앤 드롭 지원
+                itemDiv.setAttribute('draggable', 'true');
+                itemDiv.addEventListener('dragstart', (e) => {
+                    handleDragStart(e, key);
+                });
+
                 itemDiv.addEventListener('click', () => {
-                    if (gameState !== 'PAUSED' && gameState !== 'PLAY') return;
-                    if (upgrades[key] > 0) {
-                        applyItemEffect(key); // 지연 없이 바로 효과 적용
-                        upgrades[key]--; // 아이템 소모
-                        savePlayerData();
-                        console.log(`Item used immediately: ${key}`);
-                        storeScreen.classList.add('hidden'); // 아이템 창 닫기
-                    }
+                    startItemPlacement(key);
                 });
             }
 
@@ -1025,6 +1161,40 @@ function handleMovement() {
     if (activeCoins.length > 0) {
         checkCoinCollisions();
     }
+
+    // 4. Dropped Item Collision
+    if (droppedItems.length > 0) {
+        checkDroppedItemCollisions();
+    }
+}
+
+function checkDroppedItemCollisions() {
+    const skyHeight = gameContainer.clientHeight * 0.93;
+    const skyWidth = gameContainer.clientWidth;
+
+    const markerXPx = (balloonX / 100) * skyWidth;
+    const markerYPx = ((balloonY + getMarkerOffset()) / 100) * skyHeight;
+
+    const balloonRadius = 32.5 / 2;
+    const itemRadius = 30 / 2; // 아이템 크기 대략 30px
+    const combinedRadiusSq = Math.pow(balloonRadius + itemRadius, 2);
+
+    for (let i = droppedItems.length - 1; i >= 0; i--) {
+        const item = droppedItems[i];
+        const itemXPx = (item.x / 100) * skyWidth;
+        const itemYPx = (item.y / 100) * skyHeight;
+
+        const dx = markerXPx - itemXPx;
+        const dy = markerYPx - itemYPx;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq < combinedRadiusSq) {
+            applyItemEffect(item.key);
+            item.el.classList.add('item-collected'); // 효과 애니메이션
+            setTimeout(() => item.el.remove(), 500);
+            droppedItems.splice(i, 1);
+        }
+    }
 }
 
 function checkCoinCollisions() {
@@ -1131,15 +1301,16 @@ function gameOver(msg = 'OVERHEAT') {
     burnerSound.pause();
 
     const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL";
+    const isAlreadyCleared = clearedLevels.includes(currentLevel);
 
-    if (!isEventLevel) {
+    if (!isEventLevel && !isAlreadyCleared) {
         lives--;
         if (lives < 7 && lives >= 0) {
             // 생명이 깎인 시점부터 충전 타이머 시작 (이미 충전 중이 아니라면)
             if (lives === 6) lastLifeUpdate = Date.now();
         }
     } else {
-        console.log("Event Level: No life reduction on failure.");
+        console.log("Life reduction skipped: Event Level or Already Cleared Level.");
     }
 
     savePlayerData();
@@ -1245,41 +1416,38 @@ function winGame() {
 
     const score = Math.floor(gas) + Math.floor(timeLeft * 10) + landingBonus;
 
+    const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL";
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
     let finalScore = score;
 
-    // 이미 클리어한 레벨이면 포인트 적립 안함
-    if (isAlreadyCleared) {
+    if (isAlreadyCleared && !isEventLevel) {
         finalScore = 0;
         console.log("Already cleared level - Mission points not added and screen skipped");
     } else {
-        const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL";
         if (isEventLevel) {
-            finalScore += 200; // 이벤트 레벨 클리어 보너스 200점 추가
+            finalScore = (isAlreadyCleared ? 200 : score + 200); // 클리어 후 재플레이 시에는 보너스 200점만, 처음이면 코인+보너스
+            showEventBonusText();
         }
         totalCredits += finalScore;
-        clearedLevels.push(currentLevel);
+        if (!isAlreadyCleared) clearedLevels.push(currentLevel);
         savePlayerData();
-
-        // 결과 표시 (처음 클리어할 때만 점수창을 보여줌)
-        const floorGas = Math.floor(gas);
-        const ceilTime = Math.ceil(timeLeft);
-        if (resultFormulaEl) {
-            resultFormulaEl.innerHTML = `(${floorGas} + (${ceilTime} * 10)) + <span style="color: #ffd32a; font-weight: bold;">${landingBonus}</span> <span style="font-size: 0.8em; opacity: 0.8;">(Land Point: ${bonusText})</span>`;
-        }
-        if (resultScoreEl) resultScoreEl.innerText = finalScore;
 
         // Update accumulated total credits display
         const totalEl = document.getElementById('accumulated-total-credits');
         if (totalEl) totalEl.innerText = totalCredits;
 
+        // Ground credit update
+        const groundCredits = document.getElementById('ground-credits-display');
+        if (groundCredits) groundCredits.innerText = `${totalCredits}C`;
+        if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
+
         const currentDisplayName = LEVEL_CONFIGS[currentLevel].displayName;
         if (clearTitleEl) clearTitleEl.innerText = currentDisplayName === "EVENT LEVEL" ? "EVENT LEVEL CLEAR!" : `LEVEL-${currentDisplayName} CLEAR`;
 
         if (currentDisplayName === "EVENT LEVEL") {
-            if (eventResultScoreEl) eventResultScoreEl.innerText = sessionEventCredits;
-            if (eventAccumulatedTotalEl) eventAccumulatedTotalEl.innerText = totalCredits;
-            eventClearScreen.classList.remove('hidden');
+            // 이벤트 레벨 클리어 시 점수창을 띄우지 않고 바로 결과 저장 및 유지
+            console.log("Event Level Cleared: Skipping score screen.");
+            // 점수창 대신 다른 시각적 피드백이 필요하다면 여기에 추가 (현재는 요청에 따라 삭제만 수행)
         } else {
             clearScreen.classList.remove('hidden');
         }
@@ -1317,7 +1485,7 @@ function createParticles() {
 
 function createCoins() {
     clearCoins(); // 기존 코인 제거
-    const coinsPerZone = 12; // 구역당 12개
+    const coinsPerZone = 10; // 구역당 10개
 
     for (let zoneId = 1; zoneId <= 7; zoneId++) {
         const zone = document.getElementById(`zone-${zoneId}`);
@@ -1330,8 +1498,8 @@ function createCoins() {
 
             // Spaced out horizontally: 10% to 90%
             const horizontalPos = 10 + (i * (80 / (coinsPerZone - 1)));
-            // Small vertical variation within zone
-            const verticalPos = 30 + Math.random() * 40;
+            // Fixed vertical position at the center of the zone (50%)
+            const verticalPos = 50;
 
             const coin = {
                 el: c,
@@ -1474,6 +1642,15 @@ function resetGame() {
     }
 }
 
+function clearDroppedItems() {
+    droppedItems.forEach(item => {
+        if (item.el && item.el.parentNode) {
+            item.el.remove();
+        }
+    });
+    droppedItems = [];
+}
+
 function updateNextLevelButtonVisibility() {
     if (!nextLevelBtn) return;
 
@@ -1537,3 +1714,30 @@ resetGame();
 init();
 updateLivesUI();
 savePlayerData(); // Initial ground credits UI update
+
+// 드랍 대상 설정
+gameContainer.addEventListener('dragover', (e) => e.preventDefault());
+gameContainer.addEventListener('drop', handleDrop);
+
+function showEventBonusText() {
+    const bonusEl = document.createElement('div');
+    bonusEl.className = 'bonus-float-text';
+    bonusEl.innerText = '+200';
+
+    // Position: Right of the platform
+    const platformHalfWidth = (100 / 12) / 2;
+    const posX = targetLineX + platformHalfWidth + 1; // 1% gap
+
+    const platformY = LEVEL_CONFIGS[currentLevel].platformY;
+    const posY = (100 / 7) * platformY;
+
+    bonusEl.style.left = `${posX}%`;
+    bonusEl.style.bottom = `calc(7% + ${posY * 0.93}% + 15px)`;
+
+    gameContainer.appendChild(bonusEl);
+
+    // Fade out and remove
+    setTimeout(() => {
+        bonusEl.remove();
+    }, 2000);
+}

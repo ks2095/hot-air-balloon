@@ -406,10 +406,11 @@ body {
     position: absolute;
     width: 20px;
     height: 20px;
-    background: radial-gradient(circle, #f1c40f, #f39c12);
+    background: linear-gradient(135deg, #2ecc71, #f1c40f);
     border-radius: 50%;
-    border: 2px solid #fff;
-    box-shadow: 0 0 10px rgba(241, 196, 15, 0.6), inset 0 0 5px rgba(255, 255, 255, 0.5);
+    border: 1.5px solid #fff;
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.5);
+    animation: rotate-coin 2s infinite linear, coin-float 1.5s infinite alternate ease-in-out;
     z-index: 15;
     display: flex;
     justify-content: center;
@@ -418,7 +419,6 @@ body {
     font-weight: 900;
     color: #fff;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-    animation: rotate-coin 2s infinite linear, coin-float 1.5s infinite alternate ease-in-out;
 }
 
 .coin::after {
@@ -1587,7 +1587,7 @@ button:hover {
 /* --- Event Level UI Styles --- */
 #event-credit-counter {
     position: absolute;
-    top: 35px;
+    top: 45px;
     left: 10px;
     display: flex;
     align-items: center;
@@ -1727,4 +1727,73 @@ button:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 25px rgba(241, 196, 15, 0.6);
     filter: brightness(1.1);
+}
+
+.bonus-float-text {
+    position: absolute;
+    color: #ffd32a;
+    font-weight: 800;
+    font-size: 1.2rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    z-index: 1000;
+    animation: bonus-float-anim 2s forwards ease-out;
+}
+
+@keyframes bonus-float-anim {
+    0% {
+        transform: translate(0, 0);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(20px, -50px);
+        opacity: 0;
+    }
+}
+
+.dropped-item {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    transform: translate(-50%, 50%);
+    z-index: 100;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+    animation: item-float 1s infinite alternate ease-in-out;
+}
+
+.dropped-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.item-collected {
+    animation: item-pop 0.5s forwards ease-out;
+}
+
+@keyframes item-pop {
+    0% {
+        transform: translate(-50%, 50%) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(-50%, 50%) scale(2);
+        opacity: 0;
+    }
+}
+
+@keyframes item-float {
+    from {
+        transform: translate(-50%, 50%) translateY(0);
+    }
+
+    to {
+        transform: translate(-50%, 50%) translateY(-5px);
+    }
 }
