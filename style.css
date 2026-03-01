@@ -624,8 +624,8 @@ body {
 
 
 #main-action-btn {
-    width: 41.8px;
-    height: 41.8px;
+    width: 46px;
+    height: 46px;
     flex-shrink: 0;
     /* 기본 파란색 배경 + 차오르는 빨간색 그라데이션 */
     background-color: #3498db;
@@ -657,10 +657,10 @@ body {
 #main-action-btn::after {
     content: '';
     position: absolute;
-    top: -15%;
-    left: -15%;
-    right: -15%;
-    bottom: -15%;
+    top: -30%;
+    left: -30%;
+    right: -30%;
+    bottom: -30%;
     border-radius: 50%;
 }
 

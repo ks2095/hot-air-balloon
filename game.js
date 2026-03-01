@@ -1130,10 +1130,16 @@ function gameOver(msg = 'OVERHEAT') {
     isBurning = false;
     burnerSound.pause();
 
-    lives--;
-    if (lives < 7 && lives >= 0) {
-        // 생명이 깎인 시점부터 충전 타이머 시작 (이미 충전 중이 아니라면)
-        if (lives === 6) lastLifeUpdate = Date.now();
+    const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL";
+
+    if (!isEventLevel) {
+        lives--;
+        if (lives < 7 && lives >= 0) {
+            // 생명이 깎인 시점부터 충전 타이머 시작 (이미 충전 중이 아니라면)
+            if (lives === 6) lastLifeUpdate = Date.now();
+        }
+    } else {
+        console.log("Event Level: No life reduction on failure.");
     }
 
     savePlayerData();
@@ -1247,7 +1253,11 @@ function winGame() {
         finalScore = 0;
         console.log("Already cleared level - Mission points not added and screen skipped");
     } else {
-        totalCredits += score;
+        const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL";
+        if (isEventLevel) {
+            finalScore += 200; // 이벤트 레벨 클리어 보너스 200점 추가
+        }
+        totalCredits += finalScore;
         clearedLevels.push(currentLevel);
         savePlayerData();
 
