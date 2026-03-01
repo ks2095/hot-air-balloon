@@ -651,6 +651,17 @@ body {
     z-index: 110;
     --fill: 0%;
     margin-top: 5px;
+    position: relative;
+}
+
+#main-action-btn::after {
+    content: '';
+    position: absolute;
+    top: -15%;
+    left: -15%;
+    right: -15%;
+    bottom: -15%;
+    border-radius: 50%;
 }
 
 #main-action-btn.item-paused {

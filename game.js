@@ -1434,9 +1434,13 @@ function resetGame() {
     updateTargetLine();
     console.log(`Resetting to Level ${currentLevel}`);
 
-    balloon.classList.remove('explosion');
-    balloon.style.opacity = "1";
-    balloon.style.transform = "translateX(-50%) scale(1)";
+    if (lives <= 0) {
+        balloon.style.opacity = "0";
+    } else {
+        balloon.classList.remove('explosion');
+        balloon.style.opacity = "1";
+        balloon.style.transform = "translateX(-50%) scale(1)";
+    }
 
     mainActionBtn.style.setProperty('--fill', '0%');
     mainActionBtn.classList.remove('overheated', 'burner-mode');
@@ -1500,11 +1504,23 @@ function checkLifeRegen() {
     const elapsed = now - lastLifeUpdate;
 
     if (elapsed >= regenInterval) {
+        const oldLives = lives;
         const recoverAmount = Math.floor(elapsed / regenInterval);
         lives = Math.min(7, lives + recoverAmount);
         lastLifeUpdate += recoverAmount * regenInterval;
         savePlayerData();
         console.log(`Life regenerated: +${recoverAmount} lives`);
+
+        if (oldLives === 0 && lives > 0) {
+            // 생명이 0에서 1 이상으로 회복되었을 때 열기구 표시
+            balloon.style.opacity = "1";
+            balloon.classList.remove('explosion');
+            balloon.style.transform = "translateX(-50%) scale(1)";
+            balloonY = -getBasketOffset();
+            balloonX = 50;
+            balloon.style.bottom = `calc(7% + ${balloonY * 0.93}%)`;
+            balloon.style.left = `${balloonX}%`;
+        }
     }
 }
 
