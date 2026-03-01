@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>열기구 모험 - Hot Air Balloon Adventure</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="balloon.png">
+    <link rel="apple-touch-icon" href="balloon.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a1128">
+</head>
+
+<body>
+    <div id="game-container">
+        <!-- 7 Zones will be generated here or defined -->
+        <div id="sky-background">
+            <div class="zone" id="zone-7">
+                <div class="dev-control">
+                    <span>Z7</span>
+                    <input type="range" min="-6" max="6" step="0.25" value="1.5" class="wind-slider" data-zone="6">
+                    <span class="wind-val">1.5</span>
+                </div>
+            </div>
+            <div class="zone" id="zone-6">
+                <div class="dev-control">
+                    <span>Z6</span>
+                    <input type="range" min="-6" max="6" step="0.25" value="-1.5" class="wind-slider" data-zone="5">
+                    <span class="wind-val">-1.5</span>
+                </div>
+            </div>
+            <div class="zone" id="zone-5">
+                <div class="dev-control">
+                    <span>Z5</span>
+                    <input type="range" min="-6" max="6" step="0.25" value="1.5" class="wind-slider" data-zone="4">
+                    <span class="wind-val">1.5</span>
+                </div>
+            </div>
+            <div class="zone" id="zone-4">
+                <div class="dev-control">
+                    <span>Z4</span>
+                    <input type="range" min="-6" max="6" step="0.25" value="-1.5" class="wind-slider" data-zone="3">
+                    <span class="wind-val">-1.5</span>
+                </div>
+            </div>
+            <div class="zone" id="zone-3">
+                <div class="dev-control">
+                    <span>Z3</span>
+                    <input type="range" min="-6" max="6" step="0.25" value="1.5" class="wind-slider" data-zone="2">
+                    <span class="wind-val">1.5</span>
+                </div>
+            </div>
+            <div class="zone" id="zone-2">
+                <div class="dev-control">
+                    <span>Z2</span>
+                    <input type="range" min="-6" max="6" step="0.25" value="-1.5" class="wind-slider" data-zone="1">
+                    <span class="wind-val">-1.5</span>
+                </div>
+            </div>
+            <div class="zone" id="zone-1">
+                <div id="lives-display">
+                    <img src="balloon.png" alt="Life" class="life-icon">
+                    <span id="lives-count">x6</span>
+                </div>
+                <div class="dev-control">
+                    <span>Z1</span>
+                    <input type="range" min="-6" max="6" step="0.25" value="1.5" class="wind-slider" data-zone="0">
+                    <span class="wind-val">1.5</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="target-line"></div>
+        <div id="level-indicator">LV-1</div>
+        <div id="event-credit-counter" class="hidden">
+            <img src="이벤트코인.png" alt="Coin">
+            <span id="event-credits-val">0</span>
+        </div>
+        <button id="next-level-btn" class="hidden">LEVEL 2</button>
+
+
+        <div id="goal-area">
+            <div class="mission-text"></div>
+        </div>
+
+        <div id="ground">
+            <div class="item-label-container">
+                <span id="store-label-btn" class="item-label">
+                    <span class="label-text">STORE</span>
+                    <span id="ground-credits-display" class="credit-small">0C</span>
+                </span>
+                <span id="item-label-btn" class="item-label">ITEM</span>
+            </div>
+            <button id="main-action-btn">START</button>
+            <div id="status-bars">
+                <div class="status-row">
+                    <span class="status-label">GAS</span>
+                    <div class="progress-track">
+                        <div id="gas-fill" class="progress-fill"></div>
+                        <span id="gas-text" class="progress-text"></span>
+                    </div>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">TIME</span>
+                    <div class="progress-track">
+                        <div id="time-fill" class="progress-fill"></div>
+                        <span id="time-text" class="progress-text"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="balloon">
+            <div id="balloon-marker"></div>
+            <div id="basket-marker"></div>
+            <div class="burner-flame"></div>
+            <img src="balloon.png" alt="Hot Air Balloon" id="balloon-img">
+        </div>
+
+        <div id="fail-reason-bubble" class="hidden"></div>
+
+
+
+
+
+        <div id="ui-layer">
+            <div class="stat-item">GAS: <span id="gas-val">0</span></div>
+            <div class="stat-item">TIME: <span id="time-val">0</span>s</div>
+        </div>
+
+        <div id="coord-debugger" class="hidden"></div>
+
+        <div id="clear-screen" class="overlay hidden">
+            <h1 id="clear-title">MISSION CLEAR!</h1>
+            <div class="result-stats">
+                <div class="formula-label"><span style="color: #ffd32a;"></span>C</span> = (GAS + (TIME * 10) + LANDING
+                    POINT)</div>
+                <div id="result-formula" class="score-formula">
+                    (0 + (0 * 10))
+                </div>
+                <div class="result-item total-score">
+                    <span id="result-score" class="value">0</span> <span class="unit">C</span>
+                </div>
+                <div class="total-credit-display">
+                    TOTAL: <span id="accumulated-total-credits">0</span>C
+                </div>
+            </div>
+        </div>
+
+        <div id="event-clear-screen" class="overlay hidden">
+            <div class="event-clear-container">
+                <h1 class="event-title">EVENT CLEAR!</h1>
+                <div class="event-result-box">
+                    <img src="이벤트코인.png" alt="Coin" class="event-result-coin">
+                    <div class="event-earned-label">EARNED CREDITS</div>
+                    <div id="event-result-score" class="event-earned-value">0</div>
+                </div>
+                <div class="total-credit-display">
+                    TOTAL: <span id="event-accumulated-total-credits">0</span>C
+                </div>
+                <button id="event-close-btn" class="event-btn">CONTINUE</button>
+            </div>
+        </div>
+
+        <div id="store-screen" class="overlay hidden">
+            <div class="store-container">
+                <h2 class="store-title-main" id="store-title">AIR STORE</h2>
+                <div class="store-mode-row">
+                    <button id="btn-buy-mode" class="mode-btn">BUY</button>
+                    <div class="currency-display-mini" id="store-currency">
+                        <span id="total-credits">0</span>
+                        <span class="unit-credit">C</span>
+                    </div>
+                    <button id="btn-sell-mode" class="mode-btn">SELL</button>
+                </div>
+                <div id="store-price-notice">Each item: 100C</div>
+                <div class="store-items" id="store-items-list">
+                    <!-- JS will populate these items -->
+                </div>
+                <button id="close-store-btn">CLOSE</button>
+            </div>
+        </div>
+
+        <div id="store-decorator" class="overlay hidden">
+            <div class="decorator-container">
+                <h2>DECORATE STORE (DEV)</h2>
+                <div class="decorator-scroll">
+                    <div class="decorator-field">
+                        <label>Store Title</label>
+                        <input type="text" id="edit-store-title" placeholder="AERO STORE">
+                    </div>
+                    <div class="decorator-field">
+                        <label>Theme Color</label>
+                        <input type="color" id="edit-store-color" value="#3498db">
+                    </div>
+                    <hr>
+                    <div id="edit-items-container">
+                        <!-- JS will inject item editors here -->
+                    </div>
+                </div>
+                <div class="decorator-actions">
+                    <button id="save-decoration" class="primary-btn">APPLY MODS</button>
+                    <button id="close-decorator" class="secondary-btn">CLOSE</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="fail-screen" class="overlay hidden">
+            <h1>MISSION FAILED!</h1>
+            <p>벽에 충돌하여 열기구가 터졌습니다.</p>
+        </div>
+        <script src="game.js"></script>
+        <script>
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then(reg => console.log('Service Worker Registered!', reg))
+                        .catch(err => console.log('Service Worker Registration Failed!', err));
+                });
+            }
+        </script>
+</body>
+
+</html>

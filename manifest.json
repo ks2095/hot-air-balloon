@@ -1,0 +1,18 @@
+{
+  "name": "열기구 모험 - Hot Air Balloon Adventure",
+  "short_name": "열기구 모험",
+  "description": "바람을 가르며 즐기는 열기구 비행 시뮬레이션 게임",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0a1128",
+  "theme_color": "#0a1128",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "balloon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
