@@ -43,6 +43,10 @@ const eventCounterEl = document.getElementById('event-credit-counter');
 const eventCreditsValEl = document.getElementById('event-credits-val');
 const eventCloseBtn = document.getElementById('event-close-btn');
 const eventAccumulatedTotalEl = document.getElementById('event-accumulated-total-credits');
+const windToggleBtn = document.getElementById('wind-toggle-btn');
+const windLabels = document.querySelectorAll('.wind-label');
+
+let showWindLabels = false;
 
 let storeOperationMode = null; // 'buy', 'sell' or null
 
@@ -744,6 +748,28 @@ function placeItemOnScreen(key, x, y) {
     itemEl.style.left = `${x}%`;
     itemEl.style.bottom = `calc(7% + ${y * 0.93}%)`;
 
+    // 아이템 회수 기능 추가
+    itemEl.addEventListener('click', (e) => {
+        e.stopPropagation(); // 부모(gameContainer)의 클릭 이벤트 방지
+
+        // 아이템 제거 연출
+        itemEl.classList.add('item-collected');
+
+        // 데이터 업데이트
+        const index = droppedItems.findIndex(item => item.el === itemEl);
+        if (index !== -1) {
+            const itemKey = droppedItems[index].key;
+            upgrades[itemKey] = (upgrades[itemKey] || 0) + 1; // 개수 복구
+            droppedItems.splice(index, 1);
+        }
+
+        savePlayerData();
+        updateStoreUI(true);
+
+        setTimeout(() => itemEl.remove(), 300);
+        console.log(`Item retrieved: ${key}`);
+    });
+
     gameContainer.appendChild(itemEl);
 
     droppedItems.push({
@@ -927,10 +953,12 @@ function applyItemEffect(key) {
         // 해당 구역에 5초간 풍속 추가
         tempWindBoosts[zoneIndex] += boostAmount;
         console.log(`Item used: ${key} - Wind ${boostAmount} added to Zone ${zoneIndex + 1}`);
+        if (showWindLabels) updateWindLabels();
 
         setTimeout(() => {
             tempWindBoosts[zoneIndex] -= boostAmount;
             console.log(`Wind boost expired: Zone ${zoneIndex + 1}`);
+            if (showWindLabels) updateWindLabels();
         }, 5000);
     }
 }
@@ -1584,6 +1612,8 @@ function resetGame() {
         }
     });
 
+    updateWindLabels();
+
     balloonX = 50;
     targetLineX = 50; // 리셋 시 타겟 라인 위치 초기화
     balloonY = -getBasketOffset();
@@ -1649,6 +1679,14 @@ function clearDroppedItems() {
         }
     });
     droppedItems = [];
+}
+
+function updateWindLabels() {
+    windLabels.forEach(label => {
+        const zoneIdx = parseInt(label.dataset.zone);
+        const currentWind = ZONE_WINDS[zoneIdx] + tempWindBoosts[zoneIdx];
+        label.innerText = `${currentWind.toFixed(1)}m/s`;
+    });
 }
 
 function updateNextLevelButtonVisibility() {
@@ -1718,6 +1756,17 @@ savePlayerData(); // Initial ground credits UI update
 // 드랍 대상 설정
 gameContainer.addEventListener('dragover', (e) => e.preventDefault());
 gameContainer.addEventListener('drop', handleDrop);
+
+// 바람세기 표시 토글
+if (windToggleBtn) {
+    windToggleBtn.addEventListener('click', () => {
+        showWindLabels = !showWindLabels;
+        windLabels.forEach(label => {
+            label.classList.toggle('hidden', !showWindLabels);
+        });
+        if (showWindLabels) updateWindLabels();
+    });
+}
 
 function showEventBonusText() {
     const bonusEl = document.createElement('div');
