@@ -423,12 +423,14 @@ function init() {
             startGame();
         } else if (gameState === 'PLAY') {
             isBurning = true;
-            burnerSound.play().catch(e => console.log("Audio play failed:", e));
+            if (burnerSound.paused) {
+                burnerSound.play().catch(e => console.log("Audio play failed:", e));
+            }
         }
     });
 
     mainActionBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         if (mainActionBtn.classList.contains('overheated')) return; // 대기 시간 동안 클릭 방지
         if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || mainActionBtn.classList.contains('restart-mode')) {
             if (lives <= 0) {
@@ -443,7 +445,9 @@ function init() {
             startGame();
         } else if (gameState === 'PLAY') {
             isBurning = true;
-            burnerSound.play().catch(e => console.log("Audio play failed:", e));
+            if (burnerSound.paused) {
+                burnerSound.play().catch(e => console.log("Audio play failed:", e));
+            }
         }
     }, { passive: false });
 
@@ -1175,12 +1179,17 @@ function update() {
         const diffSeconds = (now - missionStartTime) / 1000;
         const timeLeft = Math.max(0, currentMaxTime - diffSeconds);
 
-        // Update bars
-        gasFillEl.style.width = `${Math.max(0, (gas / currentMaxGas) * 100)}%`;
-        timeFillEl.style.width = `${Math.max(0, (timeLeft / currentMaxTime) * 100)}%`;
+        const currentGas = Math.floor(gas);
+        const currentTime = Math.ceil(timeLeft);
 
-        gasTextEl.innerText = Math.floor(gas);
-        timeTextEl.innerText = Math.ceil(timeLeft);
+        if (gasTextEl.innerText != currentGas) {
+            gasTextEl.innerText = currentGas;
+            gasFillEl.style.width = `${Math.max(0, (gas / currentMaxGas) * 100)}%`;
+        }
+        if (timeTextEl.innerText != currentTime) {
+            timeTextEl.innerText = currentTime;
+            timeFillEl.style.width = `${Math.max(0, (timeLeft / currentMaxTime) * 100)}%`;
+        }
 
         // Update dev labels
         if (gasValEl) gasValEl.innerText = Math.floor(currentMaxGas - gas);
