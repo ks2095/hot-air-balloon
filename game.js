@@ -248,7 +248,6 @@ let continuousBurnStartTime = 0;
 let targetLineX = 50;
 let pauseStartTime = 0; // 아이템 확인 시 일시정지 시작 시간
 let tempWindBoosts = [0, 0, 0, 0, 0, 0, 0]; // 선풍기 아이템 사용 시 임시 풍속 추가량
-let pendingItemEffects = []; // 일시정지 중 선택한 아이템 대기열
 let activeGravityMultiplier = 1; // 무게추 활성화 시 중력 배수
 let activeCoins = []; // 현재 화면에 존재하는 코인들
 let sessionEventCredits = 0; // 이번 세션(이벤트 레벨)에서 획득한 크레딧
@@ -273,6 +272,12 @@ function init() {
             if (isVisible && isInventory) {
                 resumeGame(); // 이미 인벤토리라면 닫기
             } else {
+                if (gameState === 'PLAY') {
+                    gameState = 'PAUSED';
+                    pauseStartTime = Date.now();
+                    mainActionBtn.innerText = 'PAUSE';
+                    mainActionBtn.classList.add('item-paused');
+                }
                 if (clearScreen) clearScreen.classList.add('hidden'); // Hide score window
                 storeScreen.classList.remove('hidden');
                 updateStoreUI(true); // 인벤토리 모드로 열기/전환
@@ -290,6 +295,12 @@ function init() {
             if (isVisible && !isInventory) {
                 resumeGame(); // 이미 상점이라면 닫기
             } else {
+                if (gameState === 'PLAY') {
+                    gameState = 'PAUSED';
+                    pauseStartTime = Date.now();
+                    mainActionBtn.innerText = 'PAUSE';
+                    mainActionBtn.classList.add('item-paused');
+                }
                 if (clearScreen) clearScreen.classList.add('hidden'); // Hide score window
                 storeScreen.classList.remove('hidden');
                 storeOperationMode = null;
@@ -541,8 +552,8 @@ function init() {
         const mouseX = ((e.clientX - rect.left) / rect.width) * 100;
         const mouseY = 100 - ((e.clientY - rect.top) / rect.height) * 100;
 
-        // Game logic relative Y (offset by 7% ground)
-        const gameY = (mouseY - 7) / 0.93;
+        // Game logic relative Y (offset by 8.05% ground)
+        const gameY = (mouseY - 8.05) / 0.9195;
 
         coordDebugger.style.left = `${e.clientX - rect.left + 15}px`;
         coordDebugger.style.top = `${e.clientY - rect.top + 15}px`;
@@ -612,12 +623,6 @@ function resumeGame() {
         mainActionBtn.style.setProperty('--fill', '0%');
     }
 
-    // 대기 중인 모든 아이템 효과 발동
-    while (pendingItemEffects.length > 0) {
-        const itemKey = pendingItemEffects.shift();
-        applyItemEffect(itemKey);
-    }
-
     storeScreen.classList.add('hidden');
 }
 
@@ -626,11 +631,8 @@ let isPlacingItem = false;
 let currentPlacingKey = null;
 let placementPreviewEl = null;
 
-function startItemPlacement(key) {
+function startDragPlacement(key, initialEvent) {
     if (upgrades[key] <= 0) return;
-
-    currentPlacingKey = key;
-    isPlacingItem = true;
 
     // 인벤토리 숨기기
     storeScreen.classList.add('hidden');
@@ -642,53 +644,61 @@ function startItemPlacement(key) {
     placementPreviewEl.className = 'dropped-item placement-preview';
     placementPreviewEl.innerHTML = `<img src="${itemData.icon}" alt="${itemData.name}">`;
     placementPreviewEl.style.opacity = "0.7";
-    placementPreviewEl.style.pointerEvents = "none";
+    placementPreviewEl.style.pointerEvents = "none"; // 마우스 이벤트 방해 금지
+    placementPreviewEl.style.zIndex = "3000";
     gameContainer.appendChild(placementPreviewEl);
 
-    // 마우스 이동에 따라 미리보기 이동
-    const moveHandler = (e) => {
-        if (!isPlacingItem) {
-            gameContainer.removeEventListener('mousemove', moveHandler);
-            return;
-        }
+    const updatePreview = (e) => {
+        const ev = e.touches ? e.touches[0] : e;
         const rect = gameContainer.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = 100 - ((e.clientY - rect.top) / rect.height) * 100;
+        const x = ((ev.clientX - rect.left) / rect.width) * 100;
+        const y = 100 - ((ev.clientY - rect.top) / rect.height) * 100;
 
         placementPreviewEl.style.left = `${x}%`;
-        placementPreviewEl.style.bottom = `calc(7% + ${(y - 7) / 0.93 * 0.93}%)`;
+        placementPreviewEl.style.bottom = `calc(8.05% + ${(y - 8.05) / 0.9195 * 0.9195}%)`;
     };
 
-    gameContainer.addEventListener('mousemove', moveHandler);
+    const dropItem = (e) => {
+        // 모든 리스너 즉시 제거
+        window.removeEventListener('mousemove', updatePreview);
+        window.removeEventListener('touchmove', updatePreview);
+        window.removeEventListener('mouseup', dropItem);
+        window.removeEventListener('touchend', dropItem);
 
-    // 화면 클릭 시 배치 완료
-    const clickHandler = (e) => {
-        if (!isPlacingItem) {
-            gameContainer.removeEventListener('click', clickHandler);
-            return;
-        }
-        e.stopPropagation();
-
+        const ev = e.changedTouches ? e.changedTouches[0] : e;
         const rect = gameContainer.getBoundingClientRect();
-        const dropX = ((e.clientX - rect.left) / rect.width) * 100;
-        const dropY = 100 - ((e.clientY - rect.top) / rect.height) * 100;
-        const gameY = (dropY - 7) / 0.93;
 
-        placeItemOnScreen(currentPlacingKey, dropX, gameY);
-        upgrades[currentPlacingKey]--;
-        savePlayerData();
-        updateStoreUI(true);
+        // 마우스를 놓은 위치가 게임 화면 범위 내인지 확인
+        if (ev.clientX >= rect.left && ev.clientX <= rect.right &&
+            ev.clientY >= rect.top && ev.clientY <= rect.bottom) {
 
-        cancelItemPlacement();
+            const dropX = ((ev.clientX - rect.left) / rect.width) * 100;
+            const dropY = 100 - ((ev.clientY - rect.top) / rect.height) * 100;
+            const gameY = (dropY - 8.05) / 0.9195;
+
+            placeItemOnScreen(key, dropX, gameY);
+            upgrades[key]--;
+            savePlayerData();
+            updateStoreUI(true);
+        }
+
+        // 미리보기 제거
+        if (placementPreviewEl) {
+            placementPreviewEl.remove();
+            placementPreviewEl = null;
+        }
+
         if (gameState === 'PAUSED') resumeGame();
-
-        gameContainer.removeEventListener('click', clickHandler);
     };
 
-    // 약간의 지연 후 클릭 리스너 등록 (현재 클릭이 바로 인식되지 않도록)
-    setTimeout(() => {
-        gameContainer.addEventListener('click', clickHandler);
-    }, 100);
+    // 초기 위치 업데이트
+    updatePreview(initialEvent);
+    if (initialEvent.cancelable) initialEvent.preventDefault();
+
+    window.addEventListener('mousemove', updatePreview);
+    window.addEventListener('touchmove', updatePreview, { passive: false });
+    window.addEventListener('mouseup', dropItem);
+    window.addEventListener('touchend', dropItem);
 }
 
 function cancelItemPlacement() {
@@ -700,45 +710,6 @@ function cancelItemPlacement() {
     }
 }
 
-// 드래그 앤 드랍 관련 변수
-let draggedItemKey = null;
-
-function handleDragStart(e, key) {
-    draggedItemKey = key;
-    e.dataTransfer.setData('text/plain', key);
-
-    // 드래그 시작 시 인벤토리를 즉시 숨겨서 배치하기 쉽게 함
-    setTimeout(() => {
-        storeScreen.classList.add('hidden');
-    }, 0);
-}
-
-function handleDrop(e) {
-    e.preventDefault();
-    storeScreen.style.opacity = "1";
-
-    if (!draggedItemKey) return;
-    if (gameState !== 'PLAY' && gameState !== 'PAUSED') return;
-
-    const rect = gameContainer.getBoundingClientRect();
-    const dropX = ((e.clientX - rect.left) / rect.width) * 100;
-    const dropY = 100 - ((e.clientY - rect.top) / rect.height) * 100;
-
-    // 게임 내부 좌표로 변환 (Sky 영역 기준)
-    const gameY = (dropY - 7) / 0.93;
-
-    if (upgrades[draggedItemKey] > 0) {
-        placeItemOnScreen(draggedItemKey, dropX, gameY);
-        upgrades[draggedItemKey]--;
-        savePlayerData();
-        updateStoreUI(true);
-
-        // 아이템을 드롭하면 상점 창을 닫고 게임 재개
-        if (gameState === 'PAUSED') resumeGame();
-    }
-    draggedItemKey = null;
-}
-
 function placeItemOnScreen(key, x, y) {
     const itemData = storeData.items[key];
     const itemEl = document.createElement('div');
@@ -746,16 +717,87 @@ function placeItemOnScreen(key, x, y) {
     itemEl.innerHTML = `<img src="${itemData.icon}" alt="${itemData.name}">`;
 
     itemEl.style.left = `${x}%`;
-    itemEl.style.bottom = `calc(7% + ${y * 0.93}%)`;
+    itemEl.style.bottom = `calc(8.05% + ${y * 0.9195}%)`;
 
-    // 아이템 회수 기능 추가
-    itemEl.addEventListener('click', (e) => {
-        e.stopPropagation(); // 부모(gameContainer)의 클릭 이벤트 방지
+    let startX, startY;
+    let initialItemX, initialItemY;
+    let isMoving = false;
+    let dragThreshold = 5; // 픽셀 단위 임계값
 
-        // 아이템 제거 연출
+    const onTouchDown = (e) => {
+        if (e.type === 'mousedown' && e.button !== 0) return; // 왼쪽 클릭만 허용
+        e.stopPropagation();
+        if (e.cancelable) e.preventDefault(); // 브라우저 기본 드래그(금지 아이콘) 및 텍스트 선택 방지
+
+        const ev = e.touches ? e.touches[0] : e;
+        startX = ev.clientX;
+        startY = ev.clientY;
+
+        const index = droppedItems.findIndex(item => item.el === itemEl);
+        if (index === -1) return;
+
+        initialItemX = droppedItems[index].x;
+        initialItemY = droppedItems[index].y;
+        isMoving = false;
+
+        window.addEventListener('mousemove', onTouchMove);
+        window.addEventListener('touchmove', onTouchMove, { passive: false });
+        window.addEventListener('mouseup', onTouchUp);
+        window.addEventListener('touchend', onTouchUp);
+    };
+
+    const onTouchMove = (e) => {
+        const ev = e.touches ? e.touches[0] : e;
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+
+        if (!isMoving && Math.sqrt(dx * dx + dy * dy) > dragThreshold) {
+            isMoving = true;
+            itemEl.style.opacity = "0.7";
+            itemEl.style.zIndex = "2000";
+        }
+
+        if (isMoving) {
+            const rect = gameContainer.getBoundingClientRect();
+            // 화면 밖으로 나가지 않도록 좌표 제한 가능 (선택 사항)
+            const currentX = ((ev.clientX - rect.left) / rect.width) * 100;
+            const currentY = 100 - ((ev.clientY - rect.top) / rect.height) * 100;
+            const gameY = (currentY - 8.05) / 0.9195;
+
+            itemEl.style.left = `${currentX}%`;
+            itemEl.style.bottom = `calc(8.05% + ${gameY * 0.9195}%)`;
+
+            // 데이터 실시간 업데이트
+            const index = droppedItems.findIndex(item => item.el === itemEl);
+            if (index !== -1) {
+                droppedItems[index].x = currentX;
+                droppedItems[index].y = gameY;
+            }
+        }
+        if (e.type === 'touchmove') e.preventDefault();
+    };
+
+    const onTouchUp = (e) => {
+        window.removeEventListener('mousemove', onTouchMove);
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('mouseup', onTouchUp);
+        window.removeEventListener('touchend', onTouchUp);
+
+        itemEl.style.opacity = "1";
+        itemEl.style.zIndex = "100";
+
+        if (!isMoving) {
+            // "잠깐 누르면 삭제" (움직이지 않았을 때 회수)
+            deleteItem();
+        } else {
+            // 위치 확정
+            savePlayerData();
+            updateStoreUI(true);
+        }
+    };
+
+    const deleteItem = () => {
         itemEl.classList.add('item-collected');
-
-        // 데이터 업데이트
         const index = droppedItems.findIndex(item => item.el === itemEl);
         if (index !== -1) {
             const itemKey = droppedItems[index].key;
@@ -765,10 +807,12 @@ function placeItemOnScreen(key, x, y) {
 
         savePlayerData();
         updateStoreUI(true);
-
         setTimeout(() => itemEl.remove(), 300);
-        console.log(`Item retrieved: ${key}`);
-    });
+    };
+
+    itemEl.addEventListener('mousedown', onTouchDown);
+    itemEl.addEventListener('touchstart', onTouchDown, { passive: false });
+    itemEl.addEventListener('dragstart', (e) => e.preventDefault()); // img 태그 기본 드래그 방지
 
     gameContainer.appendChild(itemEl);
 
@@ -779,6 +823,7 @@ function placeItemOnScreen(key, x, y) {
         el: itemEl
     });
 }
+
 
 function updateStoreUI(isInventoryMode = false) {
     if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
@@ -908,15 +953,17 @@ function updateStoreUI(isInventoryMode = false) {
                     // If no mode selected, do nothing as requested
                 });
             } else {
-                // 인벤토리 모드: 클릭 시 배치 모드 시작 + 드래그 앤 드롭 지원
-                itemDiv.setAttribute('draggable', 'true');
-                itemDiv.addEventListener('dragstart', (e) => {
-                    handleDragStart(e, key);
+                // 인벤토리 모드: 누른 채로 이동하여 마우스를 놓을 때 한 개 배치
+                itemDiv.addEventListener('mousedown', (e) => {
+                    if (upgrades[key] > 0) {
+                        startDragPlacement(key, e);
+                    }
                 });
-
-                itemDiv.addEventListener('click', () => {
-                    startItemPlacement(key);
-                });
+                itemDiv.addEventListener('touchstart', (e) => {
+                    if (upgrades[key] > 0) {
+                        startDragPlacement(key, e.touches[0]);
+                    }
+                }, { passive: false });
             }
 
             itemsList.appendChild(itemDiv);
@@ -942,7 +989,7 @@ function applyItemEffect(key) {
         }, 5000);
     } else if (key === 'fan_left' || key === 'fan_right') {
         // 현재 열기구가 위치한 구역 찾기 (파란 점 기준)
-        const skyHeight = gameContainer.clientHeight * 0.93;
+        const skyHeight = gameContainer.clientHeight * 0.9195;
         const markerOffsetPercentage = (79 / skyHeight) * 100;
         const markerY = balloonY + markerOffsetPercentage;
         const zoneHeight = 100 / 7;
@@ -1014,8 +1061,8 @@ function update() {
         updateTargetLine();
     }
 
-    // Render (Balloon starts above the 7% ground, sky is 93% high)
-    balloon.style.bottom = `calc(7% + ${balloonY * 0.93}%)`;
+    // Render (Balloon starts above the 8.05% ground, sky is 93% high)
+    balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
     balloon.style.left = `${balloonX}%`;
 
     if (isBurning) {
@@ -1072,7 +1119,7 @@ function updateTargetLine() {
         // 레벨별 플랫폼 높이 반영 (비주얼)
         const platformY = LEVEL_CONFIGS[currentLevel].platformY;
         const targetYBottom = (100 / 7) * platformY;
-        targetLineEl.style.bottom = `calc(7% + ${targetYBottom * 0.93}% + 12px)`;
+        targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + 12px)`;
 
         return;
     }
@@ -1115,7 +1162,7 @@ function handleMovement() {
     balloonY += velY * 0.2; // Scaling factor for smoothness
 
     // Horizontal logic (Wind triggered by the center marker dot)
-    const skyHeight = gameContainer.clientHeight * 0.93;
+    const skyHeight = gameContainer.clientHeight * 0.9195;
     const markerOffsetPercentage = (79 / skyHeight) * 100;
     let markerY = balloonY + markerOffsetPercentage;
 
@@ -1197,7 +1244,7 @@ function handleMovement() {
 }
 
 function checkDroppedItemCollisions() {
-    const skyHeight = gameContainer.clientHeight * 0.93;
+    const skyHeight = gameContainer.clientHeight * 0.9195;
     const skyWidth = gameContainer.clientWidth;
 
     const markerXPx = (balloonX / 100) * skyWidth;
@@ -1225,8 +1272,9 @@ function checkDroppedItemCollisions() {
     }
 }
 
+
 function checkCoinCollisions() {
-    const skyHeight = gameContainer.clientHeight * 0.93;
+    const skyHeight = gameContainer.clientHeight * 0.9195;
     const skyWidth = gameContainer.clientWidth;
 
     // Balloon marker center in pixels (from bottom-left of sky area)
@@ -1285,12 +1333,12 @@ function collectCoin(coin) {
 }
 
 function getMarkerOffset() {
-    const skyHeight = gameContainer.clientHeight * 0.93;
+    const skyHeight = gameContainer.clientHeight * 0.9195;
     return (79 / skyHeight) * 100;
 }
 
 function getBasketOffset() {
-    const skyHeight = gameContainer.clientHeight * 0.93;
+    const skyHeight = gameContainer.clientHeight * 0.9195;
     // Calculate based on style.css: bottom: calc(58% - 30px) of 140px height
     const basketPixels = (140 * 0.58) - 30;
     return (basketPixels / skyHeight) * 100;
@@ -1322,6 +1370,15 @@ function checkBoundaries() {
     }
 }
 
+function clearDroppedItems() {
+    droppedItems.forEach(item => {
+        if (item.el && item.el.parentNode) {
+            item.el.remove();
+        }
+    });
+    droppedItems = [];
+}
+
 function gameOver(msg = 'OVERHEAT') {
     if (gameState !== 'PLAY') return;
     gameState = 'GAMEOVER';
@@ -1343,6 +1400,7 @@ function gameOver(msg = 'OVERHEAT') {
 
     savePlayerData();
     updateLivesUI();
+    clearDroppedItems(); // 실패 시 배치된 아이템 소모 (삭제)
 
     if (lives < 0) {
         // All lives lost logic
@@ -1383,9 +1441,9 @@ function gameOver(msg = 'OVERHEAT') {
         // 상단 화면 밖으로 나가지 않도록 처리
         // balloonY가 높을 경우 (약 60% 이상) 말풍선을 아래쪽으로 배치
         if (balloonY > 60) {
-            failReasonBubble.style.bottom = `calc(7% + ${balloonY * 0.93}% - 50px)`; // 풍선 아래로
+            failReasonBubble.style.bottom = `calc(8.05% + ${balloonY * 0.9195}% - 50px)`; // 풍선 아래로
         } else {
-            failReasonBubble.style.bottom = `calc(7% + ${balloonY * 0.93}% + 140px)`; // 기존처럼 풍선 위로
+            failReasonBubble.style.bottom = `calc(8.05% + ${balloonY * 0.9195}% + 140px)`; // 기존처럼 풍선 위로
         }
 
         failReasonBubble.classList.remove('hidden');
@@ -1409,7 +1467,7 @@ function gameOver(msg = 'OVERHEAT') {
             // 시작 위치로 살짝 이동 (resetGame의 로직 일부 반영)
             balloonY = -getBasketOffset();
             balloonX = 50;
-            balloon.style.bottom = `calc(7% + ${balloonY * 0.93}%)`;
+            balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
             balloon.style.left = `${balloonX}%`;
         }
 
@@ -1448,37 +1506,44 @@ function winGame() {
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
     let finalScore = score;
 
-    if (isAlreadyCleared && !isEventLevel) {
-        finalScore = 0;
-        console.log("Already cleared level - Mission points not added and screen skipped");
-    } else {
-        if (isEventLevel) {
-            finalScore = (isAlreadyCleared ? 200 : score + 200); // 클리어 후 재플레이 시에는 보너스 200점만, 처음이면 코인+보너스
-            showEventBonusText();
-        }
+    // 점수창 UI 업데이트 (상세 정보 표시)
+    if (resultScoreEl) resultScoreEl.innerText = score;
+    if (resultFormulaEl) {
+        resultFormulaEl.innerHTML = `(${Math.floor(gas)} + (${Math.floor(timeLeft)} * 10) + ${landingBonus})`;
+    }
+
+    if (isEventLevel) {
+        finalScore = (isAlreadyCleared ? 200 : score + 200); // 이벤트 레벨은 이미 깨도 보너스 줌
+        showEventBonusText();
+    } else if (isAlreadyCleared) {
+        finalScore = 0; // 이미 클리어한 레벨은 점수 합산 안 함
+        console.log("Already cleared level - Score shown but mission points not added");
+    }
+
+    if (finalScore > 0) {
         totalCredits += finalScore;
-        if (!isAlreadyCleared) clearedLevels.push(currentLevel);
-        savePlayerData();
+    }
 
-        // Update accumulated total credits display
-        const totalEl = document.getElementById('accumulated-total-credits');
-        if (totalEl) totalEl.innerText = totalCredits;
+    if (!isAlreadyCleared) {
+        clearedLevels.push(currentLevel);
+    }
 
-        // Ground credit update
-        const groundCredits = document.getElementById('ground-credits-display');
-        if (groundCredits) groundCredits.innerText = `${totalCredits}C`;
-        if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
+    savePlayerData();
 
-        const currentDisplayName = LEVEL_CONFIGS[currentLevel].displayName;
-        if (clearTitleEl) clearTitleEl.innerText = currentDisplayName === "EVENT LEVEL" ? "EVENT LEVEL CLEAR!" : `LEVEL-${currentDisplayName} CLEAR`;
+    // 점수 합산 정보 업데이트
+    const totalEl = document.getElementById('accumulated-total-credits');
+    if (totalEl) totalEl.innerText = totalCredits;
+    const groundCredits = document.getElementById('ground-credits-display');
+    if (groundCredits) groundCredits.innerText = `${totalCredits}C`;
+    if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
 
-        if (currentDisplayName === "EVENT LEVEL") {
-            // 이벤트 레벨 클리어 시 점수창을 띄우지 않고 바로 결과 저장 및 유지
-            console.log("Event Level Cleared: Skipping score screen.");
-            // 점수창 대신 다른 시각적 피드백이 필요하다면 여기에 추가 (현재는 요청에 따라 삭제만 수행)
-        } else {
-            clearScreen.classList.remove('hidden');
-        }
+    const currentDisplayName = LEVEL_CONFIGS[currentLevel].displayName;
+    if (clearTitleEl) clearTitleEl.innerText = currentDisplayName === "EVENT LEVEL" ? "EVENT LEVEL CLEAR!" : `LEVEL-${currentDisplayName} CLEAR`;
+
+    if (currentDisplayName === "EVENT LEVEL") {
+        console.log("Event Level Cleared: Score stored quietly.");
+    } else {
+        clearScreen.classList.remove('hidden'); // 클리어 여부 상관없이 점수판 노출
     }
 
     updateNextLevelButtonVisibility();
@@ -1672,20 +1737,25 @@ function resetGame() {
     }
 }
 
-function clearDroppedItems() {
-    droppedItems.forEach(item => {
-        if (item.el && item.el.parentNode) {
-            item.el.remove();
-        }
-    });
-    droppedItems = [];
-}
 
 function updateWindLabels() {
     windLabels.forEach(label => {
         const zoneIdx = parseInt(label.dataset.zone);
-        const currentWind = ZONE_WINDS[zoneIdx] + tempWindBoosts[zoneIdx];
-        label.innerText = `${currentWind.toFixed(1)}m/s`;
+        let currentWind = ZONE_WINDS[zoneIdx] + tempWindBoosts[zoneIdx];
+
+        let displayWind = currentWind;
+        const absWind = Math.abs(currentWind);
+        const frac = parseFloat((absWind % 1).toFixed(2));
+
+        if (frac === 0.75) {
+            // 0.75 단위는 0.25 더함
+            displayWind = (currentWind > 0) ? currentWind + 0.25 : currentWind - 0.25;
+        } else if (frac === 0.25) {
+            // 0.25 단위는 0.25 뺌
+            displayWind = (currentWind > 0) ? currentWind - 0.25 : currentWind + 0.25;
+        }
+
+        label.innerText = `${displayWind.toFixed(2)}m/s`;
     });
 }
 
@@ -1738,7 +1808,7 @@ function checkLifeRegen() {
             balloon.style.transform = "translateX(-50%) scale(1)";
             balloonY = -getBasketOffset();
             balloonX = 50;
-            balloon.style.bottom = `calc(7% + ${balloonY * 0.93}%)`;
+            balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
             balloon.style.left = `${balloonX}%`;
         }
     }
@@ -1753,9 +1823,6 @@ init();
 updateLivesUI();
 savePlayerData(); // Initial ground credits UI update
 
-// 드랍 대상 설정
-gameContainer.addEventListener('dragover', (e) => e.preventDefault());
-gameContainer.addEventListener('drop', handleDrop);
 
 // 바람세기 표시 토글
 if (windToggleBtn) {
@@ -1781,7 +1848,7 @@ function showEventBonusText() {
     const posY = (100 / 7) * platformY;
 
     bonusEl.style.left = `${posX}%`;
-    bonusEl.style.bottom = `calc(7% + ${posY * 0.93}% + 15px)`;
+    bonusEl.style.bottom = `calc(8.05% + ${posY * 0.9195}% + 15px)`;
 
     gameContainer.appendChild(bonusEl);
 
