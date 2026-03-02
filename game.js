@@ -14,6 +14,7 @@ const timeTextEl = document.getElementById('time-text');
 const coordDebugger = document.getElementById('coord-debugger');
 const nextLevelBtn = document.getElementById('next-level-btn');
 const levelIndicator = document.getElementById('level-indicator');
+const levelHintEl = document.getElementById('level-hint');
 const resultGasEl = document.getElementById('result-gas');
 const resultTimeEl = document.getElementById('result-time');
 const resultScoreEl = document.getElementById('result-score');
@@ -265,6 +266,8 @@ function init() {
     if (itemLabelBtn) {
         itemLabelBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (gameState === 'PLAY') return; // 게임 도중에는 클릭 안되게
+
             const container = document.querySelector('.store-container');
             const isVisible = !storeScreen.classList.contains('hidden');
             const isInventory = container ? container.classList.contains('inventory-mode') : false;
@@ -288,6 +291,8 @@ function init() {
     if (storeLabelBtn) {
         storeLabelBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (gameState === 'PLAY') return; // 게임 도중에는 클릭 안되게
+
             const container = document.querySelector('.store-container');
             const isVisible = !storeScreen.classList.contains('hidden');
             const isInventory = container ? container.classList.contains('inventory-mode') : false;
@@ -597,9 +602,10 @@ function startGame() {
     mainActionBtn.classList.add('burner-mode');
     mainActionBtn.classList.remove('restart-mode');
     hasEnteredZone7 = false;
+    if (levelHintEl) levelHintEl.classList.add('hidden');
     const config = LEVEL_CONFIGS[currentLevel];
 
-    // 아이템 효과는 이제 인벤토리에서 직접 사용할 때만 발송되므로
+    // 아이템 효과는 이제 인벤토리에서 직접 사용할 때만 발동되므로
     // 시작 시에는 기본 설정값만 사용합니다. (자동 적용 안 함)
     currentMaxGas = config.maxGas;
     currentMaxTime = config.maxTime;
@@ -641,7 +647,7 @@ function startDragPlacement(key, initialEvent) {
     if (placementPreviewEl) placementPreviewEl.remove();
     const itemData = storeData.items[key];
     placementPreviewEl = document.createElement('div');
-    placementPreviewEl.className = 'dropped-item placement-preview';
+    placementPreviewEl.className = 'dropped-item placement-preview dragging';
     placementPreviewEl.innerHTML = `<img src="${itemData.icon}" alt="${itemData.name}">`;
     placementPreviewEl.style.opacity = "0.7";
     placementPreviewEl.style.pointerEvents = "none"; // 마우스 이벤트 방해 금지
@@ -680,6 +686,7 @@ function startDragPlacement(key, initialEvent) {
             upgrades[key]--;
             savePlayerData();
             updateStoreUI(true);
+            if (showWindLabels) updateWindLabels();
         }
 
         // 미리보기 제거
@@ -726,6 +733,10 @@ function placeItemOnScreen(key, x, y) {
 
     const onTouchDown = (e) => {
         if (e.type === 'mousedown' && e.button !== 0) return; // 왼쪽 클릭만 허용
+
+        // 게임 진행 중에는 아이템 조작 금지
+        if (gameState === 'PLAY') return;
+
         e.stopPropagation();
         if (e.cancelable) e.preventDefault(); // 브라우저 기본 드래그(금지 아이콘) 및 텍스트 선택 방지
 
@@ -753,6 +764,7 @@ function placeItemOnScreen(key, x, y) {
 
         if (!isMoving && Math.sqrt(dx * dx + dy * dy) > dragThreshold) {
             isMoving = true;
+            itemEl.classList.add('dragging');
             itemEl.style.opacity = "0.7";
             itemEl.style.zIndex = "2000";
         }
@@ -773,6 +785,7 @@ function placeItemOnScreen(key, x, y) {
                 droppedItems[index].x = currentX;
                 droppedItems[index].y = gameY;
             }
+            if (showWindLabels) updateWindLabels();
         }
         if (e.type === 'touchmove') e.preventDefault();
     };
@@ -783,6 +796,7 @@ function placeItemOnScreen(key, x, y) {
         window.removeEventListener('mouseup', onTouchUp);
         window.removeEventListener('touchend', onTouchUp);
 
+        itemEl.classList.remove('dragging');
         itemEl.style.opacity = "1";
         itemEl.style.zIndex = "100";
 
@@ -807,6 +821,7 @@ function placeItemOnScreen(key, x, y) {
 
         savePlayerData();
         updateStoreUI(true);
+        if (showWindLabels) updateWindLabels();
         setTimeout(() => itemEl.remove(), 300);
     };
 
@@ -822,6 +837,7 @@ function placeItemOnScreen(key, x, y) {
         y: y,
         el: itemEl
     });
+    if (showWindLabels) updateWindLabels();
 }
 
 
@@ -859,6 +875,7 @@ function updateStoreUI(isInventoryMode = false) {
         const storeOrder = ['life', 'fan_left', 'fan_right', 'gas_item', 'clock', 'weight'];
         const inventoryOrder = ['fan_left', 'empty', 'fan_right', 'clock', 'gas_item', 'weight'];
         const orderedKeys = isInventoryMode ? inventoryOrder : storeOrder;
+        const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
         orderedKeys.forEach(key => {
             if (key === 'empty') {
@@ -887,8 +904,27 @@ function updateStoreUI(isInventoryMode = false) {
 
             const itemDiv = document.createElement('div');
             itemDiv.className = `store-mini-item item-${key}`;
-            if (isInventoryMode && count === 0) {
-                itemDiv.classList.add('disabled-item');
+            if (isInventoryMode) {
+                let isItemDisabled = (count === 0);
+
+                if (displayName === "5" || displayName === "6") {
+                    const restrictionMap = { "5": "clock", "6": "fan_right" };
+                    const restrictedItem = restrictionMap[displayName];
+                    if (key !== restrictedItem || droppedItems.length > 0) {
+                        isItemDisabled = true;
+                    }
+                } else if (displayName === "7") {
+                    const allowedItems = ["fan_left", "fan_right"];
+                    const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
+                    if (!allowedItems.includes(key) || isAlreadyOnScreen) {
+                        isItemDisabled = true;
+                    }
+                }
+
+                if (isItemDisabled) {
+                    itemDiv.classList.add('disabled-item');
+                    itemDiv.style.opacity = "0.3";
+                }
             }
 
             // Conditional footer: Price for store (hidden by CSS if no mode), Count for inventory/Buy/Sell mode
@@ -955,11 +991,35 @@ function updateStoreUI(isInventoryMode = false) {
             } else {
                 // 인벤토리 모드: 누른 채로 이동하여 마우스를 놓을 때 한 개 배치
                 itemDiv.addEventListener('mousedown', (e) => {
+                    const displayName = LEVEL_CONFIGS[currentLevel].displayName;
+
+                    if (displayName === "5" || displayName === "6") {
+                        const restrictionMap = { "5": "clock", "6": "fan_right" };
+                        const restrictedItem = restrictionMap[displayName];
+                        if (key !== restrictedItem || droppedItems.length > 0) return;
+                    } else if (displayName === "7") {
+                        const allowedItems = ["fan_left", "fan_right"];
+                        const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
+                        if (!allowedItems.includes(key) || isAlreadyOnScreen) return;
+                    }
+
                     if (upgrades[key] > 0) {
                         startDragPlacement(key, e);
                     }
                 });
                 itemDiv.addEventListener('touchstart', (e) => {
+                    const displayName = LEVEL_CONFIGS[currentLevel].displayName;
+
+                    if (displayName === "5" || displayName === "6") {
+                        const restrictionMap = { "5": "clock", "6": "fan_right" };
+                        const restrictedItem = restrictionMap[displayName];
+                        if (key !== restrictedItem || droppedItems.length > 0) return;
+                    } else if (displayName === "7") {
+                        const allowedItems = ["fan_left", "fan_right"];
+                        const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
+                        if (!allowedItems.includes(key) || isAlreadyOnScreen) return;
+                    }
+
                     if (upgrades[key] > 0) {
                         startDragPlacement(key, e.touches[0]);
                     }
@@ -971,15 +1031,25 @@ function updateStoreUI(isInventoryMode = false) {
     }
 }
 
-function applyItemEffect(key) {
+function applyItemEffect(key, itemSource = null) {
+    const now = Date.now();
     if (key === 'clock') {
         // 시간 10초 추가
         missionStartTime += 10000;
-        console.log("Item used: Clock - 10s added");
+
+        // 잔여 시간 40초로 제한
+        const maxTimeLimit = 40;
+        const diffSeconds = (now - missionStartTime) / 1000;
+        const timeLeft = currentMaxTime - diffSeconds;
+
+        if (timeLeft > maxTimeLimit) {
+            missionStartTime = now - (currentMaxTime - maxTimeLimit) * 1000;
+        }
+        console.log("Item used: Clock - 10s added (Limited to 40s max)");
     } else if (key === 'gas_item') {
-        // 가스 100 충전 (현재 가스에 추가)
-        gas = Math.min(currentMaxGas, gas + 100);
-        console.log("Item used: Gas Item - 100 gas refilled");
+        // 가스 100 충전 (현재 가스에 추가, 최대 400으로 제한)
+        gas = Math.min(400, gas + 100);
+        console.log("Item used: Gas Item - 100 gas refilled (Limited to 400 max)");
     } else if (key === 'weight') {
         // 5초 동안 중력 5배 강화
         activeGravityMultiplier = 5;
@@ -988,12 +1058,19 @@ function applyItemEffect(key) {
             activeGravityMultiplier = 1;
         }, 5000);
     } else if (key === 'fan_left' || key === 'fan_right') {
-        // 현재 열기구가 위치한 구역 찾기 (파란 점 기준)
-        const skyHeight = gameContainer.clientHeight * 0.9195;
-        const markerOffsetPercentage = (79 / skyHeight) * 100;
-        const markerY = balloonY + markerOffsetPercentage;
+        let zoneIndex;
         const zoneHeight = 100 / 7;
-        const zoneIndex = Math.min(6, Math.max(0, Math.floor(markerY / zoneHeight)));
+
+        if (itemSource && typeof itemSource.y === 'number') {
+            // 아이템이 위치한 구역 찾기
+            zoneIndex = Math.min(6, Math.max(0, Math.floor(itemSource.y / zoneHeight)));
+        } else {
+            // (예외 처리) 열기구 위치 기준
+            const skyHeight = gameContainer.clientHeight * 0.9195;
+            const markerOffsetPercentage = (79 / skyHeight) * 100;
+            const markerY = balloonY + markerOffsetPercentage;
+            zoneIndex = Math.min(6, Math.max(0, Math.floor(markerY / zoneHeight)));
+        }
 
         const boostAmount = (key === 'fan_left') ? -3 : 3;
 
@@ -1168,7 +1245,19 @@ function handleMovement() {
 
     const zoneHeight = 100 / 7;
     const zoneIndex = Math.min(6, Math.max(0, Math.floor(markerY / zoneHeight)));
-    const windForce = ZONE_WINDS[zoneIndex] + tempWindBoosts[zoneIndex];
+
+    // Add continuous wind from dropped fan items in the current zone
+    let additionalFanWind = 0;
+    droppedItems.forEach(item => {
+        if (item.key === 'fan_left' || item.key === 'fan_right') {
+            const itemZoneIndex = Math.min(6, Math.max(0, Math.floor(item.y / zoneHeight)));
+            if (itemZoneIndex === zoneIndex) {
+                additionalFanWind += (item.key === 'fan_left' ? -3 : 3);
+            }
+        }
+    });
+
+    const windForce = ZONE_WINDS[zoneIndex] + tempWindBoosts[zoneIndex] + additionalFanWind;
 
     velX += windForce * 0.00165; // Reduced from 0.0033 (half of previous effect)
     velX *= FRICTION;
@@ -1264,10 +1353,11 @@ function checkDroppedItemCollisions() {
         const distSq = dx * dx + dy * dy;
 
         if (distSq < combinedRadiusSq) {
-            applyItemEffect(item.key);
+            applyItemEffect(item.key, item);
             item.el.classList.add('item-collected'); // 효과 애니메이션
             setTimeout(() => item.el.remove(), 500);
             droppedItems.splice(i, 1);
+            if (showWindLabels) updateWindLabels();
         }
     }
 }
@@ -1474,7 +1564,15 @@ function gameOver(msg = 'OVERHEAT') {
         if (LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL" || clearedLevels.includes(currentLevel)) {
             updateNextLevelButtonVisibility();
         }
-    }, 3000); // 3-second wait
+
+        // 5, 6, 7 레벨 실패 시 미션 가이드 다시 표시
+        if (levelHintEl) {
+            const displayName = LEVEL_CONFIGS[currentLevel].displayName;
+            if (displayName === "5" || displayName === "6" || displayName === "7") {
+                levelHintEl.classList.remove('hidden');
+            }
+        }
+    }, 2000); // 2-second wait
 }
 
 function winGame() {
@@ -1735,13 +1833,42 @@ function resetGame() {
         clearCoins();
         if (eventCounterEl) eventCounterEl.classList.add('hidden');
     }
+
+    if (levelHintEl) {
+        const displayName = config.displayName;
+        if (displayName === "5") {
+            levelHintEl.innerHTML = `Use Only <img src="자명종시계.png" class="hint-icon" alt="Clock"> x1`;
+            levelHintEl.classList.remove('hidden');
+        } else if (displayName === "6") {
+            levelHintEl.innerHTML = `Use Only <img src="선풍기우측.png" class="hint-icon" alt="Fan Right"> x1`;
+            levelHintEl.classList.remove('hidden');
+        } else if (displayName === "7") {
+            levelHintEl.innerHTML = `Use Only <img src="선풍기좌측.png" class="hint-icon" alt="Fan Left"> x1<br><span style="visibility: hidden;">Use Only </span><img src="선풍기우측.png" class="hint-icon" alt="Fan Right"> x1`;
+            levelHintEl.classList.remove('hidden');
+        } else {
+            levelHintEl.classList.add('hidden');
+        }
+    }
 }
 
 
 function updateWindLabels() {
+    const zoneHeight = 100 / 7;
     windLabels.forEach(label => {
         const zoneIdx = parseInt(label.dataset.zone);
-        let currentWind = ZONE_WINDS[zoneIdx] + tempWindBoosts[zoneIdx];
+
+        // Add continuous wind from dropped fan items in this zone
+        let additionalFanWind = 0;
+        droppedItems.forEach(item => {
+            if (item.key === 'fan_left' || item.key === 'fan_right') {
+                const itemZoneIndex = Math.min(6, Math.max(0, Math.floor(item.y / zoneHeight)));
+                if (itemZoneIndex === zoneIdx) {
+                    additionalFanWind += (item.key === 'fan_left' ? -3 : 3);
+                }
+            }
+        });
+
+        let currentWind = ZONE_WINDS[zoneIdx] + tempWindBoosts[zoneIdx] + additionalFanWind;
 
         let displayWind = currentWind;
         const absWind = Math.abs(currentWind);
