@@ -227,6 +227,13 @@ const LEVEL_CONFIGS = {
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
+    },
+    9: {
+        displayName: "8",
+        winds: [-1, -1, -1, -1, -1, 6, -1],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 2.0
     }
 };
 
@@ -919,6 +926,12 @@ function updateStoreUI(isInventoryMode = false) {
                     if (!allowedItems.includes(key) || isAlreadyOnScreen) {
                         isItemDisabled = true;
                     }
+                } else if (displayName === "8") {
+                    const allowedItems = ["fan_right", "weight"];
+                    const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
+                    if (!allowedItems.includes(key) || isAlreadyOnScreen) {
+                        isItemDisabled = true;
+                    }
                 }
 
                 if (isItemDisabled) {
@@ -1001,6 +1014,10 @@ function updateStoreUI(isInventoryMode = false) {
                         const allowedItems = ["fan_left", "fan_right"];
                         const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
                         if (!allowedItems.includes(key) || isAlreadyOnScreen) return;
+                    } else if (displayName === "8") {
+                        const allowedItems = ["fan_right", "weight"];
+                        const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
+                        if (!allowedItems.includes(key) || isAlreadyOnScreen) return;
                     }
 
                     if (upgrades[key] > 0) {
@@ -1016,6 +1033,10 @@ function updateStoreUI(isInventoryMode = false) {
                         if (key !== restrictedItem || droppedItems.length > 0) return;
                     } else if (displayName === "7") {
                         const allowedItems = ["fan_left", "fan_right"];
+                        const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
+                        if (!allowedItems.includes(key) || isAlreadyOnScreen) return;
+                    } else if (displayName === "8") {
+                        const allowedItems = ["fan_right", "weight"];
                         const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
                         if (!allowedItems.includes(key) || isAlreadyOnScreen) return;
                     }
@@ -1188,13 +1209,21 @@ function update() {
 }
 
 function updateTargetLine() {
-    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~8레벨 공통)
-    if (currentLevel >= 1 && currentLevel <= 8) {
-        targetLineX = 50;
+    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~9레벨 공통)
+    if (currentLevel >= 1 && currentLevel <= 9) {
+        const config = LEVEL_CONFIGS[currentLevel];
+        if (config.displayName === "8") {
+            const skyWidth = gameContainer.clientWidth;
+            const offsetPercent = (100 / skyWidth) * 100;
+            targetLineX = 50 + offsetPercent;
+        } else {
+            targetLineX = 50;
+        }
+
         targetLineEl.style.left = `${targetLineX}%`;
 
         // 레벨별 플랫폼 높이 반영 (비주얼)
-        const platformY = LEVEL_CONFIGS[currentLevel].platformY;
+        const platformY = config.platformY;
         const targetYBottom = (100 / 7) * platformY;
         targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + 12px)`;
 
@@ -1246,18 +1275,7 @@ function handleMovement() {
     const zoneHeight = 100 / 7;
     const zoneIndex = Math.min(6, Math.max(0, Math.floor(markerY / zoneHeight)));
 
-    // Add continuous wind from dropped fan items in the current zone
-    let additionalFanWind = 0;
-    droppedItems.forEach(item => {
-        if (item.key === 'fan_left' || item.key === 'fan_right') {
-            const itemZoneIndex = Math.min(6, Math.max(0, Math.floor(item.y / zoneHeight)));
-            if (itemZoneIndex === zoneIndex) {
-                additionalFanWind += (item.key === 'fan_left' ? -3 : 3);
-            }
-        }
-    });
-
-    const windForce = ZONE_WINDS[zoneIndex] + tempWindBoosts[zoneIndex] + additionalFanWind;
+    const windForce = ZONE_WINDS[zoneIndex] + tempWindBoosts[zoneIndex];
 
     velX += windForce * 0.00165; // Reduced from 0.0033 (half of previous effect)
     velX *= FRICTION;
@@ -1568,7 +1586,7 @@ function gameOver(msg = 'OVERHEAT') {
         // 5, 6, 7 레벨 실패 시 미션 가이드 다시 표시
         if (levelHintEl) {
             const displayName = LEVEL_CONFIGS[currentLevel].displayName;
-            if (displayName === "5" || displayName === "6" || displayName === "7") {
+            if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8") {
                 levelHintEl.classList.remove('hidden');
             }
         }
@@ -1607,7 +1625,7 @@ function winGame() {
     // 점수창 UI 업데이트 (상세 정보 표시)
     if (resultScoreEl) resultScoreEl.innerText = score;
     if (resultFormulaEl) {
-        resultFormulaEl.innerHTML = `(${Math.floor(gas)} + (${Math.floor(timeLeft)} * 10) + ${landingBonus})`;
+        resultFormulaEl.innerHTML = `(${Math.floor(gas)} + (${Math.floor(timeLeft)} * 10) + <span style="color: #ffd32a;">${landingBonus}</span>)`;
     }
 
     if (isEventLevel) {
@@ -1845,6 +1863,9 @@ function resetGame() {
         } else if (displayName === "7") {
             levelHintEl.innerHTML = `Use Only <img src="선풍기좌측.png" class="hint-icon" alt="Fan Left"> x1<br><span style="visibility: hidden;">Use Only </span><img src="선풍기우측.png" class="hint-icon" alt="Fan Right"> x1`;
             levelHintEl.classList.remove('hidden');
+        } else if (displayName === "8") {
+            levelHintEl.innerHTML = `Use Only <img src="선풍기우측.png" class="hint-icon" alt="Fan Right"> x1<br><span style="visibility: hidden;">Use Only </span><img src="무게추.png" class="hint-icon" alt="Weight"> x1`;
+            levelHintEl.classList.remove('hidden');
         } else {
             levelHintEl.classList.add('hidden');
         }
@@ -1857,18 +1878,7 @@ function updateWindLabels() {
     windLabels.forEach(label => {
         const zoneIdx = parseInt(label.dataset.zone);
 
-        // Add continuous wind from dropped fan items in this zone
-        let additionalFanWind = 0;
-        droppedItems.forEach(item => {
-            if (item.key === 'fan_left' || item.key === 'fan_right') {
-                const itemZoneIndex = Math.min(6, Math.max(0, Math.floor(item.y / zoneHeight)));
-                if (itemZoneIndex === zoneIdx) {
-                    additionalFanWind += (item.key === 'fan_left' ? -3 : 3);
-                }
-            }
-        });
-
-        let currentWind = ZONE_WINDS[zoneIdx] + tempWindBoosts[zoneIdx] + additionalFanWind;
+        let currentWind = ZONE_WINDS[zoneIdx] + tempWindBoosts[zoneIdx];
 
         let displayWind = currentWind;
         const absWind = Math.abs(currentWind);
