@@ -1406,6 +1406,20 @@ button:hover {
     transform: none;
 }
 
+.store-instruction {
+    color: #2ecc71;
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    margin-bottom: 20px;
+    display: none;
+    /* Only show in inventory mode */
+}
+
+.inventory-mode .store-instruction {
+    display: block;
+}
+
 #close-store-btn {
     margin-top: 30px;
     background: transparent;
