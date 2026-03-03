@@ -46,6 +46,29 @@ const eventCloseBtn = document.getElementById('event-close-btn');
 const eventAccumulatedTotalEl = document.getElementById('event-accumulated-total-credits');
 const windToggleBtn = document.getElementById('wind-toggle-btn');
 const windLabels = document.querySelectorAll('.wind-label');
+const steakContainer = document.getElementById('steak-cooking-container');
+const steakCanvas = document.getElementById('steak-canvas');
+const steakCtx = steakCanvas ? steakCanvas.getContext('2d', { willReadFrequently: true }) : null;
+
+const event2FloatingScore = document.getElementById('event2-floating-score');
+const event2CookedPctEl = document.getElementById('event2-cooked-pct');
+const event2CookedScoreEl = document.getElementById('event2-cooked-score');
+
+let steak1Img = new Image();
+steak1Img.src = '스테이크1.png';
+let steak2Img = new Image();
+steak2Img.src = '스테이크2.png';
+let steakMaskCanvas = document.createElement('canvas');
+let steakMaskCtx = steakMaskCanvas.getContext('2d');
+let isSteakLoaded = false;
+let cookedPercentage = 0;
+
+Promise.all([
+    new Promise(res => steak1Img.onload = res),
+    new Promise(res => steak2Img.onload = res)
+]).then(() => {
+    isSteakLoaded = true;
+});
 
 let showWindLabels = false;
 
@@ -201,7 +224,7 @@ const LEVEL_CONFIGS = {
         platformY: 6.0
     },
     5: {
-        displayName: "EVENT LEVEL",
+        displayName: "EVENT 1",
         winds: [-2, 2, -2, 2, -2, 2, -2],
         maxGas: 400,
         maxTime: 40,
@@ -231,6 +254,13 @@ const LEVEL_CONFIGS = {
     9: {
         displayName: "8",
         winds: [-1, -1, -1, -1, -1, 5, -8],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    10: {
+        displayName: "EVENT 2",
+        winds: [1, -1, -1, 1, -1, -1, 1],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -622,7 +652,18 @@ function init() {
 
 function startGame() {
     balloonX = 50;
-    balloonY = -getBasketOffset();
+    const config = LEVEL_CONFIGS[currentLevel];
+    if (config.displayName === "EVENT 2") {
+        // EVENT 2에서는 resetGame에서 설정한 상단 위치를 유지 (초기화 방지)
+        const skyHeight = gameContainer.clientHeight * 0.9195;
+        const pixelOffset = 12;
+        const targetYBottom = (100 / 7) * config.platformY + (pixelOffset / skyHeight) * 100;
+        const platformHeightPercentage = (9 / skyHeight) * 100;
+        const targetYTop = targetYBottom + platformHeightPercentage;
+        balloonY = targetYTop - getBasketOffset() + 0.5;
+    } else {
+        balloonY = -getBasketOffset();
+    }
     velX = 0;
     velY = 0;
     isBurning = false;
@@ -634,7 +675,7 @@ function startGame() {
     mainActionBtn.classList.remove('restart-mode');
     hasEnteredZone7 = false;
     if (levelHintEl) levelHintEl.classList.add('hidden');
-    const config = LEVEL_CONFIGS[currentLevel];
+    // const config = LEVEL_CONFIGS[currentLevel]; // 이미 상단에서 선언됨
 
     // 아이템 효과는 이제 인벤토리에서 직접 사용할 때만 발동되므로
     // 시작 시에는 기본 설정값만 사용합니다. (자동 적용 안 함)
@@ -1164,6 +1205,7 @@ function update() {
         handleMovement();
         checkBoundaries();
         updateTargetLine();
+        updateSteakCooking();
     }
 
     // Render (Balloon starts above the 8.05% ground, sky is 93% high)
@@ -1221,8 +1263,8 @@ function update() {
 }
 
 function updateTargetLine() {
-    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~9레벨 공통)
-    if (currentLevel >= 1 && currentLevel <= 9) {
+    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~10레벨 공통)
+    if (currentLevel >= 1 && currentLevel <= 10) {
         targetLineX = 50;
         targetLineEl.style.left = `${targetLineX}%`;
 
@@ -1325,12 +1367,16 @@ function handleMovement() {
 
         if (isTouchingTop) {
             if (velY < 0) { // Moving Top -> Bottom
-                winGame();
-                return;
-            } else if (velY > 0) { // Pushing against the top from below?
-                gameOver('CRASH');
-                return;
+                // EVENT 2 등 시작 지점이 플랫폼 위인 경우, 시작 직후(2초 이내)에는 착륙 판정을 유예하여 출발할 수 있게 함
+                if (LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2" && (Date.now() - missionStartTime < 2000)) {
+                    velY = 0;
+                    balloonY = platTop - getBasketOffset();
+                } else {
+                    winGame();
+                    return;
+                }
             }
+            // velY > 0 (상승) 시에는 크래시 없이 패드에서 벗어날 수 있도록 함
         }
         // If inside the platform but not at the very top -> Crash
         else if (basketY < platTop && basketY > platBottom) {
@@ -1602,6 +1648,9 @@ function gameOver(msg = 'OVERHEAT') {
 }
 
 function winGame() {
+    const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName.startsWith("EVENT");
+    const isEvent2 = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2";
+
     gameState = 'CLEAR';
     mainActionBtn.innerText = 'START';
     mainActionBtn.classList.remove('burner-mode');
@@ -1618,7 +1667,10 @@ function winGame() {
     let landingBonus = 0;
     let bonusText = "";
 
-    if (ratio <= 0.2) { landingBonus = 50; bonusText = "PERFECT"; }
+    if (isEvent2) {
+        landingBonus = 0;
+        bonusText = "STAKE EVENT";
+    } else if (ratio <= 0.2) { landingBonus = 50; bonusText = "PERFECT"; }
     else if (ratio <= 0.4) { landingBonus = 40; bonusText = "GREAT"; }
     else if (ratio <= 0.6) { landingBonus = 30; bonusText = "GOOD"; }
     else if (ratio <= 0.8) { landingBonus = 20; bonusText = "NICE"; }
@@ -1626,18 +1678,29 @@ function winGame() {
 
     const score = Math.floor(gas) + Math.floor(timeLeft * 10) + landingBonus;
 
-    const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL";
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
-    let finalScore = score;
+    const displayCookedPct = Math.floor(cookedPercentage * 2);
+    let finalScore = isEvent2 ? (displayCookedPct * 10) : score;
 
     // 점수창 UI 업데이트 (상세 정보 표시)
-    if (resultScoreEl) resultScoreEl.innerText = score;
-    if (resultFormulaEl) {
-        resultFormulaEl.innerHTML = `(${Math.floor(gas)} + (${Math.floor(timeLeft)} * 10) + <span style="color: #ffd32a;">${landingBonus}</span>)`;
+    if (isEvent2) {
+        if (resultScoreEl) resultScoreEl.innerText = finalScore;
+        if (resultFormulaEl) {
+            resultFormulaEl.innerHTML = `COOKED: ${displayCookedPct}% * 10`;
+        }
+    } else {
+        if (resultScoreEl) resultScoreEl.innerText = score;
+        if (resultFormulaEl) {
+            resultFormulaEl.innerHTML = `(${Math.floor(gas)} + (${Math.floor(timeLeft)} * 10) + <span style="color: #ffd32a;">${landingBonus}</span>)`;
+        }
     }
 
     if (isEventLevel) {
-        finalScore = (isAlreadyCleared ? 200 : score + 200); // 이벤트 레벨은 이미 깨도 보너스 줌
+        if (isEvent2) {
+            finalScore = (isAlreadyCleared ? 200 : finalScore + 200);
+        } else {
+            finalScore = (isAlreadyCleared ? 200 : score + 200);
+        }
         showEventBonusText();
     } else if (isAlreadyCleared) {
         finalScore = 0; // 이미 클리어한 레벨은 점수 합산 안 함
@@ -1662,11 +1725,12 @@ function winGame() {
     if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
 
     const currentDisplayName = LEVEL_CONFIGS[currentLevel].displayName;
-    if (clearTitleEl) clearTitleEl.innerText = currentDisplayName === "EVENT LEVEL" ? "EVENT LEVEL CLEAR!" : `LEVEL-${currentDisplayName} CLEAR`;
+    if (clearTitleEl) clearTitleEl.innerText = currentDisplayName.startsWith("EVENT") ? "EVENT LEVEL CLEAR!" : `LEVEL-${currentDisplayName} CLEAR`;
 
-    if (currentDisplayName === "EVENT LEVEL") {
+    if (currentDisplayName.startsWith("EVENT") && !isEvent2) {
         console.log("Event Level Cleared: Score stored quietly.");
     } else {
+        if (eventClearScreen) eventClearScreen.classList.add('hidden'); // 이벤트 결과창과 겹침 방지
         clearScreen.classList.remove('hidden'); // 클리어 여부 상관없이 점수판 노출
     }
 
@@ -1805,7 +1869,18 @@ function resetGame() {
 
     balloonX = 50;
     targetLineX = 50; // 리셋 시 타겟 라인 위치 초기화
-    balloonY = -getBasketOffset();
+
+    if (config.displayName === "EVENT 2") {
+        // 착륙패드 위에 위치 (Y축 좌표 계산)
+        const skyHeight = gameContainer.clientHeight * 0.9195;
+        const pixelOffset = 12;
+        const targetYBottom = (100 / 7) * config.platformY + (pixelOffset / skyHeight) * 100;
+        const platformHeightPercentage = (9 / skyHeight) * 100;
+        const targetYTop = targetYBottom + platformHeightPercentage;
+        balloonY = targetYTop - getBasketOffset() + 0.5; // 살짝 여유를 주어 안착
+    } else {
+        balloonY = -getBasketOffset();
+    }
     velX = 0;
     velY = 0;
     isBurning = false;
@@ -1826,9 +1901,18 @@ function resetGame() {
     // Update Level Indicator
     if (levelIndicator) {
         const displayName = config.displayName;
-        levelIndicator.innerText = (displayName === "EVENT LEVEL") ? displayName : `LV-${displayName}`;
+        levelIndicator.innerText = (displayName.startsWith("EVENT")) ? displayName : `LV-${displayName}`;
     }
     updateTargetLine();
+
+    // EVENT 2 전용: 스테이크 굽기 연출
+    if (config.displayName === "EVENT 2") {
+        steakContainer.classList.remove('hidden');
+        initSteakCanvas();
+    } else {
+        steakContainer.classList.add('hidden');
+    }
+
     console.log(`Resetting to Level ${currentLevel}`);
 
     if (lives <= 0) {
@@ -1843,21 +1927,35 @@ function resetGame() {
     mainActionBtn.classList.remove('overheated', 'burner-mode');
     mainActionBtn.classList.add('restart-mode');
     const currentDisplayName = config.displayName;
-    mainActionBtn.innerText = currentLevel === 1 ? 'START' : (currentDisplayName === "EVENT LEVEL" ? 'START EVENT LEVEL' : `START LEVEL ${currentDisplayName}`);
+    mainActionBtn.innerText = currentLevel === 1 ? 'START' : (currentDisplayName.startsWith("EVENT") ? 'START EVENT LEVEL' : `START LEVEL ${currentDisplayName}`);
     clearScreen.classList.add('hidden');
     failScreen.classList.add('hidden');
     if (failReasonBubble) failReasonBubble.classList.add('hidden');
     updateNextLevelButtonVisibility();
 
-    // EVENT LEVEL (LEVEL 6) 특수 기믹: 코인 생성 및 UI 처리
-    if (LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL") {
+    // EVENT LEVEL 특수 기믹: 코인 생성 및 UI 처리
+    if (LEVEL_CONFIGS[currentLevel].displayName === "EVENT 1") {
         createCoins();
         sessionEventCredits = 0;
         if (eventCreditsValEl) eventCreditsValEl.innerText = "0";
-        if (eventCounterEl) eventCounterEl.classList.remove('hidden');
+        if (eventCounterEl) {
+            eventCounterEl.classList.remove('hidden');
+            // Reset to default icon for EVENT 1
+            const coinIcon = eventCounterEl.querySelector('img');
+            if (coinIcon) coinIcon.style.display = 'inline-block';
+        }
+    } else if (LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2") {
+        clearCoins();
+        if (eventCounterEl) eventCounterEl.classList.add('hidden');
+        if (event2FloatingScore) {
+            event2FloatingScore.classList.remove('hidden');
+            if (event2CookedPctEl) event2CookedPctEl.innerText = "COOKED: 0%";
+            if (event2CookedScoreEl) event2CookedScoreEl.innerText = "0";
+        }
     } else {
         clearCoins();
         if (eventCounterEl) eventCounterEl.classList.add('hidden');
+        if (event2FloatingScore) event2FloatingScore.classList.add('hidden');
     }
 
     if (levelHintEl) {
@@ -1876,6 +1974,95 @@ function resetGame() {
     }
 }
 
+function initSteakCanvas() {
+    if (!isSteakLoaded || !steakCanvas) return;
+
+    const containerRect = steakContainer.getBoundingClientRect();
+    const maxWidth = containerRect.width * 0.8;
+    const maxHeight = containerRect.height * 0.6;
+
+    const imgRatio = steak1Img.width / steak1Img.height || 1.5;
+    let canvasWidth = maxWidth;
+    let canvasHeight = maxWidth / imgRatio;
+
+    if (canvasHeight > maxHeight) {
+        canvasHeight = maxHeight;
+        canvasWidth = maxHeight * imgRatio;
+    }
+
+    steakCanvas.width = canvasWidth;
+    steakCanvas.height = canvasHeight;
+    steakMaskCanvas.width = canvasWidth;
+    steakMaskCanvas.height = canvasHeight;
+
+    steakMaskCtx.fillStyle = 'black';
+    steakMaskCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    cookedPercentage = 0;
+    renderSteak();
+}
+
+function renderSteak() {
+    if (!steakCtx) return;
+
+    steakCtx.clearRect(0, 0, steakCanvas.width, steakCanvas.height);
+    steakCtx.drawImage(steak2Img, 0, 0, steakCanvas.width, steakCanvas.height);
+
+    let tempCanvas = document.createElement('canvas');
+    tempCanvas.width = steakCanvas.width;
+    tempCanvas.height = steakCanvas.height;
+    let tempCtx = tempCanvas.getContext('2d');
+
+    tempCtx.drawImage(steak1Img, 0, 0, steakCanvas.width, steakCanvas.height);
+    tempCtx.globalCompositeOperation = 'destination-in';
+    tempCtx.drawImage(steakMaskCanvas, 0, 0, steakCanvas.width, steakCanvas.height);
+
+    steakCtx.drawImage(tempCanvas, 0, 0);
+}
+
+function updateSteakCooking() {
+    if (gameState !== 'PLAY' || !isBurning || LEVEL_CONFIGS[currentLevel].displayName !== "EVENT 2") return;
+    if (!steakCanvas) return;
+
+    const rect = steakCanvas.getBoundingClientRect();
+    const balloonRect = balloon.getBoundingClientRect();
+    const flameX = balloonRect.left + balloonRect.width / 2;
+    const flameY = balloonRect.bottom - (balloonRect.height * 0.1);
+
+    const canvasX = ((flameX - rect.left) / rect.width) * steakCanvas.width;
+    const canvasY = ((flameY - rect.top) / rect.height) * steakCanvas.height;
+
+    steakMaskCtx.globalCompositeOperation = 'destination-out';
+    steakMaskCtx.beginPath();
+    steakMaskCtx.arc(canvasX, canvasY, 17.5, 0, Math.PI * 2);
+    steakMaskCtx.fill();
+    steakMaskCtx.globalCompositeOperation = 'source-over';
+
+    renderSteak();
+    calculateCookedPercentage();
+}
+
+function calculateCookedPercentage() {
+    if (!steakMaskCtx) return;
+    const imageData = steakMaskCtx.getImageData(0, 0, steakMaskCanvas.width, steakMaskCanvas.height);
+    const pixels = imageData.data;
+    let transparentCount = 0;
+
+    for (let i = 3; i < pixels.length; i += 4) {
+        if (pixels[i] === 0) transparentCount++;
+    }
+
+    cookedPercentage = (transparentCount / (steakMaskCanvas.width * steakMaskCanvas.height)) * 100;
+
+    // 실시간 UI 업데이트
+    if (LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2") {
+        const displayPct = Math.floor(cookedPercentage * 2);
+
+        // 새로운 플로팅 점수판 업데이트
+        if (event2CookedPctEl) event2CookedPctEl.innerText = `COOKED: ${displayPct}%`;
+        if (event2CookedScoreEl) event2CookedScoreEl.innerText = displayPct * 10;
+    }
+}
 
 function updateWindLabels() {
     const zoneHeight = 100 / 7;
@@ -1905,12 +2092,12 @@ function updateNextLevelButtonVisibility() {
 
     const nextLv = currentLevel + 1;
     const isCleared = clearedLevels.includes(currentLevel);
-    const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL";
+    const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName.startsWith("EVENT");
 
     // 이미 클리어한 레벨이거나, 이벤트 레벨이거나, 방금 클리어한 상태라면 다음 레벨 버튼 표시
     if (LEVEL_CONFIGS[nextLv] && (isCleared || isEventLevel || gameState === 'CLEAR')) {
         const nextDisplayName = LEVEL_CONFIGS[nextLv].displayName;
-        nextLevelBtn.innerText = (nextDisplayName === "EVENT LEVEL") ? nextDisplayName : `LEVEL ${nextDisplayName}`;
+        nextLevelBtn.innerText = (nextDisplayName.startsWith("EVENT")) ? nextDisplayName : `LEVEL ${nextDisplayName}`;
         nextLevelBtn.classList.remove('hidden');
     } else {
         nextLevelBtn.classList.add('hidden');
