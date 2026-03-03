@@ -24,7 +24,7 @@
             <div class="zone" id="zone-7">
                 <div class="dev-control">
                     <span>Z7</span>
-                    <input type="range" min="-6" max="6" step="0.25" value="1.5" class="wind-slider" data-zone="6">
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="6">
                     <span class="wind-val">1.5</span>
                 </div>
                 <div class="wind-label hidden" data-zone="6">1.50</div>
@@ -35,7 +35,7 @@
                 </div>
                 <div class="dev-control">
                     <span>Z6</span>
-                    <input type="range" min="-6" max="6" step="0.25" value="-1.5" class="wind-slider" data-zone="5">
+                    <input type="range" min="-8" max="8" step="0.25" value="-1.5" class="wind-slider" data-zone="5">
                     <span class="wind-val">-1.5</span>
                 </div>
                 <div class="wind-label hidden" data-zone="5">-1.50</div>
@@ -43,7 +43,7 @@
             <div class="zone" id="zone-5">
                 <div class="dev-control">
                     <span>Z5</span>
-                    <input type="range" min="-6" max="6" step="0.25" value="1.5" class="wind-slider" data-zone="4">
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="4">
                     <span class="wind-val">1.5</span>
                 </div>
                 <div class="wind-label hidden" data-zone="4">1.50</div>
@@ -51,7 +51,7 @@
             <div class="zone" id="zone-4">
                 <div class="dev-control">
                     <span>Z4</span>
-                    <input type="range" min="-6" max="6" step="0.25" value="-1.5" class="wind-slider" data-zone="3">
+                    <input type="range" min="-8" max="8" step="0.25" value="-1.5" class="wind-slider" data-zone="3">
                     <span class="wind-val">-1.5</span>
                 </div>
                 <div class="wind-label hidden" data-zone="3">-1.50</div>
@@ -59,7 +59,7 @@
             <div class="zone" id="zone-3">
                 <div class="dev-control">
                     <span>Z3</span>
-                    <input type="range" min="-6" max="6" step="0.25" value="1.5" class="wind-slider" data-zone="2">
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="2">
                     <span class="wind-val">1.5</span>
                 </div>
                 <div class="wind-label hidden" data-zone="2">1.50</div>
@@ -67,7 +67,7 @@
             <div class="zone" id="zone-2">
                 <div class="dev-control">
                     <span>Z2</span>
-                    <input type="range" min="-6" max="6" step="0.25" value="-1.5" class="wind-slider" data-zone="1">
+                    <input type="range" min="-8" max="8" step="0.25" value="-1.5" class="wind-slider" data-zone="1">
                     <span class="wind-val">-1.5</span>
                 </div>
                 <div class="wind-label hidden" data-zone="1">-1.50</div>
@@ -79,7 +79,7 @@
                 </div>
                 <div class="dev-control">
                     <span>Z1</span>
-                    <input type="range" min="-6" max="6" step="0.25" value="1.5" class="wind-slider" data-zone="0">
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="0">
                     <span class="wind-val">1.5</span>
                 </div>
                 <div class="wind-label hidden" data-zone="0">1.50</div>
@@ -162,6 +162,7 @@
                     TOTAL: <span id="accumulated-total-credits">0</span>C
                 </div>
             </div>
+            <button id="close-clear-btn" class="close-btn">×</button>
         </div>
 
         <div id="event-clear-screen" class="overlay hidden">
@@ -176,6 +177,7 @@
                     TOTAL: <span id="event-accumulated-total-credits">0</span>C
                 </div>
                 <button id="event-close-btn" class="event-btn">CONTINUE</button>
+                <button id="event-close-clear-btn" class="close-btn">×</button>
             </div>
         </div>
 

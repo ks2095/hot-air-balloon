@@ -230,10 +230,10 @@ const LEVEL_CONFIGS = {
     },
     9: {
         displayName: "8",
-        winds: [-1, -1, -1, -1, -1, 6, -1],
+        winds: [-1, -1, -1, -1, -1, 5, -8],
         maxGas: 400,
         maxTime: 40,
-        platformY: 2.0
+        platformY: 6.0
     }
 };
 
@@ -289,6 +289,7 @@ function init() {
                     mainActionBtn.classList.add('item-paused');
                 }
                 if (clearScreen) clearScreen.classList.add('hidden'); // Hide score window
+                if (levelHintEl) levelHintEl.classList.add('hidden'); // Hide mission hint
                 storeScreen.classList.remove('hidden');
                 updateStoreUI(true); // 인벤토리 모드로 열기/전환
             }
@@ -314,6 +315,7 @@ function init() {
                     mainActionBtn.classList.add('item-paused');
                 }
                 if (clearScreen) clearScreen.classList.add('hidden'); // Hide score window
+                if (levelHintEl) levelHintEl.classList.add('hidden'); // Hide mission hint
                 storeScreen.classList.remove('hidden');
                 storeOperationMode = null;
                 updateStoreUI(false); // 상점 모드로 열기/전환
@@ -367,6 +369,24 @@ function init() {
 
     if (eventCloseBtn) {
         eventCloseBtn.addEventListener('click', () => {
+            eventClearScreen.classList.add('hidden');
+            resetGame();
+        });
+    }
+
+    const closeClearBtn = document.getElementById('close-clear-btn');
+    if (closeClearBtn) {
+        closeClearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            clearScreen.classList.add('hidden');
+            resetGame();
+        });
+    }
+
+    const eventCloseClearBtn = document.getElementById('event-close-clear-btn');
+    if (eventCloseClearBtn) {
+        eventCloseClearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             eventClearScreen.classList.add('hidden');
             resetGame();
         });
@@ -628,6 +648,15 @@ function startGame() {
 }
 
 function resumeGame() {
+    // 아이템창 닫힐 때 미션 힌트 다시 표시
+    if (levelHintEl) {
+        const config = LEVEL_CONFIGS[currentLevel];
+        const displayName = config.displayName;
+        if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8") {
+            levelHintEl.classList.remove('hidden');
+        }
+    }
+
     if (gameState === 'PAUSED') {
         const now = Date.now();
         const pauseElapsed = now - pauseStartTime;
@@ -919,21 +948,11 @@ function updateStoreUI(isInventoryMode = false) {
                 let isItemDisabled = (count === 0);
 
                 if (displayName === "5" || displayName === "6") {
-                    const restrictionMap = { "5": "clock", "6": "fan_right" };
-                    const restrictedItem = restrictionMap[displayName];
-                    if (key !== restrictedItem || droppedItems.length > 0) {
+                    if (droppedItems.length > 0) {
                         isItemDisabled = true;
                     }
-                } else if (displayName === "7") {
-                    const allowedItems = ["fan_left", "fan_right"];
-                    const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
-                    if (!allowedItems.includes(key) || isAlreadyOnScreen) {
-                        isItemDisabled = true;
-                    }
-                } else if (displayName === "8") {
-                    const allowedItems = ["fan_right", "weight"];
-                    const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
-                    if (!allowedItems.includes(key) || isAlreadyOnScreen) {
+                } else if (displayName === "7" || displayName === "8") {
+                    if (droppedItems.length >= 2) {
                         isItemDisabled = true;
                     }
                 }
@@ -1011,17 +1030,9 @@ function updateStoreUI(isInventoryMode = false) {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
                     if (displayName === "5" || displayName === "6") {
-                        const restrictionMap = { "5": "clock", "6": "fan_right" };
-                        const restrictedItem = restrictionMap[displayName];
-                        if (key !== restrictedItem || droppedItems.length > 0) return;
-                    } else if (displayName === "7") {
-                        const allowedItems = ["fan_left", "fan_right"];
-                        const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
-                        if (!allowedItems.includes(key) || isAlreadyOnScreen) return;
-                    } else if (displayName === "8") {
-                        const allowedItems = ["fan_right", "weight"];
-                        const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
-                        if (!allowedItems.includes(key) || isAlreadyOnScreen) return;
+                        if (droppedItems.length > 0) return;
+                    } else if (displayName === "7" || displayName === "8") {
+                        if (droppedItems.length >= 2) return;
                     }
 
                     if (upgrades[key] > 0) {
@@ -1032,17 +1043,9 @@ function updateStoreUI(isInventoryMode = false) {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
                     if (displayName === "5" || displayName === "6") {
-                        const restrictionMap = { "5": "clock", "6": "fan_right" };
-                        const restrictedItem = restrictionMap[displayName];
-                        if (key !== restrictedItem || droppedItems.length > 0) return;
-                    } else if (displayName === "7") {
-                        const allowedItems = ["fan_left", "fan_right"];
-                        const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
-                        if (!allowedItems.includes(key) || isAlreadyOnScreen) return;
-                    } else if (displayName === "8") {
-                        const allowedItems = ["fan_right", "weight"];
-                        const isAlreadyOnScreen = droppedItems.some(item => item.key === key);
-                        if (!allowedItems.includes(key) || isAlreadyOnScreen) return;
+                        if (droppedItems.length > 0) return;
+                    } else if (displayName === "7" || displayName === "8") {
+                        if (droppedItems.length >= 2) return;
                     }
 
                     if (upgrades[key] > 0) {
@@ -1220,21 +1223,15 @@ function update() {
 function updateTargetLine() {
     // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~9레벨 공통)
     if (currentLevel >= 1 && currentLevel <= 9) {
-        const config = LEVEL_CONFIGS[currentLevel];
-        if (config.displayName === "8") {
-            const skyWidth = gameContainer.clientWidth;
-            const offsetPercent = (100 / skyWidth) * 100;
-            targetLineX = 50 + offsetPercent;
-        } else {
-            targetLineX = 50;
-        }
-
+        targetLineX = 50;
         targetLineEl.style.left = `${targetLineX}%`;
 
         // 레벨별 플랫폼 높이 반영 (비주얼)
+        const config = LEVEL_CONFIGS[currentLevel];
         const platformY = config.platformY;
         const targetYBottom = (100 / 7) * platformY;
-        targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + 12px)`;
+        const pixelOffset = config.displayName === "8" ? -3 : 12;
+        targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + ${pixelOffset}px)`;
 
         return;
     }
@@ -1293,8 +1290,10 @@ function handleMovement() {
 
     // Platform Dimensions
     const platformHeightPercentage = (9 / skyHeight) * 100;
-    const platformY = LEVEL_CONFIGS[currentLevel].platformY;
-    const targetYBottom = (100 / 7) * platformY + (12 / skyHeight) * 100; // Visual bottom of the platform
+    const config = LEVEL_CONFIGS[currentLevel];
+    const platformY = config.platformY;
+    const pixelOffset = config.displayName === "8" ? -3 : 12;
+    const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100; // Visual bottom of the platform
     const targetYTop = targetYBottom + platformHeightPercentage; // Top of the grass
 
     const platHalfWidth = (100 / 12) / 2;
@@ -1592,7 +1591,7 @@ function gameOver(msg = 'OVERHEAT') {
             updateNextLevelButtonVisibility();
         }
 
-        // 5, 6, 7 레벨 실패 시 미션 가이드 다시 표시
+        // 5, 6, 7, 8 레벨 실패 시 미션 가이드 다시 표시
         if (levelHintEl) {
             const displayName = LEVEL_CONFIGS[currentLevel].displayName;
             if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8") {
@@ -1862,19 +1861,15 @@ function resetGame() {
     }
 
     if (levelHintEl) {
+        levelHintEl.classList.remove('level-8-hint');
         const displayName = config.displayName;
-        if (displayName === "5") {
-            levelHintEl.innerHTML = `Use Only <img src="자명종시계.png" class="hint-icon" alt="Clock"> x1`;
+        if (displayName === "5" || displayName === "6") {
+            levelHintEl.innerHTML = `Use Only 1 Item`;
             levelHintEl.classList.remove('hidden');
-        } else if (displayName === "6") {
-            levelHintEl.innerHTML = `Use Only <img src="선풍기우측.png" class="hint-icon" alt="Fan Right"> x1`;
+        } else if (displayName === "7" || displayName === "8") {
+            levelHintEl.innerHTML = `Use Only 2 Items`;
             levelHintEl.classList.remove('hidden');
-        } else if (displayName === "7") {
-            levelHintEl.innerHTML = `Use Only <img src="선풍기좌측.png" class="hint-icon" alt="Fan Left"> x1<br><span style="visibility: hidden;">Use Only </span><img src="선풍기우측.png" class="hint-icon" alt="Fan Right"> x1`;
-            levelHintEl.classList.remove('hidden');
-        } else if (displayName === "8") {
-            levelHintEl.innerHTML = `Use Only <img src="선풍기우측.png" class="hint-icon" alt="Fan Right"> x1<br><span style="visibility: hidden;">Use Only </span><img src="무게추.png" class="hint-icon" alt="Weight"> x1`;
-            levelHintEl.classList.remove('hidden');
+            if (displayName === "8") levelHintEl.classList.add('level-8-hint');
         } else {
             levelHintEl.classList.add('hidden');
         }

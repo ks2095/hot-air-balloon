@@ -194,6 +194,8 @@ body {
 
 #level-hint {
     position: absolute;
+    top: 50%;
+    transform: translateY(calc(-50% - 40px));
     color: #ffd32a;
     /* Yellow */
     font-weight: 800;
@@ -205,6 +207,10 @@ body {
     z-index: 100;
     text-align: center;
     width: 100%;
+}
+
+#level-hint.level-8-hint {
+    transform: translateY(calc(-50% - 70px));
 }
 
 #level-hint.hidden {
@@ -422,6 +428,10 @@ body {
 
 .overlay.hidden {
     display: none;
+}
+
+.overlay {
+    pointer-events: auto !important;
 }
 
 .overlay h1 {
@@ -1555,6 +1565,38 @@ button:hover {
 #close-clear-btn:hover {
     background: #27ae60;
     transform: translate(-50%, 50%) scale(1.1);
+}
+
+.close-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    font-size: 1.5rem;
+    font-weight: 800;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 1002;
+    padding: 0;
+    line-height: 1;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1);
+}
+
+#event-clear-screen .close-btn {
+    top: 15px;
+    right: 15px;
 }
 
 #store-decorator {
