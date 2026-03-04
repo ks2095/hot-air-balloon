@@ -322,7 +322,7 @@ const LEVEL_CONFIGS = {
     },
     9: {
         displayName: "8",
-        winds: [-1, -1, -1, -1, -1, 5, -8],
+        winds: [-2, 2, -5, -4.75, 4.75, -4.75, 3],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -330,6 +330,13 @@ const LEVEL_CONFIGS = {
     10: {
         displayName: "EVENT 2",
         winds: [1, -1, -1, 1, -1, -1, 1],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    11: {
+        displayName: "9",
+        winds: [-1, -1, -1, -1, -1, 5, -8],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -742,17 +749,8 @@ function init() {
 function startGame() {
     balloonX = 50;
     const config = LEVEL_CONFIGS[currentLevel];
-    if (config.displayName === "EVENT 2") {
-        // EVENT 2에서는 resetGame에서 설정한 상단 위치를 유지 (초기화 방지)
-        const skyHeight = gameContainer.clientHeight * 0.9195;
-        const pixelOffset = 12;
-        const targetYBottom = (100 / 7) * config.platformY + (pixelOffset / skyHeight) * 100;
-        const platformHeightPercentage = (9 / skyHeight) * 100;
-        const targetYTop = targetYBottom + platformHeightPercentage;
-        balloonY = targetYTop - getBasketOffset() + 0.5;
-    } else {
-        balloonY = -getBasketOffset();
-    }
+    balloonY = -getBasketOffset();
+
     velX = 0;
     velY = 0;
     isBurning = false;
@@ -1352,8 +1350,8 @@ function update() {
 }
 
 function updateTargetLine() {
-    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~10레벨 공통)
-    if (currentLevel >= 1 && currentLevel <= 10) {
+    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~11레벨 공통)
+    if (currentLevel >= 1 && currentLevel <= 11) {
         targetLineX = 50;
         targetLineEl.style.left = `${targetLineX}%`;
 
@@ -1361,7 +1359,9 @@ function updateTargetLine() {
         const config = LEVEL_CONFIGS[currentLevel];
         const platformY = config.platformY;
         const targetYBottom = (100 / 7) * platformY;
-        const pixelOffset = config.displayName === "8" ? -3 : 12;
+        let pixelOffset = 12;
+        if (config.displayName === "8") pixelOffset = 7;
+        if (config.displayName === "9") pixelOffset = -3; // Raised by 20px from -23
         targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + ${pixelOffset}px)`;
 
         return;
@@ -1423,7 +1423,9 @@ function handleMovement() {
     const platformHeightPercentage = (9 / skyHeight) * 100;
     const config = LEVEL_CONFIGS[currentLevel];
     const platformY = config.platformY;
-    const pixelOffset = config.displayName === "8" ? -3 : 12;
+    let pixelOffset = 12;
+    if (config.displayName === "8") pixelOffset = 7;
+    if (config.displayName === "9") pixelOffset = -3;
     const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100; // Visual bottom of the platform
     const targetYTop = targetYBottom + platformHeightPercentage; // Top of the grass
 
@@ -1456,14 +1458,9 @@ function handleMovement() {
 
         if (isTouchingTop) {
             if (velY < 0) { // Moving Top -> Bottom
-                // EVENT 2 등 시작 지점이 플랫폼 위인 경우, 시작 직후(2초 이내)에는 착륙 판정을 유예하여 출발할 수 있게 함
-                if (LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2" && (Date.now() - missionStartTime < 2000)) {
-                    velY = 0;
-                    balloonY = platTop - getBasketOffset();
-                } else {
-                    winGame();
-                    return;
-                }
+                winGame();
+                return;
+
             }
             // velY > 0 (상승) 시에는 크래시 없이 패드에서 벗어날 수 있도록 함
         }
@@ -1960,17 +1957,8 @@ function resetGame() {
     balloonX = 50;
     targetLineX = 50; // 리셋 시 타겟 라인 위치 초기화
 
-    if (config.displayName === "EVENT 2") {
-        // 착륙패드 위에 위치 (Y축 좌표 계산)
-        const skyHeight = gameContainer.clientHeight * 0.9195;
-        const pixelOffset = 12;
-        const targetYBottom = (100 / 7) * config.platformY + (pixelOffset / skyHeight) * 100;
-        const platformHeightPercentage = (9 / skyHeight) * 100;
-        const targetYTop = targetYBottom + platformHeightPercentage;
-        balloonY = targetYTop - getBasketOffset() + 0.5; // 살짝 여유를 주어 안착
-    } else {
-        balloonY = -getBasketOffset();
-    }
+    balloonY = -getBasketOffset();
+
     velX = 0;
     velY = 0;
     isBurning = false;
@@ -2052,17 +2040,38 @@ function resetGame() {
         levelHintEl.classList.remove('level-8-hint');
         const displayName = config.displayName;
         if (displayName === "5" || displayName === "6") {
-            levelHintEl.innerHTML = `Use Only 1 Item`;
+            levelHintEl.innerHTML = `Use 1 item or less`;
             levelHintEl.classList.remove('hidden');
-        } else if (displayName === "7" || displayName === "8") {
-            levelHintEl.innerHTML = `Use Only 2 Items`;
+        } else if (displayName === "7" || displayName === "8" || displayName === "9") {
+            levelHintEl.innerHTML = `Use 2 items or less`;
             levelHintEl.classList.remove('hidden');
-            if (displayName === "8") levelHintEl.classList.add('level-8-hint');
+            if (displayName === "8" || displayName === "9") levelHintEl.classList.add('level-8-hint');
         } else {
             levelHintEl.classList.add('hidden');
         }
+
+        // Position level-hint 15px above the landing pad
+        if (!levelHintEl.classList.contains('hidden')) {
+            const skyHeight = gameContainer.clientHeight * 0.9195;
+            const platformY = config.platformY;
+            const targetYBottom = (100 / 7) * platformY;
+            let pixelOffset = 12;
+            if (config.displayName === "8") pixelOffset = 7;
+            if (config.displayName === "9") pixelOffset = -3;
+            const platformHeightPercentage = (9 / skyHeight) * 100;
+            const targetYTop = targetYBottom + (pixelOffset / skyHeight) * 100 + platformHeightPercentage;
+
+            levelHintEl.style.top = 'auto'; // Disable centering from CSS
+            levelHintEl.style.bottom = `calc(8.05% + ${targetYTop * 0.9195}% + 15px)`;
+            levelHintEl.style.transform = 'translateX(-50%)';
+            levelHintEl.style.left = '50%';
+            levelHintEl.style.width = '100.0%';
+            levelHintEl.style.textAlign = 'center';
+            levelHintEl.style.position = 'absolute';
+        }
     }
 }
+
 
 function initSteakCanvas() {
     if (!isSteakLoaded || !steakCanvas) return;

@@ -19,6 +19,7 @@
 
 <body>
     <div id="game-container">
+        <div id="level-hint" class="hidden"></div>
         <!-- 7 Zones will be generated here or defined -->
         <div id="sky-background">
             <div class="zone" id="zone-7">
@@ -30,9 +31,6 @@
                 <div class="wind-label hidden" data-zone="6">1.50</div>
             </div>
             <div class="zone" id="zone-6">
-                <div id="level-hint" class="hidden">
-                    Use Only <img src="자명종시계.png" class="hint-icon" alt="Clock"> x1
-                </div>
                 <div class="dev-control">
                     <span>Z6</span>
                     <input type="range" min="-8" max="8" step="0.25" value="-1.5" class="wind-slider" data-zone="5">
@@ -193,7 +191,7 @@
 
         <div id="store-screen" class="overlay hidden">
             <div class="store-container">
-                <div class="store-instruction">push and drop</div>
+                <div class="store-instruction">hold and drop</div>
                 <h2 class="store-title-main" id="store-title">AIR STORE</h2>
                 <div class="store-mode-row">
                     <button id="btn-buy-mode" class="mode-btn">BUY</button>
