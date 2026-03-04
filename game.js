@@ -145,9 +145,84 @@ function savePlayerData() {
     if (groundCredits) groundCredits.innerText = `${totalCredits}C`;
 }
 
-const burnerSound = new Audio('열기구소리.MP3');
-burnerSound.loop = true;
+// --- Sound Management with AudioContext ---
+class SoundManager {
+    constructor() {
+        this.context = null;
+        this.buffers = {};
+        this.activeSources = {};
+        this.isInitialized = false;
+    }
 
+    init() {
+        if (this.isInitialized) return;
+        this.context = new (window.AudioContext || window.webkitAudioContext)();
+        this.isInitialized = true;
+    }
+
+    async loadSound(name, url) {
+        try {
+            const response = await fetch(url);
+            const arrayBuffer = await response.arrayBuffer();
+            // decodeAudioData returns a promise in modern browsers
+            const audioBuffer = await new Promise((resolve, reject) => {
+                this.context.decodeAudioData(arrayBuffer, resolve, reject);
+            });
+            this.buffers[name] = audioBuffer;
+            console.log(`Sound loaded: ${name}`);
+        } catch (e) {
+            console.error(`Failed to load sound ${name}:`, e);
+        }
+    }
+
+    resume() {
+        if (this.context && this.context.state === 'suspended') {
+            this.context.resume();
+        }
+    }
+
+    play(name, loop = false, volume = 1.0) {
+        if (!this.context || !this.buffers[name]) return null;
+
+        const source = this.context.createBufferSource();
+        source.buffer = this.buffers[name];
+        source.loop = loop;
+
+        const gainNode = this.context.createGain();
+        gainNode.gain.value = volume;
+
+        source.connect(gainNode);
+        gainNode.connect(this.context.destination);
+
+        source.start(0);
+
+        if (loop) {
+            this.activeSources[name] = { source, gainNode };
+        } else {
+            // Auto clean up non-looping sources if needed, 
+            // though source nodes are one-shot anyway.
+        }
+
+        return source;
+    }
+
+    stop(name) {
+        if (this.activeSources[name]) {
+            try {
+                this.activeSources[name].source.stop();
+            } catch (e) { }
+            delete this.activeSources[name];
+        }
+    }
+}
+
+const soundMgr = new SoundManager();
+
+// Initial load (Note: AudioContext needs user interaction to start, but we can load buffers early)
+// However, creating context itself should be deferred to first touch for some browsers.
+// We'll init in the start handler.
+
+// BGM is long, keep it as Audio element for streaming
 const bgmFiles = [
     '열기구음악1.mp3', '열기구음악2.mp3', '열기구음악3.mp3', '열기구음악4.mp3',
     '열기구음악5.MP3', '열기구음악6.MP3', '열기구음악7.mp3', '열기구음악8.mp3'
@@ -160,38 +235,15 @@ bgmAudio.addEventListener('ended', () => {
     playRandomBGM(true);
 });
 
-const successSound = new Audio('미션성공.MP3');
-const explosionSound = new Audio('폭발.MP3');
-const coinSound = new Audio('코인소리.mp3');
-
-// Audio pool for sounds that can overlap (like coins)
-const coinSoundPool = [coinSound, coinSound.cloneNode(), coinSound.cloneNode()];
-let currentCoinIdx = 0;
-
 function playCoinSound() {
-    try {
-        const sound = coinSoundPool[currentCoinIdx];
-        sound.currentTime = 0;
-        sound.volume = 0.5;
-        sound.play().catch(e => { });
-        currentCoinIdx = (currentCoinIdx + 1) % coinSoundPool.length;
-    } catch (e) {
-        console.log("Coin sound play error:", e);
-    }
+    soundMgr.play('coin', false, 0.5);
 }
 
 function playRandomBGM(force = false) {
-    if (!force && !bgmAudio.paused && bgmAudio.src) return;
+    if (!force && !bgmAudio.paused && bgmAudio.src) return; // 이미 재생 중이면 다시 시작하지 않음
     const randomIndex = Math.floor(Math.random() * bgmFiles.length);
     bgmAudio.src = bgmFiles[randomIndex];
     bgmAudio.play().catch(e => console.log("BGM play failed:", e));
-}
-
-// Helper to play short sounds without overlapping issues
-function playSound(audio) {
-    if (!audio) return;
-    audio.currentTime = 0;
-    audio.play().catch(e => { });
 }
 
 // Game constants
@@ -476,6 +528,9 @@ function init() {
 
     // Controls
     mainActionBtn.addEventListener('mousedown', (e) => {
+        soundMgr.init(); // Create context on first touch
+        soundMgr.resume(); // Resume for iOS policy
+
         if (mainActionBtn.classList.contains('overheated')) return; // 대기 시간 동안 클릭 방지
         if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || mainActionBtn.classList.contains('restart-mode')) {
             if (lives <= 0) {
@@ -490,15 +545,18 @@ function init() {
             startGame();
         } else if (gameState === 'PLAY') {
             isBurning = true;
-            if (burnerSound.paused) {
-                burnerSound.play().catch(e => { });
+            if (!soundMgr.activeSources['burner']) {
+                soundMgr.play('burner', true, 1.0);
             }
         }
     });
 
     mainActionBtn.addEventListener('touchstart', (e) => {
         if (e.cancelable) e.preventDefault();
-        if (mainActionBtn.classList.contains('overheated')) return;
+        soundMgr.init();
+        soundMgr.resume();
+
+        if (mainActionBtn.classList.contains('overheated')) return; // 대기 시간 동안 클릭 방지
         if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || mainActionBtn.classList.contains('restart-mode')) {
             if (lives <= 0) {
                 const now = Date.now();
@@ -512,26 +570,19 @@ function init() {
             startGame();
         } else if (gameState === 'PLAY') {
             isBurning = true;
-            if (burnerSound.paused) {
-                burnerSound.play().catch(e => { });
+            if (!soundMgr.activeSources['burner']) {
+                soundMgr.play('burner', true, 1.0);
             }
         }
     }, { passive: false });
 
     window.addEventListener('mouseup', () => {
         isBurning = false;
-        if (!burnerSound.paused) {
-            burnerSound.pause();
-            // Don't reset currentTime every time for rapid taps to save CPU
-            // but if it's a long pause, maybe reset it. 
-            // For now, let's try just pausing.
-        }
+        soundMgr.stop('burner');
     });
     window.addEventListener('touchend', () => {
         isBurning = false;
-        if (!burnerSound.paused) {
-            burnerSound.pause();
-        }
+        soundMgr.stop('burner');
     });
     // dev controls
     document.querySelectorAll('.wind-slider').forEach(slider => {
@@ -670,7 +721,23 @@ function init() {
 
     requestAnimationFrame(update);
     applyStoreDecoration();
+
+    // Preload effects
+    async function preloadSounds() {
+        soundMgr.init();
+        const effects = [
+            { name: 'burner', url: '열기구소리.MP3' },
+            { name: 'success', url: '미션성공.MP3' },
+            { name: 'explosion', url: '폭발.MP3' },
+            { name: 'coin', url: '코인소리.mp3' }
+        ];
+        for (const effect of effects) {
+            await soundMgr.loadSound(effect.name, effect.url);
+        }
+    }
+    preloadSounds();
 }
+
 
 function startGame() {
     balloonX = 50;
@@ -1567,7 +1634,7 @@ function gameOver(msg = 'OVERHEAT') {
     if (gameState !== 'PLAY') return;
     gameState = 'GAMEOVER';
     isBurning = false;
-    burnerSound.pause();
+    soundMgr.stop('burner');
 
     const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL";
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
@@ -1612,7 +1679,7 @@ function gameOver(msg = 'OVERHEAT') {
     mainActionBtn.innerText = msg;
 
     // 폭발 사운드
-    playSound(explosionSound);
+    soundMgr.play('explosion');
 
     // 실패 사유 말풍선 표시
     if (failReasonBubble) {
@@ -1758,7 +1825,8 @@ function winGame() {
 
     updateNextLevelButtonVisibility();
 
-    playSound(successSound);
+    soundMgr.play('success');
+
 }
 
 function createParticles() {
