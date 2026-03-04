@@ -60,8 +60,6 @@ let steak2Img = new Image();
 steak2Img.src = '스테이크2.png';
 let steakMaskCanvas = document.createElement('canvas');
 let steakMaskCtx = steakMaskCanvas.getContext('2d');
-let steakTempCanvas = document.createElement('canvas');
-let steakTempCtx = steakTempCanvas.getContext('2d');
 let isSteakLoaded = false;
 let cookedPercentage = 0;
 
@@ -70,9 +68,6 @@ Promise.all([
     new Promise(res => steak2Img.onload = res)
 ]).then(() => {
     isSteakLoaded = true;
-    // Initialize temporary canvas size
-    steakTempCanvas.width = steakCanvas.width;
-    steakTempCanvas.height = steakCanvas.height;
 });
 
 let showWindLabels = false;
@@ -169,17 +164,34 @@ const successSound = new Audio('미션성공.MP3');
 const explosionSound = new Audio('폭발.MP3');
 const coinSound = new Audio('코인소리.mp3');
 
+// Audio pool for sounds that can overlap (like coins)
+const coinSoundPool = [coinSound, coinSound.cloneNode(), coinSound.cloneNode()];
+let currentCoinIdx = 0;
+
 function playCoinSound() {
-    const sound = coinSound.cloneNode();
-    sound.volume = 0.5;
-    sound.play().catch(e => console.log("Coin sound play error:", e));
+    try {
+        const sound = coinSoundPool[currentCoinIdx];
+        sound.currentTime = 0;
+        sound.volume = 0.5;
+        sound.play().catch(e => { });
+        currentCoinIdx = (currentCoinIdx + 1) % coinSoundPool.length;
+    } catch (e) {
+        console.log("Coin sound play error:", e);
+    }
 }
 
 function playRandomBGM(force = false) {
-    if (!force && !bgmAudio.paused && bgmAudio.src) return; // 이미 재생 중이면 다시 시작하지 않음
+    if (!force && !bgmAudio.paused && bgmAudio.src) return;
     const randomIndex = Math.floor(Math.random() * bgmFiles.length);
     bgmAudio.src = bgmFiles[randomIndex];
     bgmAudio.play().catch(e => console.log("BGM play failed:", e));
+}
+
+// Helper to play short sounds without overlapping issues
+function playSound(audio) {
+    if (!audio) return;
+    audio.currentTime = 0;
+    audio.play().catch(e => { });
 }
 
 // Game constants
@@ -479,14 +491,14 @@ function init() {
         } else if (gameState === 'PLAY') {
             isBurning = true;
             if (burnerSound.paused) {
-                burnerSound.play().catch(e => console.log("Audio play failed:", e));
+                burnerSound.play().catch(e => { });
             }
         }
     });
 
     mainActionBtn.addEventListener('touchstart', (e) => {
         if (e.cancelable) e.preventDefault();
-        if (mainActionBtn.classList.contains('overheated')) return; // 대기 시간 동안 클릭 방지
+        if (mainActionBtn.classList.contains('overheated')) return;
         if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || mainActionBtn.classList.contains('restart-mode')) {
             if (lives <= 0) {
                 const now = Date.now();
@@ -500,36 +512,27 @@ function init() {
             startGame();
         } else if (gameState === 'PLAY') {
             isBurning = true;
-            if (burnerPauseTimeout) {
-                clearTimeout(burnerPauseTimeout);
-                burnerPauseTimeout = null;
-            }
             if (burnerSound.paused) {
-                burnerSound.play().catch(e => console.log("Audio play failed:", e));
+                burnerSound.play().catch(e => { });
             }
         }
     }, { passive: false });
 
     window.addEventListener('mouseup', () => {
         isBurning = false;
-        handleBurnerStop();
+        if (!burnerSound.paused) {
+            burnerSound.pause();
+            // Don't reset currentTime every time for rapid taps to save CPU
+            // but if it's a long pause, maybe reset it. 
+            // For now, let's try just pausing.
+        }
     });
     window.addEventListener('touchend', () => {
         isBurning = false;
-        handleBurnerStop();
+        if (!burnerSound.paused) {
+            burnerSound.pause();
+        }
     });
-
-    let burnerPauseTimeout = null;
-    function handleBurnerStop() {
-        if (burnerPauseTimeout) return;
-        burnerPauseTimeout = setTimeout(() => {
-            if (!isBurning) {
-                burnerSound.pause();
-                burnerSound.currentTime = 0;
-            }
-            burnerPauseTimeout = null;
-        }, 150); // Add a small delay to prevent rapid play/pause cycling
-    }
     // dev controls
     document.querySelectorAll('.wind-slider').forEach(slider => {
         // 초기 값 동기화
@@ -1257,7 +1260,7 @@ function update() {
 
         // Update dev labels
         if (gasValEl) gasValEl.innerText = Math.floor(currentMaxGas - gas);
-        if (timeValEl) timeValEl.innerText = Math.floor(diffSeconds);
+        if (timeValEl) timeValEl.innerText = Math.floor(diffSeconds); // Show elapsed time as requested/original
 
         // Check fail conditions
         if (timeLeft <= 0 || gas <= 0) {
@@ -1272,26 +1275,13 @@ function update() {
             mainActionBtn.style.setProperty('--fill', '0%');
         }
     } else if (gameState === 'PAUSED') {
+        // 일시정지 중에는 아무 작업도 하지 않음 (resumeGame()에서 처리됨)
         mainActionBtn.style.setProperty('--fill', '0%');
     } else if (gameState === 'START' || gameState === 'CLEAR') {
         mainActionBtn.style.setProperty('--fill', '0%');
     }
 
-    updateParticles();
     requestAnimationFrame(update);
-}
-
-function updateParticles() {
-    particles.forEach(p => {
-        const wind = ZONE_WINDS[p.zoneIndex] + tempWindBoosts[p.zoneIndex];
-        p.x += wind * 0.12;
-
-        if (p.x > 110) p.x = -10;
-        if (p.x < -10) p.x = 110;
-
-        p.el.style.transform = `translateX(${p.x}%)`;
-        p.el.style.width = `${Math.abs(wind) * 5 + 5}px`;
-    });
 }
 
 function updateTargetLine() {
@@ -1622,7 +1612,7 @@ function gameOver(msg = 'OVERHEAT') {
     mainActionBtn.innerText = msg;
 
     // 폭발 사운드
-    explosionSound.play().catch(e => console.log("Explosion audio failed:", e));
+    playSound(explosionSound);
 
     // 실패 사유 말풍선 표시
     if (failReasonBubble) {
@@ -1768,7 +1758,7 @@ function winGame() {
 
     updateNextLevelButtonVisibility();
 
-    successSound.play().catch(e => console.log("Success audio failed:", e));
+    playSound(successSound);
 }
 
 function createParticles() {
@@ -1793,7 +1783,7 @@ function createParticles() {
             updateParticlePos(particle);
         }
     }
-    // No more independent animation loop needed
+    animateParticles();
 }
 
 function createCoins() {
@@ -1839,12 +1829,27 @@ function clearCoins() {
 }
 
 function updateParticlePos(p) {
-    p.el.style.transform = `translateX(${p.x}%)`;
+    p.el.style.left = `${p.x}%`;
     p.el.style.top = `${p.y}%`;
     p.el.style.width = `${Math.abs(ZONE_WINDS[p.zoneIndex]) * 5 + 5}px`;
 }
 
-// Particles are now updated in the main update loop via updateParticles()
+function animateParticles() {
+    particles.forEach(p => {
+        const wind = ZONE_WINDS[p.zoneIndex] + tempWindBoosts[p.zoneIndex];
+        // 모든 파티클이 구역의 바람 세기와 아이템 부스트에 영향을 받도록 수정
+        p.x += wind * 0.12;
+
+        if (p.x > 110) p.x = -10;
+        if (p.x < -10) p.x = 110;
+
+        p.el.style.left = `${p.x}%`;
+
+        // 바람 세기나 아이템 효과가 변할 때 길이를 실시간 반영
+        p.el.style.width = `${Math.abs(wind) * 5 + 5}px`;
+    });
+    requestAnimationFrame(animateParticles);
+}
 
 function createStars() {
     const sky = document.getElementById('sky-background');
@@ -2020,29 +2025,26 @@ function initSteakCanvas() {
 }
 
 function renderSteak() {
-    if (!steakCtx || !isSteakLoaded) return;
+    if (!steakCtx) return;
 
     steakCtx.clearRect(0, 0, steakCanvas.width, steakCanvas.height);
     steakCtx.drawImage(steak2Img, 0, 0, steakCanvas.width, steakCanvas.height);
 
-    if (steakTempCanvas.width !== steakCanvas.width || steakTempCanvas.height !== steakCanvas.height) {
-        steakTempCanvas.width = steakCanvas.width;
-        steakTempCanvas.height = steakCanvas.height;
-    }
+    let tempCanvas = document.createElement('canvas');
+    tempCanvas.width = steakCanvas.width;
+    tempCanvas.height = steakCanvas.height;
+    let tempCtx = tempCanvas.getContext('2d');
 
-    steakTempCtx.clearRect(0, 0, steakTempCanvas.width, steakTempCanvas.height);
-    steakTempCtx.drawImage(steak1Img, 0, 0, steakCanvas.width, steakCanvas.height);
-    steakTempCtx.globalCompositeOperation = 'destination-in';
-    steakTempCtx.drawImage(steakMaskCanvas, 0, 0, steakCanvas.width, steakCanvas.height);
-    steakTempCtx.globalCompositeOperation = 'source-over';
+    tempCtx.drawImage(steak1Img, 0, 0, steakCanvas.width, steakCanvas.height);
+    tempCtx.globalCompositeOperation = 'destination-in';
+    tempCtx.drawImage(steakMaskCanvas, 0, 0, steakCanvas.width, steakCanvas.height);
 
-    steakCtx.drawImage(steakTempCanvas, 0, 0);
+    steakCtx.drawImage(tempCanvas, 0, 0);
 }
 
-let lastPixelCheckTime = 0;
 function updateSteakCooking() {
     if (gameState !== 'PLAY' || !isBurning || LEVEL_CONFIGS[currentLevel].displayName !== "EVENT 2") return;
-    if (!steakCanvas || !isSteakLoaded) return;
+    if (!steakCanvas) return;
 
     const rect = steakCanvas.getBoundingClientRect();
     const balloonRect = balloon.getBoundingClientRect();
@@ -2059,12 +2061,7 @@ function updateSteakCooking() {
     steakMaskCtx.globalCompositeOperation = 'source-over';
 
     renderSteak();
-
-    const now = Date.now();
-    if (now - lastPixelCheckTime > 160) {
-        calculateCookedPercentage();
-        lastPixelCheckTime = now;
-    }
+    calculateCookedPercentage();
 }
 
 function calculateCookedPercentage() {
