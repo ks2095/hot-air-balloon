@@ -60,6 +60,8 @@ let steak2Img = new Image();
 steak2Img.src = '스테이크2.png';
 let steakMaskCanvas = document.createElement('canvas');
 let steakMaskCtx = steakMaskCanvas.getContext('2d');
+let steakTempCanvas = document.createElement('canvas');
+let steakTempCtx = steakTempCanvas.getContext('2d');
 let isSteakLoaded = false;
 let cookedPercentage = 0;
 
@@ -68,6 +70,9 @@ Promise.all([
     new Promise(res => steak2Img.onload = res)
 ]).then(() => {
     isSteakLoaded = true;
+    // Initialize temporary canvas size
+    steakTempCanvas.width = steakCanvas.width;
+    steakTempCanvas.height = steakCanvas.height;
 });
 
 let showWindLabels = false;
@@ -495,6 +500,10 @@ function init() {
             startGame();
         } else if (gameState === 'PLAY') {
             isBurning = true;
+            if (burnerPauseTimeout) {
+                clearTimeout(burnerPauseTimeout);
+                burnerPauseTimeout = null;
+            }
             if (burnerSound.paused) {
                 burnerSound.play().catch(e => console.log("Audio play failed:", e));
             }
@@ -503,14 +512,24 @@ function init() {
 
     window.addEventListener('mouseup', () => {
         isBurning = false;
-        burnerSound.pause();
-        burnerSound.currentTime = 0;
+        handleBurnerStop();
     });
     window.addEventListener('touchend', () => {
         isBurning = false;
-        burnerSound.pause();
-        burnerSound.currentTime = 0;
+        handleBurnerStop();
     });
+
+    let burnerPauseTimeout = null;
+    function handleBurnerStop() {
+        if (burnerPauseTimeout) return;
+        burnerPauseTimeout = setTimeout(() => {
+            if (!isBurning) {
+                burnerSound.pause();
+                burnerSound.currentTime = 0;
+            }
+            burnerPauseTimeout = null;
+        }, 150); // Add a small delay to prevent rapid play/pause cycling
+    }
     // dev controls
     document.querySelectorAll('.wind-slider').forEach(slider => {
         // 초기 값 동기화
@@ -1238,7 +1257,7 @@ function update() {
 
         // Update dev labels
         if (gasValEl) gasValEl.innerText = Math.floor(currentMaxGas - gas);
-        if (timeValEl) timeValEl.innerText = Math.floor(diffSeconds); // Show elapsed time as requested/original
+        if (timeValEl) timeValEl.innerText = Math.floor(diffSeconds);
 
         // Check fail conditions
         if (timeLeft <= 0 || gas <= 0) {
@@ -1253,13 +1272,26 @@ function update() {
             mainActionBtn.style.setProperty('--fill', '0%');
         }
     } else if (gameState === 'PAUSED') {
-        // 일시정지 중에는 아무 작업도 하지 않음 (resumeGame()에서 처리됨)
         mainActionBtn.style.setProperty('--fill', '0%');
     } else if (gameState === 'START' || gameState === 'CLEAR') {
         mainActionBtn.style.setProperty('--fill', '0%');
     }
 
+    updateParticles();
     requestAnimationFrame(update);
+}
+
+function updateParticles() {
+    particles.forEach(p => {
+        const wind = ZONE_WINDS[p.zoneIndex] + tempWindBoosts[p.zoneIndex];
+        p.x += wind * 0.12;
+
+        if (p.x > 110) p.x = -10;
+        if (p.x < -10) p.x = 110;
+
+        p.el.style.transform = `translateX(${p.x}%)`;
+        p.el.style.width = `${Math.abs(wind) * 5 + 5}px`;
+    });
 }
 
 function updateTargetLine() {
@@ -1761,7 +1793,7 @@ function createParticles() {
             updateParticlePos(particle);
         }
     }
-    animateParticles();
+    // No more independent animation loop needed
 }
 
 function createCoins() {
@@ -1807,27 +1839,12 @@ function clearCoins() {
 }
 
 function updateParticlePos(p) {
-    p.el.style.left = `${p.x}%`;
+    p.el.style.transform = `translateX(${p.x}%)`;
     p.el.style.top = `${p.y}%`;
     p.el.style.width = `${Math.abs(ZONE_WINDS[p.zoneIndex]) * 5 + 5}px`;
 }
 
-function animateParticles() {
-    particles.forEach(p => {
-        const wind = ZONE_WINDS[p.zoneIndex] + tempWindBoosts[p.zoneIndex];
-        // 모든 파티클이 구역의 바람 세기와 아이템 부스트에 영향을 받도록 수정
-        p.x += wind * 0.12;
-
-        if (p.x > 110) p.x = -10;
-        if (p.x < -10) p.x = 110;
-
-        p.el.style.left = `${p.x}%`;
-
-        // 바람 세기나 아이템 효과가 변할 때 길이를 실시간 반영
-        p.el.style.width = `${Math.abs(wind) * 5 + 5}px`;
-    });
-    requestAnimationFrame(animateParticles);
-}
+// Particles are now updated in the main update loop via updateParticles()
 
 function createStars() {
     const sky = document.getElementById('sky-background');
@@ -2003,26 +2020,29 @@ function initSteakCanvas() {
 }
 
 function renderSteak() {
-    if (!steakCtx) return;
+    if (!steakCtx || !isSteakLoaded) return;
 
     steakCtx.clearRect(0, 0, steakCanvas.width, steakCanvas.height);
     steakCtx.drawImage(steak2Img, 0, 0, steakCanvas.width, steakCanvas.height);
 
-    let tempCanvas = document.createElement('canvas');
-    tempCanvas.width = steakCanvas.width;
-    tempCanvas.height = steakCanvas.height;
-    let tempCtx = tempCanvas.getContext('2d');
+    if (steakTempCanvas.width !== steakCanvas.width || steakTempCanvas.height !== steakCanvas.height) {
+        steakTempCanvas.width = steakCanvas.width;
+        steakTempCanvas.height = steakCanvas.height;
+    }
 
-    tempCtx.drawImage(steak1Img, 0, 0, steakCanvas.width, steakCanvas.height);
-    tempCtx.globalCompositeOperation = 'destination-in';
-    tempCtx.drawImage(steakMaskCanvas, 0, 0, steakCanvas.width, steakCanvas.height);
+    steakTempCtx.clearRect(0, 0, steakTempCanvas.width, steakTempCanvas.height);
+    steakTempCtx.drawImage(steak1Img, 0, 0, steakCanvas.width, steakCanvas.height);
+    steakTempCtx.globalCompositeOperation = 'destination-in';
+    steakTempCtx.drawImage(steakMaskCanvas, 0, 0, steakCanvas.width, steakCanvas.height);
+    steakTempCtx.globalCompositeOperation = 'source-over';
 
-    steakCtx.drawImage(tempCanvas, 0, 0);
+    steakCtx.drawImage(steakTempCanvas, 0, 0);
 }
 
+let lastPixelCheckTime = 0;
 function updateSteakCooking() {
     if (gameState !== 'PLAY' || !isBurning || LEVEL_CONFIGS[currentLevel].displayName !== "EVENT 2") return;
-    if (!steakCanvas) return;
+    if (!steakCanvas || !isSteakLoaded) return;
 
     const rect = steakCanvas.getBoundingClientRect();
     const balloonRect = balloon.getBoundingClientRect();
@@ -2039,7 +2059,12 @@ function updateSteakCooking() {
     steakMaskCtx.globalCompositeOperation = 'source-over';
 
     renderSteak();
-    calculateCookedPercentage();
+
+    const now = Date.now();
+    if (now - lastPixelCheckTime > 160) {
+        calculateCookedPercentage();
+        lastPixelCheckTime = now;
+    }
 }
 
 function calculateCookedPercentage() {
