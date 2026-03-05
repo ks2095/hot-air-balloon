@@ -38,13 +38,20 @@ const buyModeBtn = document.getElementById('btn-buy-mode');
 const sellModeBtn = document.getElementById('btn-sell-mode');
 const clearTitleEl = document.getElementById('clear-title');
 const livesCountEl = document.getElementById('lives-count');
+const lifeBalloonIcon = document.getElementById('life-balloon-icon');
+const adsBtn = document.getElementById('ads-btn');
+const adOverlay = document.getElementById('ad-overlay');
 const eventClearScreen = document.getElementById('event-clear-screen');
 const eventResultScoreEl = document.getElementById('event-result-score');
 const eventCounterEl = document.getElementById('event-credit-counter');
 const eventCreditsValEl = document.getElementById('event-credits-val');
 const eventCloseBtn = document.getElementById('event-close-btn');
 const eventAccumulatedTotalEl = document.getElementById('event-accumulated-total-credits');
-const windToggleBtn = document.getElementById('wind-toggle-btn');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsScreen = document.getElementById('settings-screen');
+const windToggleSettingsBtn = document.getElementById('wind-toggle-settings-btn');
+const musicToggleSettingsBtn = document.getElementById('music-toggle-settings-btn');
+const closeSettingsBtn = document.getElementById('close-settings-btn');
 const windLabels = document.querySelectorAll('.wind-label');
 const steakContainer = document.getElementById('steak-cooking-container');
 const steakCanvas = document.getElementById('steak-canvas');
@@ -71,6 +78,7 @@ Promise.all([
 });
 
 let showWindLabels = false;
+let isMusicEnabled = (localStorage.getItem('balloon_music_enabled') !== 'false'); // Default true
 
 let storeOperationMode = null; // 'buy', 'sell' or null
 
@@ -83,6 +91,7 @@ let upgrades = JSON.parse(localStorage.getItem('balloon_upgrades')) || {
     weight: 0
 };
 let lives = parseInt(localStorage.getItem('balloon_lives')) || 7;
+if (lives > 7) lives = 7; // Cap at 7
 let lastLifeUpdate = parseInt(localStorage.getItem('balloon_last_life_update')) || Date.now();
 let clearedLevels = JSON.parse(localStorage.getItem('balloon_cleared_levels')) || [];
 
@@ -139,79 +148,57 @@ function savePlayerData() {
     localStorage.setItem('balloon_cleared_levels', JSON.stringify(clearedLevels));
     localStorage.setItem('balloon_lives', lives);
     localStorage.setItem('balloon_last_life_update', lastLifeUpdate);
+    localStorage.setItem('balloon_music_enabled', isMusicEnabled);
 
     // Update ground credit display
     const groundCredits = document.getElementById('ground-credits-display');
     if (groundCredits) groundCredits.innerText = `${totalCredits}C`;
 }
 
-// --- Sound Management with AudioContext ---
+// --- Sound Management (Simplified for compatibility) ---
 class SoundManager {
     constructor() {
-        this.context = null;
-        this.buffers = {};
-        this.activeSources = {};
-        this.isInitialized = false;
+        this.sounds = {};
     }
 
     init() {
-        if (this.isInitialized) return;
-        this.context = new (window.AudioContext || window.webkitAudioContext)();
-        this.isInitialized = true;
+        // No explicit init needed for Audio objects, but kept for compatibility
     }
 
     async loadSound(name, url) {
-        try {
-            const response = await fetch(url);
-            const arrayBuffer = await response.arrayBuffer();
-            // decodeAudioData returns a promise in modern browsers
-            const audioBuffer = await new Promise((resolve, reject) => {
-                this.context.decodeAudioData(arrayBuffer, resolve, reject);
-            });
-            this.buffers[name] = audioBuffer;
-            console.log(`Sound loaded: ${name}`);
-        } catch (e) {
-            console.error(`Failed to load sound ${name}:`, e);
-        }
+        const audio = new Audio();
+        audio.src = url;
+        audio.preload = 'auto';
+        this.sounds[name] = audio;
+        return Promise.resolve();
     }
 
-    resume() {
-        if (this.context && this.context.state === 'suspended') {
-            this.context.resume();
-        }
+    async resume() {
+        // No explicit resume needed
     }
 
-    play(name, loop = false, volume = 1.0) {
-        if (!this.context || !this.buffers[name]) return null;
-
-        const source = this.context.createBufferSource();
-        source.buffer = this.buffers[name];
-        source.loop = loop;
-
-        const gainNode = this.context.createGain();
-        gainNode.gain.value = volume;
-
-        source.connect(gainNode);
-        gainNode.connect(this.context.destination);
-
-        source.start(0);
+    async play(name, loop = false, volume = 1.0) {
+        const audio = this.sounds[name];
+        if (!audio) return null;
 
         if (loop) {
-            this.activeSources[name] = { source, gainNode };
+            audio.loop = true;
+            audio.volume = volume;
+            audio.play().catch(e => console.log(`Play failed: ${name}`, e));
+            return audio;
         } else {
-            // Auto clean up non-looping sources if needed, 
-            // though source nodes are one-shot anyway.
+            const sfx = audio.cloneNode();
+            sfx.volume = volume;
+            sfx.play().catch(e => console.log(`Play failed: ${name}`, e));
+            return sfx;
         }
-
-        return source;
     }
 
     stop(name) {
-        if (this.activeSources[name]) {
-            try {
-                this.activeSources[name].source.stop();
-            } catch (e) { }
-            delete this.activeSources[name];
+        const audio = this.sounds[name];
+        if (audio) {
+            audio.pause();
+            audio.currentTime = 0;
         }
     }
 }
@@ -235,11 +222,46 @@ bgmAudio.addEventListener('ended', () => {
     playRandomBGM(true);
 });
 
+// --- Sound Logic ---
+let isSoundPreloaded = false;
+
+async function startSoundSystem() {
+    if (isSoundPreloaded) return;
+    soundMgr.init();
+    await soundMgr.resume();
+    await preloadSounds();
+    isSoundPreloaded = true;
+}
+
+async function preloadSounds() {
+    soundMgr.init();
+    const effects = [
+        { name: 'burner', url: '열기구소리.MP3' },
+        { name: 'burner_alt', url: '열기구소리..MP3' }, // Fallback
+        { name: 'success', url: '미션성공.MP3' },
+        { name: 'explosion', url: '폭발.MP3' },
+        { name: 'coin', url: '코인소리.mp3' },
+        { name: 'life', url: '생명소리.MP3' }
+    ];
+    // Parallel loading
+    try {
+        await Promise.all(effects.map(effect => soundMgr.loadSound(effect.name, effect.url)));
+        console.log("All sounds preloaded successfully");
+    } catch (e) {
+        console.error("Some sounds failed to preload", e);
+    }
+}
+
 function playCoinSound() {
+    if (!isSoundPreloaded) startSoundSystem();
     soundMgr.play('coin', false, 0.5);
 }
 
 function playRandomBGM(force = false) {
+    if (!isMusicEnabled) {
+        bgmAudio.pause();
+        return;
+    }
     if (!force && !bgmAudio.paused && bgmAudio.src) return; // 이미 재생 중이면 다시 시작하지 않음
     const randomIndex = Math.floor(Math.random() * bgmFiles.length);
     bgmAudio.src = bgmFiles[randomIndex];
@@ -377,8 +399,10 @@ function init() {
     createStars();
 
     if (itemLabelBtn) {
-        itemLabelBtn.addEventListener('click', (e) => {
+        itemLabelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            if (!isSoundPreloaded) await startSoundSystem();
+            if (!settingsScreen.classList.contains('hidden')) return;
             if (gameState === 'PLAY') return; // 게임 도중에는 클릭 안되게
 
             const container = document.querySelector('.store-container');
@@ -403,8 +427,10 @@ function init() {
     }
 
     if (storeLabelBtn) {
-        storeLabelBtn.addEventListener('click', (e) => {
+        storeLabelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            if (!isSoundPreloaded) await startSoundSystem();
+            if (!settingsScreen.classList.contains('hidden')) return;
             if (gameState === 'PLAY') return; // 게임 도중에는 클릭 안되게
 
             const container = document.querySelector('.store-container');
@@ -498,6 +524,53 @@ function init() {
         });
     }
 
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (gameState === 'PLAY') {
+                gameState = 'PAUSED';
+                pauseStartTime = Date.now();
+                mainActionBtn.innerText = 'PAUSE';
+                mainActionBtn.classList.add('item-paused');
+            }
+            settingsScreen.classList.remove('hidden');
+            updateSettingsUI();
+        });
+    }
+
+    if (closeSettingsBtn) {
+        closeSettingsBtn.addEventListener('click', () => {
+            settingsScreen.classList.add('hidden');
+            if (gameState === 'PAUSED' && !storeScreen.classList.contains('hidden') === false) {
+                resumeGame(); // Ensure it doesn't resume if store is still open
+            }
+        });
+    }
+
+    if (windToggleSettingsBtn) {
+        windToggleSettingsBtn.addEventListener('click', () => {
+            showWindLabels = !showWindLabels;
+            windLabels.forEach(label => {
+                label.classList.toggle('hidden', !showWindLabels);
+            });
+            if (showWindLabels) updateWindLabels();
+            updateSettingsUI();
+        });
+    }
+
+    if (musicToggleSettingsBtn) {
+        musicToggleSettingsBtn.addEventListener('click', () => {
+            isMusicEnabled = !isMusicEnabled;
+            if (isMusicEnabled) {
+                playRandomBGM(true);
+            } else {
+                bgmAudio.pause();
+            }
+            savePlayerData();
+            updateSettingsUI();
+        });
+    }
+
 
 
     if (saveDecoBtn) {
@@ -534,10 +607,11 @@ function init() {
     }
 
     // Controls
-    mainActionBtn.addEventListener('mousedown', (e) => {
-        soundMgr.init(); // Create context on first touch
-        soundMgr.resume(); // Resume for iOS policy
+    mainActionBtn.addEventListener('mousedown', async (e) => {
+        if (!isSoundPreloaded) await startSoundSystem();
+        soundMgr.resume();
 
+        if (!settingsScreen.classList.contains('hidden')) return;
         if (mainActionBtn.classList.contains('overheated')) return; // 대기 시간 동안 클릭 방지
         if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || mainActionBtn.classList.contains('restart-mode')) {
             if (lives <= 0) {
@@ -552,15 +626,19 @@ function init() {
             startGame();
         } else if (gameState === 'PLAY') {
             isBurning = true;
-            if (!soundMgr.activeSources['burner']) {
-                soundMgr.play('burner', true, 1.0);
+            const burnerSound = soundMgr.sounds['burner'];
+            const burnerAlt = soundMgr.sounds['burner_alt'];
+            if (burnerSound && burnerSound.paused) {
+                soundMgr.play('burner', true, 1.0).catch(() => {
+                    if (burnerAlt && burnerAlt.paused) soundMgr.play('burner_alt', true, 1.0);
+                });
             }
         }
     });
 
-    mainActionBtn.addEventListener('touchstart', (e) => {
+    mainActionBtn.addEventListener('touchstart', async (e) => {
         if (e.cancelable) e.preventDefault();
-        soundMgr.init();
+        if (!isSoundPreloaded) await startSoundSystem();
         soundMgr.resume();
 
         if (mainActionBtn.classList.contains('overheated')) return; // 대기 시간 동안 클릭 방지
@@ -577,8 +655,12 @@ function init() {
             startGame();
         } else if (gameState === 'PLAY') {
             isBurning = true;
-            if (!soundMgr.activeSources['burner']) {
-                soundMgr.play('burner', true, 1.0);
+            const burnerSound = soundMgr.sounds['burner'];
+            const burnerAlt = soundMgr.sounds['burner_alt'];
+            if (burnerSound && burnerSound.paused) {
+                soundMgr.play('burner', true, 1.0).catch(() => {
+                    if (burnerAlt && burnerAlt.paused) soundMgr.play('burner_alt', true, 1.0);
+                });
             }
         }
     }, { passive: false });
@@ -586,10 +668,12 @@ function init() {
     window.addEventListener('mouseup', () => {
         isBurning = false;
         soundMgr.stop('burner');
+        soundMgr.stop('burner_alt');
     });
     window.addEventListener('touchend', () => {
         isBurning = false;
         soundMgr.stop('burner');
+        soundMgr.stop('burner_alt');
     });
     // dev controls
     document.querySelectorAll('.wind-slider').forEach(slider => {
@@ -728,21 +812,6 @@ function init() {
 
     requestAnimationFrame(update);
     applyStoreDecoration();
-
-    // Preload effects
-    async function preloadSounds() {
-        soundMgr.init();
-        const effects = [
-            { name: 'burner', url: '열기구소리.MP3' },
-            { name: 'success', url: '미션성공.MP3' },
-            { name: 'explosion', url: '폭발.MP3' },
-            { name: 'coin', url: '코인소리.mp3' }
-        ];
-        for (const effect of effects) {
-            await soundMgr.loadSound(effect.name, effect.url);
-        }
-    }
-    preloadSounds();
 }
 
 
@@ -2226,6 +2295,8 @@ function checkLifeRegen() {
         lives = Math.min(7, lives + recoverAmount);
         lastLifeUpdate += recoverAmount * regenInterval;
         savePlayerData();
+        updateLivesUI();
+        triggerLifeSparkle();
         console.log(`Life regenerated: +${recoverAmount} lives`);
 
         if (oldLives === 0 && lives > 0) {
@@ -2251,15 +2322,16 @@ updateLivesUI();
 savePlayerData(); // Initial ground credits UI update
 
 
-// 바람세기 표시 토글
-if (windToggleBtn) {
-    windToggleBtn.addEventListener('click', () => {
-        showWindLabels = !showWindLabels;
-        windLabels.forEach(label => {
-            label.classList.toggle('hidden', !showWindLabels);
-        });
-        if (showWindLabels) updateWindLabels();
-    });
+// --- Settings Management ---
+function updateSettingsUI() {
+    if (windToggleSettingsBtn) {
+        windToggleSettingsBtn.classList.toggle('active', showWindLabels);
+        windToggleSettingsBtn.innerText = showWindLabels ? 'ON' : 'OFF';
+    }
+    if (musicToggleSettingsBtn) {
+        musicToggleSettingsBtn.classList.toggle('active', isMusicEnabled);
+        musicToggleSettingsBtn.innerText = isMusicEnabled ? 'ON' : 'OFF';
+    }
 }
 
 function showEventBonusText() {
@@ -2284,3 +2356,70 @@ function showEventBonusText() {
         bonusEl.remove();
     }, 2000);
 }
+
+function showAd() {
+    if (adOverlay) {
+        adOverlay.classList.remove('hidden');
+        const timerEl = adOverlay.querySelector('.ad-timer');
+        let timeLeft = 20;
+
+        if (timerEl) timerEl.innerText = timeLeft;
+
+        const countdown = setInterval(() => {
+            timeLeft--;
+            if (timerEl) timerEl.innerText = timeLeft;
+
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                adOverlay.classList.add('hidden');
+
+                // Reward: 2 lives (max 7)
+                lives = Math.min(7, lives + 2);
+                savePlayerData();
+                updateLivesUI();
+                triggerLifeSparkle();
+
+                // Play life soundEffect
+                soundMgr.resume();
+                soundMgr.play('life');
+
+                // If the balloon was hidden due to no lives, show it
+                if (lives > 0 && balloon.style.opacity === "0") {
+                    balloon.style.opacity = "1";
+                    balloon.classList.remove('explosion');
+                    balloon.style.transform = "translateX(-50%) scale(1)";
+                    balloonY = -getBasketOffset();
+                    balloonX = 50;
+                    balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
+                    balloon.style.left = `${balloonX}%`;
+                }
+            }
+        }, 1000);
+    }
+}
+function triggerLifeSparkle() {
+    if (lifeBalloonIcon) {
+        lifeBalloonIcon.classList.remove('sparkle-effect');
+        void lifeBalloonIcon.offsetWidth; // Force reflow
+        lifeBalloonIcon.classList.add('sparkle-effect');
+
+        setTimeout(() => {
+            lifeBalloonIcon.classList.remove('sparkle-effect');
+        }, 1200);
+    }
+}
+
+if (adsBtn) {
+    adsBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!settingsScreen.classList.contains('hidden')) return;
+        if (!isSoundPreloaded) await startSoundSystem();
+        soundMgr.resume();
+        if (lives >= 7) {
+            alert("생명이 이미 가득 찼습니다! (최대 7개)");
+            return;
+        }
+        showAd();
+    });
+}
+

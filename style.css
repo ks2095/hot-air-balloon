@@ -161,17 +161,74 @@ body {
     pointer-events: none;
 }
 
-#wind-toggle-btn {
+#settings-btn {
     position: absolute;
     top: 30px;
-    left: 10px;
+    left: 10.5px;
     color: #2ecc71;
-    font-size: 0.75rem;
+    font-size: 1.15rem;
     font-weight: 800;
     cursor: pointer;
     z-index: 50;
     user-select: none;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+
+.settings-title {
+    color: #fff;
+    font-size: 1.4rem;
+    margin-bottom: 2rem;
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.settings-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.setting-label {
+    font-size: 0.95rem;
+    color: #fff;
+    font-weight: 600;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+#settings-screen .toggle-btn {
+    background: transparent !important;
+    color: #7f8c8d;
+    border: none !important;
+    box-shadow: none !important;
+    min-width: 40px;
+    padding: 8px 0;
+    font-weight: 900;
+    cursor: pointer;
+    transition: color 0.2s;
+    font-size: 0.85rem;
+}
+
+#settings-screen .toggle-btn.active {
+    color: #2ecc71 !important;
+    background: transparent !important;
+}
+
+.close-btn-main {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 10px 30px;
+    border-radius: 10px;
+    font-weight: 800;
+    cursor: pointer;
 }
 
 .wind-label {
@@ -1973,6 +2030,7 @@ button:hover {
         transform: translate(-50%, 50%) translateY(-5px);
     }
 }
+
 #event2-floating-score {
     position: absolute;
     left: 47.71%;
@@ -1982,7 +2040,7 @@ button:hover {
     color: #fff;
     font-family: 'Outfit', sans-serif;
     font-weight: 800;
-    text-shadow: 0 0 10px rgba(0,0,0,0.8), 0 0 5px rgba(0,0,0,1);
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.8), 0 0 5px rgba(0, 0, 0, 1);
     z-index: 1000;
     pointer-events: none;
     line-height: 1.2;
@@ -1990,7 +2048,8 @@ button:hover {
 
 #event2-cooked-pct {
     font-size: 1.2rem;
-    color: #FFD32A; /* ����� ���� */
+    color: #FFD32A;
+    /* ����� ���� */
 }
 
 #event2-cooked-score {
@@ -2009,3 +2068,119 @@ button:hover {
     color: #FFD32A !important;
 }
 
+/* ADS BUTTON AND OVERLAY */
+#ads-btn {
+    font-size: 0.72rem;
+    color: #2ecc71;
+    background: transparent;
+    margin-left: 8px;
+    margin-bottom: -5px;
+    cursor: pointer;
+    text-shadow: 1px 1px 2px #000;
+    pointer-events: auto;
+    transition: color 0.2s, transform 0.2s;
+}
+
+#ads-btn:hover {
+    color: #27ae60;
+    transform: scale(1.1);
+}
+
+#ad-overlay {
+    background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f1a 100%);
+    backdrop-filter: blur(10px);
+}
+
+.ad-content {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2rem;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    max-width: 80%;
+}
+
+.ad-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #ffd32a;
+    margin-bottom: 1.5rem;
+    letter-spacing: 2px;
+}
+
+.ad-message {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #fff;
+    white-space: pre-wrap;
+    margin-bottom: 2rem;
+    word-break: keep-all;
+}
+
+.ad-timer {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #ffd32a;
+    text-shadow: 0 0 15px rgba(255, 211, 42, 0.4);
+}
+
+.sparkle-effect {
+    animation: sparkle 1s ease-in-out;
+}
+
+
+@keyframes sparkle {
+    0% {
+        transform: scale(1);
+        filter: brightness(1) drop-shadow(0 0 0px #ffd32a);
+    }
+
+    50% {
+        transform: scale(1.3);
+        filter: brightness(2) drop-shadow(0 0 15px #ffd32a);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: brightness(1) drop-shadow(0 0 0px #ffd32a);
+    }
+}
+
+/* Settings Screen Transparency (100% transparent background) */
+#settings-screen.overlay {
+    background: transparent !important;
+    background-color: transparent !important;
+    opacity: 1 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+#settings-screen .settings-container {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 2rem;
+}
+
+#settings-screen .close-btn-main {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #2ecc71 !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-weight: 800;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: transform 0.2s;
+}
+
+#settings-screen .settings-title,
+#settings-screen .setting-label,
+#settings-screen .toggle-btn,
+#settings-screen .close-btn-main {
+    text-shadow: 2px 2px 4px #000, 0 0 10px rgba(0, 0, 0, 0.5) !important;
+    opacity: 1 !important;
+}
