@@ -155,50 +155,75 @@ function savePlayerData() {
     if (groundCredits) groundCredits.innerText = `${totalCredits}C`;
 }
 
-// --- Sound Management (Simplified for compatibility) ---
+// --- Sound Management (Optimized for performance/iOS) ---
 class SoundManager {
     constructor() {
-        this.sounds = {};
+        this.context = null;
+        this.buffers = {};
+        this.activeSources = {};
+        this.isInitialized = false;
     }
 
     init() {
-        // No explicit init needed for Audio objects, but kept for compatibility
-    }
-
-    async loadSound(name, url) {
-        const audio = new Audio();
-        audio.src = url;
-        audio.preload = 'auto';
-        this.sounds[name] = audio;
-        return Promise.resolve();
-    }
-
-    async resume() {
-        // No explicit resume needed
-    }
-
-    async play(name, loop = false, volume = 1.0) {
-        const audio = this.sounds[name];
-        if (!audio) return null;
-
-        if (loop) {
-            audio.loop = true;
-            audio.volume = volume;
-            audio.play().catch(e => console.log(`Play failed: ${name}`, e));
-            return audio;
-        } else {
-            const sfx = audio.cloneNode();
-            sfx.volume = volume;
-            sfx.play().catch(e => console.log(`Play failed: ${name}`, e));
-            return sfx;
+        if (this.context) return;
+        try {
+            this.context = new (window.AudioContext || window.webkitAudioContext)();
+            console.log("AudioContext initialized (suspended)");
+        } catch (e) {
+            console.error("Web Audio API not supported", e);
         }
     }
 
+    async loadSound(name, url) {
+        if (!this.context) this.init();
+        try {
+            const response = await fetch(url);
+            const arrayBuffer = await response.arrayBuffer();
+            const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+            this.buffers[name] = audioBuffer;
+            console.log(`Sound buffered: ${name}`);
+        } catch (e) {
+            // Fallback for file:// or load failure
+            console.warn(`Failed to buffer ${name}, sound may not play.`, e);
+        }
+    }
+
+    async resume() {
+        if (this.context && this.context.state === 'suspended') {
+            await this.context.resume();
+        }
+    }
+
+    play(name, loop = false, volume = 1.0) {
+        if (!this.context || !this.buffers[name]) return null;
+
+        // Auto-resume for iOS on playback attempt
+        if (this.context.state === 'suspended') this.resume();
+
+        const source = this.context.createBufferSource();
+        source.buffer = this.buffers[name];
+        source.loop = loop;
+
+        const gainNode = this.context.createGain();
+        gainNode.gain.value = volume;
+
+        source.connect(gainNode);
+        gainNode.connect(this.context.destination);
+
+        source.start(0);
+
+        if (loop) {
+            this.activeSources[name] = { source, gainNode };
+        }
+        return source;
+    }
+
     stop(name) {
-        const audio = this.sounds[name];
-        if (audio) {
-            audio.pause();
-            audio.currentTime = 0;
+        if (this.activeSources[name]) {
+            try {
+                this.activeSources[name].source.stop();
+            } catch (e) { }
+            delete this.activeSources[name];
         }
     }
 }
@@ -237,19 +262,15 @@ async function preloadSounds() {
     soundMgr.init();
     const effects = [
         { name: 'burner', url: '열기구소리.MP3' },
-        { name: 'burner_alt', url: '열기구소리..MP3' }, // Fallback
+        { name: 'burner_alt', url: '열기구소리..MP3' },
         { name: 'success', url: '미션성공.MP3' },
         { name: 'explosion', url: '폭발.MP3' },
         { name: 'coin', url: '코인소리.mp3' },
         { name: 'life', url: '생명소리.MP3' }
     ];
-    // Parallel loading
-    try {
-        await Promise.all(effects.map(effect => soundMgr.loadSound(effect.name, effect.url)));
-        console.log("All sounds preloaded successfully");
-    } catch (e) {
-        console.error("Some sounds failed to preload", e);
-    }
+    // Parallel decode-into-memory
+    await Promise.all(effects.map(effect => soundMgr.loadSound(effect.name, effect.url)));
+    console.log("All SFX pre-decoded and ready");
 }
 
 function playCoinSound() {
@@ -609,7 +630,8 @@ function init() {
     // Controls
     mainActionBtn.addEventListener('mousedown', async (e) => {
         if (!isSoundPreloaded) await startSoundSystem();
-        soundMgr.resume();
+        soundMgr.init();
+        await soundMgr.resume();
 
         if (!settingsScreen.classList.contains('hidden')) return;
         if (mainActionBtn.classList.contains('overheated')) return; // 대기 시간 동안 클릭 방지
@@ -626,12 +648,8 @@ function init() {
             startGame();
         } else if (gameState === 'PLAY') {
             isBurning = true;
-            const burnerSound = soundMgr.sounds['burner'];
-            const burnerAlt = soundMgr.sounds['burner_alt'];
-            if (burnerSound && burnerSound.paused) {
-                soundMgr.play('burner', true, 1.0).catch(() => {
-                    if (burnerAlt && burnerAlt.paused) soundMgr.play('burner_alt', true, 1.0);
-                });
+            if (!soundMgr.activeSources['burner']) {
+                soundMgr.play('burner', true, 1.0);
             }
         }
     });
@@ -639,7 +657,8 @@ function init() {
     mainActionBtn.addEventListener('touchstart', async (e) => {
         if (e.cancelable) e.preventDefault();
         if (!isSoundPreloaded) await startSoundSystem();
-        soundMgr.resume();
+        soundMgr.init();
+        await soundMgr.resume();
 
         if (mainActionBtn.classList.contains('overheated')) return; // 대기 시간 동안 클릭 방지
         if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || mainActionBtn.classList.contains('restart-mode')) {
@@ -655,12 +674,8 @@ function init() {
             startGame();
         } else if (gameState === 'PLAY') {
             isBurning = true;
-            const burnerSound = soundMgr.sounds['burner'];
-            const burnerAlt = soundMgr.sounds['burner_alt'];
-            if (burnerSound && burnerSound.paused) {
-                soundMgr.play('burner', true, 1.0).catch(() => {
-                    if (burnerAlt && burnerAlt.paused) soundMgr.play('burner_alt', true, 1.0);
-                });
+            if (!soundMgr.activeSources['burner']) {
+                soundMgr.play('burner', true, 1.0);
             }
         }
     }, { passive: false });
