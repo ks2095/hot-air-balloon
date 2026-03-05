@@ -41,6 +41,7 @@ const livesCountEl = document.getElementById('lives-count');
 const lifeBalloonIcon = document.getElementById('life-balloon-icon');
 const adsBtn = document.getElementById('ads-btn');
 const adOverlay = document.getElementById('ad-overlay');
+const getLifeAdBtn = document.getElementById('get-life-ad-btn');
 const eventClearScreen = document.getElementById('event-clear-screen');
 const eventResultScoreEl = document.getElementById('event-result-score');
 const eventCounterEl = document.getElementById('event-credit-counter');
@@ -51,6 +52,7 @@ const settingsBtn = document.getElementById('settings-btn');
 const settingsScreen = document.getElementById('settings-screen');
 const windToggleSettingsBtn = document.getElementById('wind-toggle-settings-btn');
 const musicToggleSettingsBtn = document.getElementById('music-toggle-settings-btn');
+const resetRecordSettingsBtn = document.getElementById('reset-record-settings-btn');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 const windLabels = document.querySelectorAll('.wind-label');
 const steakContainer = document.getElementById('steak-cooking-container');
@@ -589,6 +591,45 @@ function init() {
             }
             savePlayerData();
             updateSettingsUI();
+        });
+    }
+
+    if (resetRecordSettingsBtn) {
+        resetRecordSettingsBtn.addEventListener('click', () => {
+            if (confirm("모든 기록(크레딧, 아이템, 진행 상황)을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+                // Clear localStorage
+                localStorage.removeItem('balloon_credits');
+                localStorage.removeItem('balloon_upgrades');
+                localStorage.removeItem('balloon_store_data');
+                localStorage.removeItem('balloon_cleared_levels');
+                localStorage.removeItem('balloon_lives');
+                localStorage.removeItem('balloon_last_life_update');
+                localStorage.removeItem('balloon_music_enabled');
+
+                // Reset variables
+                totalCredits = 0;
+                upgrades = { clock: 0, fan_left: 0, fan_right: 0, gas_item: 0, weight: 0 };
+                lives = 7;
+                clearedLevels = [];
+                currentLevel = 1;
+                lastLifeUpdate = Date.now();
+                isMusicEnabled = true;
+                storeData = defaultStoreData;
+
+                // Update UI and Save
+                savePlayerData();
+                updateLivesUI();
+                if (typeof updateCreditsUI === 'function') updateCreditsUI();
+                else if (groundCredits) groundCredits.innerText = "0C";
+
+                updateSettingsUI();
+
+                // Reset game state
+                resetGame();
+
+                alert("기록이 성공적으로 초기화되었습니다.");
+                location.reload(); // Reload to ensure everything is fresh
+            }
         });
     }
 
@@ -2386,31 +2427,47 @@ function showAd() {
 
             if (timeLeft <= 0) {
                 clearInterval(countdown);
-                adOverlay.classList.add('hidden');
-
-                // Reward: 2 lives (max 7)
-                lives = Math.min(7, lives + 2);
-                savePlayerData();
-                updateLivesUI();
-                triggerLifeSparkle();
-
-                // Play life soundEffect
-                soundMgr.resume();
-                soundMgr.play('life');
-
-                // If the balloon was hidden due to no lives, show it
-                if (lives > 0 && balloon.style.opacity === "0") {
-                    balloon.style.opacity = "1";
-                    balloon.classList.remove('explosion');
-                    balloon.style.transform = "translateX(-50%) scale(1)";
-                    balloonY = -getBasketOffset();
-                    balloonX = 50;
-                    balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
-                    balloon.style.left = `${balloonX}%`;
-                }
+                if (timerEl) timerEl.classList.add('hidden');
+                if (getLifeAdBtn) getLifeAdBtn.classList.remove('hidden');
             }
         }, 1000);
     }
+}
+
+if (getLifeAdBtn) {
+    getLifeAdBtn.addEventListener('click', () => {
+        if (adOverlay) adOverlay.classList.add('hidden');
+        if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
+        // Reset ad UI for next time
+        const timerEl = adOverlay.querySelector('.ad-timer');
+        if (timerEl) {
+            timerEl.classList.remove('hidden');
+            timerEl.innerText = "20";
+        }
+
+        // Reward: 2 lives (max 7)
+        lives = Math.min(7, lives + 2);
+        savePlayerData();
+        updateLivesUI();
+        triggerLifeSparkle();
+
+        // Play life soundEffect
+        if (soundMgr) {
+            soundMgr.resume();
+            soundMgr.play('life');
+        }
+
+        // If the balloon was hidden due to no lives, show it
+        if (lives > 0 && balloon.style.opacity === "0") {
+            balloon.style.opacity = "1";
+            balloon.classList.remove('explosion');
+            balloon.style.transform = "translateX(-50%) scale(1)";
+            balloonY = -getBasketOffset();
+            balloonX = 50;
+            balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
+            balloon.style.left = `${balloonX}%`;
+        }
+    });
 }
 function triggerLifeSparkle() {
     if (lifeBalloonIcon) {
