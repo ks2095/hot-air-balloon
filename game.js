@@ -332,56 +332,63 @@ const LEVEL_CONFIGS = {
     },
     4: {
         displayName: "4",
-        winds: [2, -5, 5, -5, 5, -5, 2],
+        winds: [2, -4.75, 2, -4.75, 2, -3, 3],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
     },
     5: {
+        displayName: "5",
+        winds: [2, -5, 5, -5, 5, -5, 2],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    6: {
         displayName: "EVENT 1",
         winds: [-2, 2, -2, 2, -2, 2, -2],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
     },
-    6: {
-        displayName: "5",
-        winds: [-2, 4.75, -1.75, 4.75, -1.75, 4.75, -1.75],
-        maxGas: 400,
-        maxTime: 40,
-        platformY: 6.0
-    },
     7: {
         displayName: "6",
-        winds: [-1, -1, -1, 4.75, -1.75, 4.75, -1.75],
+        winds: [-2, 4.75, -1.75, 4.75, -1.75, 4.75, -1.75],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
     },
     8: {
         displayName: "7",
-        winds: [1.75, 1.75, 1.75, -1.75, -1.75, -1.75, 1.75],
+        winds: [-1, -1, -1, 4.75, -1.75, 4.75, -1.75],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
     },
     9: {
         displayName: "8",
-        winds: [-2, 2, -5, -4.75, 4.75, -4.75, 3],
+        winds: [1.75, 1.75, 1.75, -1.75, -1.75, -1.75, 1.75],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
     },
     10: {
-        displayName: "EVENT 2",
-        winds: [1, -1, -1, 1, -1, -1, 1],
+        displayName: "9",
+        winds: [-2, 2, -5, -4.75, 4.75, -4.75, 3],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
     },
     11: {
-        displayName: "9",
+        displayName: "10",
         winds: [-1, -1, -1, -1, -1, 5, -8],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    12: {
+        displayName: "EVENT 2",
+        winds: [1, -1, -1, 1, -1, -1, 1],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -411,6 +418,8 @@ let activeGravityMultiplier = 1; // 무게추 활성화 시 중력 배수
 let activeCoins = []; // 현재 화면에 존재하는 코인들
 let sessionEventCredits = 0; // 이번 세션(이벤트 레벨)에서 획득한 크레딧
 let droppedItems = []; // 화면에 드롭된 아이템들
+let lastUpdate = 0; // FPS 캡을 위한 시간 기록
+let lastParticleUpdate = 0; // 파티클 애니메이션 FPS 캡
 
 // Initialize
 function init() {
@@ -1412,7 +1421,16 @@ function applyStoreDecoration() {
     updateStoreUI();
 }
 
-function update() {
+function update(timestamp) {
+    // 60FPS 고정 (고주사율 스마트폰 대응)
+    if (!timestamp) timestamp = performance.now();
+    const delta = timestamp - lastUpdate;
+    if (delta < 16.5) { // 약 60FPS (1000ms / 60 = 16.66ms)
+        requestAnimationFrame(update);
+        return;
+    }
+    lastUpdate = timestamp;
+
     if (gameState === 'PLAY') {
         handleMovement();
         checkBoundaries();
@@ -1475,8 +1493,8 @@ function update() {
 }
 
 function updateTargetLine() {
-    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~11레벨 공통)
-    if (currentLevel >= 1 && currentLevel <= 11) {
+    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~12레벨 공통)
+    if (currentLevel >= 1 && currentLevel <= 12) {
         targetLineX = 50;
         targetLineEl.style.left = `${targetLineX}%`;
 
@@ -1485,8 +1503,8 @@ function updateTargetLine() {
         const platformY = config.platformY;
         const targetYBottom = (100 / 7) * platformY;
         let pixelOffset = 12;
-        if (config.displayName === "8") pixelOffset = 7;
-        if (config.displayName === "9") pixelOffset = -3; // Raised by 20px from -23
+        if (config.displayName === "9") pixelOffset = 7;
+        if (config.displayName === "10") pixelOffset = -3; // Raised by 20px from -23
         targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + ${pixelOffset}px)`;
 
         return;
@@ -1549,8 +1567,8 @@ function handleMovement() {
     const config = LEVEL_CONFIGS[currentLevel];
     const platformY = config.platformY;
     let pixelOffset = 12;
-    if (config.displayName === "8") pixelOffset = 7;
-    if (config.displayName === "9") pixelOffset = -3;
+    if (config.displayName === "9") pixelOffset = 7;
+    if (config.displayName === "10") pixelOffset = -3;
     const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100; // Visual bottom of the platform
     const targetYTop = targetYBottom + platformHeightPercentage; // Top of the grass
 
@@ -2024,7 +2042,15 @@ function updateParticlePos(p) {
     p.el.style.width = `${Math.abs(ZONE_WINDS[p.zoneIndex]) * 5 + 5}px`;
 }
 
-function animateParticles() {
+function animateParticles(timestamp) {
+    if (!timestamp) timestamp = performance.now();
+    const delta = timestamp - lastParticleUpdate;
+    if (delta < 16.5) {
+        requestAnimationFrame(animateParticles);
+        return;
+    }
+    lastParticleUpdate = timestamp;
+
     particles.forEach(p => {
         const wind = ZONE_WINDS[p.zoneIndex] + tempWindBoosts[p.zoneIndex];
         // 모든 파티클이 구역의 바람 세기와 아이템 부스트에 영향을 받도록 수정
@@ -2164,13 +2190,13 @@ function resetGame() {
     if (levelHintEl) {
         levelHintEl.classList.remove('level-8-hint');
         const displayName = config.displayName;
-        if (displayName === "5" || displayName === "6") {
+        if (displayName === "6" || displayName === "7") {
             levelHintEl.innerHTML = `Use 1 item or less`;
             levelHintEl.classList.remove('hidden');
-        } else if (displayName === "7" || displayName === "8" || displayName === "9") {
+        } else if (displayName === "8" || displayName === "9" || displayName === "10") {
             levelHintEl.innerHTML = `Use 2 items or less`;
             levelHintEl.classList.remove('hidden');
-            if (displayName === "8" || displayName === "9") levelHintEl.classList.add('level-8-hint');
+            if (displayName === "9" || displayName === "10") levelHintEl.classList.add('level-8-hint');
         } else {
             levelHintEl.classList.add('hidden');
         }
@@ -2181,8 +2207,8 @@ function resetGame() {
             const platformY = config.platformY;
             const targetYBottom = (100 / 7) * platformY;
             let pixelOffset = 12;
-            if (config.displayName === "8") pixelOffset = 7;
-            if (config.displayName === "9") pixelOffset = -3;
+            if (config.displayName === "9") pixelOffset = 7;
+            if (config.displayName === "10") pixelOffset = -3;
             const platformHeightPercentage = (9 / skyHeight) * 100;
             const targetYTop = targetYBottom + (pixelOffset / skyHeight) * 100 + platformHeightPercentage;
 
