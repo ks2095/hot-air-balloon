@@ -410,21 +410,21 @@ const LEVEL_CONFIGS = {
     },
     15: {
         displayName: "13",
-        winds: [1, 1.5, -1.5, -3, 1.5, -2.5, 1.5],
+        winds: [2, -4.75, 2, -4.75, 3, -3, 3],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
     },
     16: {
         displayName: "14",
-        winds: [2, -5, 5, -5, 5, -5, 2],
+        winds: [1, 1.5, -1.5, -3, 1.5, -2.5, 1.5],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
     },
     17: {
         displayName: "15",
-        winds: [2, -4.75, 2, -4.75, 3, -3, 3],
+        winds: [2, -5, 5, -5, 5, -5, 2],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -454,6 +454,7 @@ let activeGravityMultiplier = 1; // 무게추 활성화 시 중력 배수
 let activeCoins = []; // 현재 화면에 존재하는 코인들
 let sessionEventCredits = 0; // 이번 세션(이벤트 레벨)에서 획득한 크레딧
 let droppedItems = []; // 화면에 드롭된 아이템들
+let sessionItemsUsed = 0; // 이번 세션에서 실제로 사용한 아이템 개수
 let lastUpdate = 0; // FPS 캡을 위한 시간 기록
 let level11WindMultiplier = 1;
 let windCycleStartTime = 0;
@@ -956,6 +957,7 @@ function startGame() {
 
     gas = currentMaxGas;
     elapsedTime = 0;
+    sessionItemsUsed = 0;
     missionStartTime = Date.now();
     windCycleStartTime = missionStartTime;
     playRandomBGM();
@@ -966,7 +968,7 @@ function resumeGame() {
     if (levelHintEl) {
         const config = LEVEL_CONFIGS[currentLevel];
         const displayName = config.displayName;
-        if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8" || displayName === "13") {
+        if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8" || displayName === "14" || displayName === "15") {
             levelHintEl.classList.remove('hidden');
         }
     }
@@ -1039,6 +1041,7 @@ function startDragPlacement(key, initialEvent) {
 
             placeItemOnScreen(key, dropX, gameY);
             upgrades[key]--;
+            sessionItemsUsed++;
             savePlayerData();
             updateStoreUI(true);
             if (showWindLabels) updateWindLabels();
@@ -1344,9 +1347,9 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('mousedown', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    if (displayName === "5" || displayName === "6" || displayName === "13") {
+                    if (displayName === "5" || displayName === "6" || displayName === "14") {
                         if (droppedItems.length > 0) return;
-                    } else if (displayName === "7" || displayName === "8") {
+                    } else if (displayName === "7" || displayName === "8" || displayName === "15") {
                         if (droppedItems.length >= 2) return;
                     }
 
@@ -1357,9 +1360,9 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('touchstart', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    if (displayName === "5" || displayName === "6" || displayName === "13") {
+                    if (displayName === "5" || displayName === "6") {
                         if (droppedItems.length > 0) return;
-                    } else if (displayName === "7" || displayName === "8") {
+                    } else if (displayName === "7" || displayName === "8" || displayName === "14") {
                         if (droppedItems.length >= 2) return;
                     }
 
@@ -1640,8 +1643,9 @@ function handleMovement() {
     const zoneHeight = 100 / 7;
     const zoneIndex = Math.min(6, Math.max(0, Math.floor(markerY / zoneHeight)));
 
-    let windForce = ZONE_WINDS[zoneIndex] + tempWindBoosts[zoneIndex];
+    let windForce = ZONE_WINDS[zoneIndex];
     if (currentLevel >= 13 && currentLevel <= 17) windForce *= level11WindMultiplier;
+    windForce += tempWindBoosts[zoneIndex];
 
     velX += windForce * 0.00165; // Reduced from 0.0033 (half of previous effect)
     velX *= FRICTION;
@@ -1989,7 +1993,7 @@ function gameOver(msg = 'OVERHEAT') {
         // 5, 6, 7, 8 레벨 실패 시 미션 가이드 다시 표시
         if (levelHintEl) {
             const displayName = LEVEL_CONFIGS[currentLevel].displayName;
-            if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8" || displayName === "13") {
+            if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8" || displayName === "14" || displayName === "15") {
                 levelHintEl.classList.remove('hidden');
             }
         }
@@ -2027,9 +2031,16 @@ function winGame() {
 
     const score = Math.floor(gas) + Math.floor(timeLeft * 10) + landingBonus;
 
+    let itemBonus = 0;
+    const displayName = LEVEL_CONFIGS[currentLevel].displayName;
+    // 아이템 2개 제한 레벨 (8, 9, 10, 15)에서 1개 이하로 사용시 5000점 보너스
+    if ((displayName === "8" || displayName === "9" || displayName === "10" || displayName === "15") && sessionItemsUsed <= 1) {
+        itemBonus = 5000;
+    }
+
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
     const displayCookedPct = Math.floor(cookedPercentage * 2);
-    let finalScore = isEvent2 ? (displayCookedPct * 10) : score;
+    let finalScore = isEvent2 ? (displayCookedPct * 10) : (score + itemBonus);
 
     // 점수창 UI 업데이트 (상세 정보 표시)
     if (isEvent2) {
@@ -2040,7 +2051,11 @@ function winGame() {
     } else {
         if (resultScoreEl) resultScoreEl.innerText = score;
         if (resultFormulaEl) {
-            resultFormulaEl.innerHTML = `(${Math.floor(gas)} + (${Math.floor(timeLeft)} * 10) + <span style="color: #ffd32a;">${landingBonus}</span>)`;
+            let formula = `(${Math.floor(gas)} + (${Math.floor(timeLeft)} * 10) + <span style="color: #ffd32a;">${landingBonus}</span>)`;
+            if (itemBonus > 0) {
+                formula += ` + <span style="color: #2ecc71;">${itemBonus}(MISSION)</span>`;
+            }
+            resultFormulaEl.innerHTML = formula;
         }
     }
 
@@ -2161,6 +2176,7 @@ function updateParticlePos(p) {
     p.el.style.top = `${p.y}%`;
     let currentWind = ZONE_WINDS[p.zoneIndex];
     if (currentLevel >= 13 && currentLevel <= 17) currentWind *= level11WindMultiplier;
+    currentWind += tempWindBoosts[p.zoneIndex];
     p.el.style.width = `${Math.abs(currentWind) * 5 + 5}px`;
 }
 
@@ -2174,8 +2190,9 @@ function animateParticles(timestamp) {
     lastParticleUpdate = timestamp;
 
     particles.forEach(p => {
-        let wind = ZONE_WINDS[p.zoneIndex] + tempWindBoosts[p.zoneIndex];
+        let wind = ZONE_WINDS[p.zoneIndex];
         if (currentLevel >= 13 && currentLevel <= 17) wind *= level11WindMultiplier;
+        wind += tempWindBoosts[p.zoneIndex];
         p.x += wind * 0.12;
 
         if (p.x > 110) p.x = -10;
@@ -2252,6 +2269,7 @@ function resetGame() {
     currentMaxGas = config.maxGas;
     currentMaxTime = config.maxTime;
     gas = currentMaxGas;
+    sessionItemsUsed = 0;
     level11WindMultiplier = 1;
     if (windCountdownEl) windCountdownEl.classList.add('hidden');
 
@@ -2325,10 +2343,10 @@ function resetGame() {
     if (levelHintEl) {
         levelHintEl.classList.remove('level-8-hint');
         const displayName = config.displayName;
-        if (displayName === "6" || displayName === "7" || displayName === "13") {
+        if (displayName === "6" || displayName === "7" || displayName === "14") {
             levelHintEl.innerHTML = `Use 1 item or less`;
             levelHintEl.classList.remove('hidden');
-        } else if (displayName === "8" || displayName === "9" || displayName === "10") {
+        } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "15") {
             levelHintEl.innerHTML = `Use 2 items or less`;
             levelHintEl.classList.remove('hidden');
             if (displayName === "9" || displayName === "10") levelHintEl.classList.add('level-8-hint');
@@ -2454,8 +2472,9 @@ function updateWindLabels() {
     windLabels.forEach(label => {
         const zoneIdx = parseInt(label.dataset.zone);
 
-        let currentWind = ZONE_WINDS[zoneIdx] + tempWindBoosts[zoneIdx];
-        if (currentLevel === 13) currentWind *= level11WindMultiplier;
+        let currentWind = ZONE_WINDS[zoneIdx];
+        if (currentLevel >= 13 && currentLevel <= 17) currentWind *= level11WindMultiplier;
+        currentWind += tempWindBoosts[zoneIdx];
 
         let displayWind = currentWind;
         const absWind = Math.abs(currentWind);
