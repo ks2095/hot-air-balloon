@@ -2208,3 +2208,18 @@ button:hover {
     text-shadow: 2px 2px 4px #000, 0 0 10px rgba(0, 0, 0, 0.5) !important;
     opacity: 1 !important;
 }
+
+#wind-countdown {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 8rem;
+    font-weight: 900;
+    color: #ffd32a;
+    text-shadow: 0 0 20px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 211, 42, 0.6);
+    z-index: 1000;
+    pointer-events: none;
+    font-family: var(--font-main);
+    opacity: 0.8;
+}

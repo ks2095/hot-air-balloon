@@ -58,6 +58,7 @@ const windLabels = document.querySelectorAll('.wind-label');
 const steakContainer = document.getElementById('steak-cooking-container');
 const steakCanvas = document.getElementById('steak-canvas');
 const steakCtx = steakCanvas ? steakCanvas.getContext('2d', { willReadFrequently: true }) : null;
+const windCountdownEl = document.getElementById('wind-countdown');
 
 const event2FloatingScore = document.getElementById('event2-floating-score');
 const event2CookedPctEl = document.getElementById('event2-cooked-pct');
@@ -332,14 +333,14 @@ const LEVEL_CONFIGS = {
     },
     4: {
         displayName: "4",
-        winds: [2, -4.75, 2, -4.75, 2, -3, 3],
+        winds: [2, -5, 5, -5, 5, -5, 2],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
     },
     5: {
         displayName: "5",
-        winds: [2, -5, 5, -5, 5, -5, 2],
+        winds: [2, -4.75, 2, -4.75, 3, -3, 3],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -388,7 +389,42 @@ const LEVEL_CONFIGS = {
     },
     12: {
         displayName: "EVENT 2",
-        winds: [1, -1, -1, 1, -1, -1, 1],
+        winds: [1, -1, -2, 2, -2, 0, 1],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.5
+    },
+    13: {
+        displayName: "11",
+        winds: [1.5, -1.5, 1.5, -1.5, 1.5, -1.5, 1.5],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    14: {
+        displayName: "12",
+        winds: [-1.5, 1.5, 2.5, -2.0, 1.5, -1.25, 1.5],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    15: {
+        displayName: "13",
+        winds: [1, 1.5, -1.5, -3, 1.5, -2.5, 1.5],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    16: {
+        displayName: "14",
+        winds: [2, -5, 5, -5, 5, -5, 2],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    17: {
+        displayName: "15",
+        winds: [2, -4.75, 2, -4.75, 3, -3, 3],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -419,6 +455,8 @@ let activeCoins = []; // 현재 화면에 존재하는 코인들
 let sessionEventCredits = 0; // 이번 세션(이벤트 레벨)에서 획득한 크레딧
 let droppedItems = []; // 화면에 드롭된 아이템들
 let lastUpdate = 0; // FPS 캡을 위한 시간 기록
+let level11WindMultiplier = 1;
+let windCycleStartTime = 0;
 let lastParticleUpdate = 0; // 파티클 애니메이션 FPS 캡
 
 // Initialize
@@ -883,7 +921,20 @@ function init() {
 function startGame() {
     balloonX = 50;
     const config = LEVEL_CONFIGS[currentLevel];
-    balloonY = -getBasketOffset();
+    const isEvent2 = config.displayName === "EVENT 2";
+
+    if (isEvent2) {
+        // EVENT 2: Start on top of the landing pad
+        const skyHeight = gameContainer.clientHeight * 0.9195;
+        const platformY = config.platformY;
+        const pixelOffset = 12 - 50; // -38 (User requested 50px lower from original 12)
+        const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100;
+        const platformHeightPercentage = (9 / skyHeight) * 100;
+        const targetYTop = targetYBottom + platformHeightPercentage;
+        balloonY = targetYTop - getBasketOffset() + 0.1; // Add 0.1 to avoid immediate touch
+    } else {
+        balloonY = -getBasketOffset();
+    }
 
     velX = 0;
     velY = 0;
@@ -906,6 +957,7 @@ function startGame() {
     gas = currentMaxGas;
     elapsedTime = 0;
     missionStartTime = Date.now();
+    windCycleStartTime = missionStartTime;
     playRandomBGM();
 }
 
@@ -914,7 +966,7 @@ function resumeGame() {
     if (levelHintEl) {
         const config = LEVEL_CONFIGS[currentLevel];
         const displayName = config.displayName;
-        if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8") {
+        if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8" || displayName === "13") {
             levelHintEl.classList.remove('hidden');
         }
     }
@@ -923,6 +975,7 @@ function resumeGame() {
         const now = Date.now();
         const pauseElapsed = now - pauseStartTime;
         missionStartTime += pauseElapsed;
+        windCycleStartTime += pauseElapsed;
 
         gameState = 'PLAY';
 
@@ -1291,7 +1344,7 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('mousedown', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    if (displayName === "5" || displayName === "6") {
+                    if (displayName === "5" || displayName === "6" || displayName === "13") {
                         if (droppedItems.length > 0) return;
                     } else if (displayName === "7" || displayName === "8") {
                         if (droppedItems.length >= 2) return;
@@ -1304,7 +1357,7 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('touchstart', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    if (displayName === "5" || displayName === "6") {
+                    if (displayName === "5" || displayName === "6" || displayName === "13") {
                         if (droppedItems.length > 0) return;
                     } else if (displayName === "7" || displayName === "8") {
                         if (droppedItems.length >= 2) return;
@@ -1324,19 +1377,28 @@ function updateStoreUI(isInventoryMode = false) {
 function applyItemEffect(key, itemSource = null) {
     const now = Date.now();
     if (key === 'clock') {
+        const diffSeconds = (now - missionStartTime) / 1000;
+        if (diffSeconds < 30) {
+            console.log("Clock item used too early - No effect (less than 30s passed)");
+            return;
+        }
         // 시간 10초 추가
         missionStartTime += 10000;
 
         // 잔여 시간 40초로 제한
         const maxTimeLimit = 40;
-        const diffSeconds = (now - missionStartTime) / 1000;
-        const timeLeft = currentMaxTime - diffSeconds;
+        const currentDiffSeconds = (now - missionStartTime) / 1000;
+        const timeLeft = currentMaxTime - currentDiffSeconds;
 
         if (timeLeft > maxTimeLimit) {
             missionStartTime = now - (currentMaxTime - maxTimeLimit) * 1000;
         }
         console.log("Item used: Clock - 10s added (Limited to 40s max)");
     } else if (key === 'gas_item') {
+        if (currentMaxGas - gas < 300) {
+            console.log("Gas item used too early - No effect (less than 300 gas used)");
+            return;
+        }
         // 가스 100 충전 (현재 가스에 추가, 최대 400으로 제한)
         gas = Math.min(400, gas + 100);
         console.log("Item used: Gas Item - 100 gas refilled (Limited to 400 max)");
@@ -1457,6 +1519,28 @@ function update(timestamp) {
         const currentGas = Math.floor(gas);
         const currentTime = Math.ceil(timeLeft);
 
+        // Level 11, 12, 13, 14, 15 Wind reversal logic (currentLevel 13 to 17)
+        if (currentLevel >= 13 && currentLevel <= 17) {
+            const windElapsedSeconds = (now - windCycleStartTime) / 1000;
+            const windCycle = windElapsedSeconds % 13;
+            if (windCycle >= 10) {
+                const count = Math.ceil(13 - windCycle);
+                if (windCountdownEl) {
+                    windCountdownEl.innerText = count;
+                    windCountdownEl.classList.remove('hidden');
+                }
+            } else {
+                if (windCountdownEl) windCountdownEl.classList.add('hidden');
+            }
+            const newMultiplier = Math.floor(windElapsedSeconds / 13) % 2 === 0 ? 1 : -1;
+            if (newMultiplier !== level11WindMultiplier) {
+                level11WindMultiplier = newMultiplier;
+                if (showWindLabels) updateWindLabels();
+            }
+        } else {
+            if (windCountdownEl) windCountdownEl.classList.add('hidden');
+        }
+
         if (gasTextEl.innerText != currentGas) {
             gasTextEl.innerText = currentGas;
             gasFillEl.style.width = `${Math.max(0, (gas / currentMaxGas) * 100)}%`;
@@ -1493,8 +1577,8 @@ function update(timestamp) {
 }
 
 function updateTargetLine() {
-    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~12레벨 공통)
-    if (currentLevel >= 1 && currentLevel <= 12) {
+    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~17레벨 공통)
+    if (currentLevel >= 1 && currentLevel <= 17) {
         targetLineX = 50;
         targetLineEl.style.left = `${targetLineX}%`;
 
@@ -1505,6 +1589,7 @@ function updateTargetLine() {
         let pixelOffset = 12;
         if (config.displayName === "9") pixelOffset = 7;
         if (config.displayName === "10") pixelOffset = -3; // Raised by 20px from -23
+        if (config.displayName === "EVENT 2") pixelOffset = 12 - 50; // 50px down
         targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + ${pixelOffset}px)`;
 
         return;
@@ -1555,7 +1640,8 @@ function handleMovement() {
     const zoneHeight = 100 / 7;
     const zoneIndex = Math.min(6, Math.max(0, Math.floor(markerY / zoneHeight)));
 
-    const windForce = ZONE_WINDS[zoneIndex] + tempWindBoosts[zoneIndex];
+    let windForce = ZONE_WINDS[zoneIndex] + tempWindBoosts[zoneIndex];
+    if (currentLevel >= 13 && currentLevel <= 17) windForce *= level11WindMultiplier;
 
     velX += windForce * 0.00165; // Reduced from 0.0033 (half of previous effect)
     velX *= FRICTION;
@@ -1569,6 +1655,7 @@ function handleMovement() {
     let pixelOffset = 12;
     if (config.displayName === "9") pixelOffset = 7;
     if (config.displayName === "10") pixelOffset = -3;
+    if (config.displayName === "EVENT 2") pixelOffset = 12 - 50; // 50px down
     const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100; // Visual bottom of the platform
     const targetYTop = targetYBottom + platformHeightPercentage; // Top of the grass
 
@@ -1600,10 +1687,11 @@ function handleMovement() {
         const isTouchingTop = basketY <= platTop + 0.3 && basketY >= platTop - 0.7;
 
         if (isTouchingTop) {
-            if (velY < 0) { // Moving Top -> Bottom
+            // 게임 시작 직후 바로 클리어 방지 (최소 2초 비행 필요)
+            const isFreshStart = (Date.now() - missionStartTime) < 2000;
+            if (velY < 0 && !isFreshStart) { // Moving Top -> Bottom
                 winGame();
                 return;
-
             }
             // velY > 0 (상승) 시에는 크래시 없이 패드에서 벗어날 수 있도록 함
         }
@@ -1776,8 +1864,20 @@ function gameOver(msg = 'OVERHEAT') {
     isBurning = false;
     soundMgr.stop('burner');
 
-    const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL";
+    const config = LEVEL_CONFIGS[currentLevel];
+    const isEventLevel = config && config.displayName.startsWith("EVENT");
+    const isEvent2 = config && config.displayName === "EVENT 2";
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
+
+    if (isEvent2) {
+        // 미션 실패해도 EVENT 2에서 얻은 요리 점수는 합산
+        const displayCookedPct = Math.floor(cookedPercentage * 2);
+        const earnedScore = displayCookedPct * 10;
+        if (earnedScore > 0) {
+            totalCredits += earnedScore;
+            console.log(`EVENT 2 Failed: Added ${earnedScore}C from cooking.`);
+        }
+    }
 
     if (!isEventLevel && !isAlreadyCleared) {
         lives--;
@@ -1791,6 +1891,13 @@ function gameOver(msg = 'OVERHEAT') {
 
     savePlayerData();
     updateLivesUI();
+
+    // UI 업데이트
+    const groundCredits = document.getElementById('ground-credits-display');
+    if (groundCredits) groundCredits.innerText = `${totalCredits}C`;
+    if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
+    const totalEl = document.getElementById('accumulated-total-credits');
+    if (totalEl) totalEl.innerText = totalCredits;
     clearDroppedItems(); // 실패 시 배치된 아이템 소모 (삭제)
 
     if (lives < 0) {
@@ -1855,9 +1962,22 @@ function gameOver(msg = 'OVERHEAT') {
             balloon.classList.remove('explosion');
             balloon.style.opacity = "1";
             balloon.style.transform = "translateX(-50%) scale(1)";
-            // 시작 위치로 살짝 이동 (resetGame의 로직 일부 반영)
-            balloonY = -getBasketOffset();
+
+            // 시작 위치로 살짝 이동 (resetGame의 로직 반영)
             balloonX = 50;
+            const config = LEVEL_CONFIGS[currentLevel];
+            if (config.displayName === "EVENT 2") {
+                const skyHeight = gameContainer.clientHeight * 0.9195;
+                const platformY = config.platformY;
+                const pixelOffset = 12 - 50;
+                const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100;
+                const platformHeightPercentage = (9 / skyHeight) * 100;
+                const targetYTop = targetYBottom + platformHeightPercentage;
+                balloonY = targetYTop - getBasketOffset() + 0.1;
+            } else {
+                balloonY = -getBasketOffset();
+            }
+
             balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
             balloon.style.left = `${balloonX}%`;
         }
@@ -1869,7 +1989,7 @@ function gameOver(msg = 'OVERHEAT') {
         // 5, 6, 7, 8 레벨 실패 시 미션 가이드 다시 표시
         if (levelHintEl) {
             const displayName = LEVEL_CONFIGS[currentLevel].displayName;
-            if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8") {
+            if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8" || displayName === "13") {
                 levelHintEl.classList.remove('hidden');
             }
         }
@@ -2039,7 +2159,9 @@ function clearCoins() {
 function updateParticlePos(p) {
     p.el.style.left = `${p.x}%`;
     p.el.style.top = `${p.y}%`;
-    p.el.style.width = `${Math.abs(ZONE_WINDS[p.zoneIndex]) * 5 + 5}px`;
+    let currentWind = ZONE_WINDS[p.zoneIndex];
+    if (currentLevel >= 13 && currentLevel <= 17) currentWind *= level11WindMultiplier;
+    p.el.style.width = `${Math.abs(currentWind) * 5 + 5}px`;
 }
 
 function animateParticles(timestamp) {
@@ -2052,8 +2174,8 @@ function animateParticles(timestamp) {
     lastParticleUpdate = timestamp;
 
     particles.forEach(p => {
-        const wind = ZONE_WINDS[p.zoneIndex] + tempWindBoosts[p.zoneIndex];
-        // 모든 파티클이 구역의 바람 세기와 아이템 부스트에 영향을 받도록 수정
+        let wind = ZONE_WINDS[p.zoneIndex] + tempWindBoosts[p.zoneIndex];
+        if (currentLevel >= 13 && currentLevel <= 17) wind *= level11WindMultiplier;
         p.x += wind * 0.12;
 
         if (p.x > 110) p.x = -10;
@@ -2108,7 +2230,18 @@ function resetGame() {
     balloonX = 50;
     targetLineX = 50; // 리셋 시 타겟 라인 위치 초기화
 
-    balloonY = -getBasketOffset();
+    // EVENT 2: Start on top of the landing pad even before clicking start
+    if (config.displayName === "EVENT 2") {
+        const skyHeight = gameContainer.clientHeight * 0.9195;
+        const platformY = config.platformY;
+        const pixelOffset = 12 - 50; // Use same adjusted offset as in handleMovement
+        const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100;
+        const platformHeightPercentage = (9 / skyHeight) * 100;
+        const targetYTop = targetYBottom + platformHeightPercentage;
+        balloonY = targetYTop - getBasketOffset() + 0.1;
+    } else {
+        balloonY = -getBasketOffset();
+    }
 
     velX = 0;
     velY = 0;
@@ -2119,6 +2252,8 @@ function resetGame() {
     currentMaxGas = config.maxGas;
     currentMaxTime = config.maxTime;
     gas = currentMaxGas;
+    level11WindMultiplier = 1;
+    if (windCountdownEl) windCountdownEl.classList.add('hidden');
 
     if (gasFillEl) gasFillEl.style.width = "100%";
     if (timeFillEl) timeFillEl.style.width = "100%";
@@ -2190,7 +2325,7 @@ function resetGame() {
     if (levelHintEl) {
         levelHintEl.classList.remove('level-8-hint');
         const displayName = config.displayName;
-        if (displayName === "6" || displayName === "7") {
+        if (displayName === "6" || displayName === "7" || displayName === "13") {
             levelHintEl.innerHTML = `Use 1 item or less`;
             levelHintEl.classList.remove('hidden');
         } else if (displayName === "8" || displayName === "9" || displayName === "10") {
@@ -2320,6 +2455,7 @@ function updateWindLabels() {
         const zoneIdx = parseInt(label.dataset.zone);
 
         let currentWind = ZONE_WINDS[zoneIdx] + tempWindBoosts[zoneIdx];
+        if (currentLevel === 13) currentWind *= level11WindMultiplier;
 
         let displayWind = currentWind;
         const absWind = Math.abs(currentWind);
