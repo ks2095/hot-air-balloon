@@ -58,11 +58,17 @@ const windLabels = document.querySelectorAll('.wind-label');
 const steakContainer = document.getElementById('steak-cooking-container');
 const steakCanvas = document.getElementById('steak-canvas');
 const steakCtx = steakCanvas ? steakCanvas.getContext('2d', { willReadFrequently: true }) : null;
+const cornContainer = document.getElementById('corn-container');
 const windCountdownEl = document.getElementById('wind-countdown');
 
 const event2FloatingScore = document.getElementById('event2-floating-score');
 const event2CookedPctEl = document.getElementById('event2-cooked-pct');
 const event2CookedScoreEl = document.getElementById('event2-cooked-score');
+const event3FloatingScore = document.getElementById('event3-floating-score');
+const event3PopcornScore = document.getElementById('event3-popcorn-score');
+
+let popcornGatheredScore = 0;
+let popcornDepositTimer = null;
 
 let steak1Img = new Image();
 steak1Img.src = '스테이크1.png';
@@ -269,7 +275,8 @@ async function preloadSounds() {
         { name: 'success', url: '미션성공.MP3' },
         { name: 'explosion', url: '폭발.MP3' },
         { name: 'coin', url: '코인소리.mp3' },
-        { name: 'life', url: '생명소리.MP3' }
+        { name: 'life', url: '생명소리.MP3' },
+        { name: 'popcorn', url: '팝콘소리.MP3' }
     ];
     // Parallel decode-into-memory
     await Promise.all(effects.map(effect => soundMgr.loadSound(effect.name, effect.url)));
@@ -428,6 +435,13 @@ const LEVEL_CONFIGS = {
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
+    },
+    18: {
+        displayName: "EVENT 3",
+        winds: [2, -1, -2, 2, -2, 0, 1],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.5
     }
 };
 
@@ -1265,11 +1279,11 @@ function updateStoreUI(isInventoryMode = false) {
             if (isInventoryMode) {
                 let isItemDisabled = (count === 0);
 
-                if (displayName === "5" || displayName === "6") {
+                if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14") {
                     if (droppedItems.length > 0) {
                         isItemDisabled = true;
                     }
-                } else if (displayName === "7" || displayName === "8") {
+                } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "15" || displayName === "EVENT 3") {
                     if (droppedItems.length >= 2) {
                         isItemDisabled = true;
                     }
@@ -1347,9 +1361,9 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('mousedown', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    if (displayName === "5" || displayName === "6" || displayName === "14") {
+                    if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14") {
                         if (droppedItems.length > 0) return;
-                    } else if (displayName === "7" || displayName === "8" || displayName === "15") {
+                    } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "15" || displayName === "EVENT 3") {
                         if (droppedItems.length >= 2) return;
                     }
 
@@ -1360,9 +1374,9 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('touchstart', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    if (displayName === "5" || displayName === "6") {
+                    if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14") {
                         if (droppedItems.length > 0) return;
-                    } else if (displayName === "7" || displayName === "8" || displayName === "14") {
+                    } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "15" || displayName === "EVENT 3") {
                         if (droppedItems.length >= 2) return;
                     }
 
@@ -1501,6 +1515,7 @@ function update(timestamp) {
         checkBoundaries();
         updateTargetLine();
         updateSteakCooking();
+        updateCornPopping();
     }
 
     // Render (Balloon starts above the 8.05% ground, sky is 93% high)
@@ -1580,8 +1595,8 @@ function update(timestamp) {
 }
 
 function updateTargetLine() {
-    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~17레벨 공통)
-    if (currentLevel >= 1 && currentLevel <= 17) {
+    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~18레벨 공통)
+    if (currentLevel >= 1 && currentLevel <= 18) {
         targetLineX = 50;
         targetLineEl.style.left = `${targetLineX}%`;
 
@@ -1592,7 +1607,7 @@ function updateTargetLine() {
         let pixelOffset = 12;
         if (config.displayName === "9") pixelOffset = 7;
         if (config.displayName === "10") pixelOffset = -3; // Raised by 20px from -23
-        if (config.displayName === "EVENT 2") pixelOffset = 12 - 50; // 50px down
+        if (config.displayName === "EVENT 2" || config.displayName === "EVENT 3") pixelOffset = 12 - 50; // 50px down
         targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + ${pixelOffset}px)`;
 
         return;
@@ -1659,7 +1674,7 @@ function handleMovement() {
     let pixelOffset = 12;
     if (config.displayName === "9") pixelOffset = 7;
     if (config.displayName === "10") pixelOffset = -3;
-    if (config.displayName === "EVENT 2") pixelOffset = 12 - 50; // 50px down
+    if (config.displayName === "EVENT 2" || config.displayName === "EVENT 3") pixelOffset = 12 - 50; // 50px down
     const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100; // Visual bottom of the platform
     const targetYTop = targetYBottom + platformHeightPercentage; // Top of the grass
 
@@ -2002,7 +2017,7 @@ function gameOver(msg = 'OVERHEAT') {
 
 function winGame() {
     const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName.startsWith("EVENT");
-    const isEvent2 = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2";
+    const isSteakEvent = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2";
 
     gameState = 'CLEAR';
     mainActionBtn.innerText = 'START';
@@ -2020,7 +2035,7 @@ function winGame() {
     let landingBonus = 0;
     let bonusText = "";
 
-    if (isEvent2) {
+    if (isSteakEvent) {
         landingBonus = 0;
         bonusText = "STAKE EVENT";
     } else if (ratio <= 0.2) { landingBonus = 50; bonusText = "PERFECT"; }
@@ -2040,10 +2055,10 @@ function winGame() {
 
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
     const displayCookedPct = Math.floor(cookedPercentage * 2);
-    let finalScore = isEvent2 ? (displayCookedPct * 10) : (score + itemBonus);
+    let finalScore = isSteakEvent ? (displayCookedPct * 10) : (score + itemBonus);
 
     // 점수창 UI 업데이트 (상세 정보 표시)
-    if (isEvent2) {
+    if (isSteakEvent) {
         if (resultScoreEl) resultScoreEl.innerText = finalScore;
         if (resultFormulaEl) {
             resultFormulaEl.innerHTML = `COOKED: ${displayCookedPct}% * 10`;
@@ -2060,7 +2075,7 @@ function winGame() {
     }
 
     if (isEventLevel) {
-        if (isEvent2) {
+        if (isSteakEvent) {
             finalScore = (isAlreadyCleared ? 200 : finalScore + 200);
         } else {
             finalScore = (isAlreadyCleared ? 200 : score + 200);
@@ -2091,7 +2106,7 @@ function winGame() {
     const currentDisplayName = LEVEL_CONFIGS[currentLevel].displayName;
     if (clearTitleEl) clearTitleEl.innerText = currentDisplayName.startsWith("EVENT") ? "EVENT LEVEL CLEAR!" : `LEVEL-${currentDisplayName} CLEAR`;
 
-    if (currentDisplayName.startsWith("EVENT") && !isEvent2) {
+    if (currentDisplayName.startsWith("EVENT") && !isSteakEvent) {
         console.log("Event Level Cleared: Score stored quietly.");
     } else {
         if (eventClearScreen) eventClearScreen.classList.add('hidden'); // 이벤트 결과창과 겹침 방지
@@ -2248,7 +2263,8 @@ function resetGame() {
     targetLineX = 50; // 리셋 시 타겟 라인 위치 초기화
 
     // EVENT 2: Start on top of the landing pad even before clicking start
-    if (config.displayName === "EVENT 2") {
+    const isSteakEvent = config.displayName === "EVENT 2";
+    if (isSteakEvent) {
         const skyHeight = gameContainer.clientHeight * 0.9195;
         const platformY = config.platformY;
         const pixelOffset = 12 - 50; // Use same adjusted offset as in handleMovement
@@ -2288,11 +2304,18 @@ function resetGame() {
     updateTargetLine();
 
     // EVENT 2 전용: 스테이크 굽기 연출
-    if (config.displayName === "EVENT 2") {
+    if (isSteakEvent) {
         steakContainer.classList.remove('hidden');
         initSteakCanvas();
     } else {
         steakContainer.classList.add('hidden');
+    }
+
+    // EVENT 3 전용: 옥수수 표시
+    if (config.displayName === "EVENT 3") {
+        if (cornContainer) cornContainer.classList.remove('hidden');
+    } else {
+        if (cornContainer) cornContainer.classList.add('hidden');
     }
 
     console.log(`Resetting to Level ${currentLevel}`);
@@ -2326,7 +2349,26 @@ function resetGame() {
             const coinIcon = eventCounterEl.querySelector('img');
             if (coinIcon) coinIcon.style.display = 'inline-block';
         }
-    } else if (LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2") {
+    } else if (config.displayName === "EVENT 3") {
+        clearCoins();
+        if (eventCounterEl) {
+            eventCounterEl.classList.remove('hidden');
+            const coinIcon = eventCounterEl.querySelector('img');
+            if (coinIcon) coinIcon.style.display = 'inline-block';
+        }
+        if (event2FloatingScore) event2FloatingScore.classList.add('hidden');
+        if (event3FloatingScore) {
+            event3FloatingScore.classList.remove('hidden');
+            if (event3PopcornScore) event3PopcornScore.innerText = "0";
+        }
+        sessionEventCredits = 0;
+        popcornGatheredScore = 0;
+        if (eventCreditsValEl) eventCreditsValEl.innerText = "0";
+        if (popcornDepositTimer) {
+            clearTimeout(popcornDepositTimer);
+            popcornDepositTimer = null;
+        }
+    } else if (config.displayName === "EVENT 2") {
         clearCoins();
         if (eventCounterEl) eventCounterEl.classList.add('hidden');
         if (event2FloatingScore) {
@@ -2338,7 +2380,12 @@ function resetGame() {
         clearCoins();
         if (eventCounterEl) eventCounterEl.classList.add('hidden');
         if (event2FloatingScore) event2FloatingScore.classList.add('hidden');
+        if (event3FloatingScore) event3FloatingScore.classList.add('hidden');
     }
+
+    // Clear accumulated popcorn
+    document.querySelectorAll('.settled-popcorn').forEach(p => p.remove());
+    settledPopcornItems = [];
 
     if (levelHintEl) {
         levelHintEl.classList.remove('level-8-hint');
@@ -2424,7 +2471,8 @@ function renderSteak() {
 }
 
 function updateSteakCooking() {
-    if (gameState !== 'PLAY' || !isBurning || LEVEL_CONFIGS[currentLevel].displayName !== "EVENT 2") return;
+    const displayName = LEVEL_CONFIGS[currentLevel].displayName;
+    if (gameState !== 'PLAY' || !isBurning || displayName !== "EVENT 2") return;
     if (!steakCanvas) return;
 
     const rect = steakCanvas.getBoundingClientRect();
@@ -2458,13 +2506,208 @@ function calculateCookedPercentage() {
     cookedPercentage = (transparentCount / (steakMaskCanvas.width * steakMaskCanvas.height)) * 100;
 
     // 실시간 UI 업데이트
-    if (LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2") {
+    const displayName = LEVEL_CONFIGS[currentLevel].displayName;
+    if (displayName === "EVENT 2") {
         const displayPct = Math.floor(cookedPercentage * 2);
 
         // 새로운 플로팅 점수판 업데이트
         if (event2CookedPctEl) event2CookedPctEl.innerText = `COOKED: ${displayPct}%`;
         if (event2CookedScoreEl) event2CookedScoreEl.innerText = displayPct * 10;
     }
+}
+
+let lastPopTime = 0;
+function updateCornPopping() {
+    const displayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+    if (gameState !== 'PLAY' || displayName !== "EVENT 3") return;
+
+    // Check collisions with settled popcorn
+    if (gameState === 'PLAY') checkPopcornCollisions();
+
+    if (!isBurning) return;
+    if (!cornContainer) return;
+
+    const rect = cornContainer.getBoundingClientRect();
+    const balloonRect = balloon.getBoundingClientRect();
+
+    // Flame position (bottom center of the balloon)
+    const flameX = balloonRect.left + balloonRect.width / 2;
+    const flameY = balloonRect.bottom;
+
+    // Check if flame is hitting the corn area
+    const cornImg = document.getElementById('corn-img');
+    if (!cornImg) return;
+    const cornRect = cornImg.getBoundingClientRect();
+
+    if (flameX >= cornRect.left && flameX <= cornRect.right &&
+        flameY >= cornRect.top && flameY <= cornRect.bottom) {
+
+        const now = Date.now();
+        if (now - lastPopTime > 150) { // Limit popping frequency
+            spawnPopcorn(flameX, flameY);
+            lastPopTime = now;
+            soundMgr.play('popcorn', false, 0.4);
+        }
+    }
+}
+
+function spawnPopcorn(x, y) {
+    const p = document.createElement('img');
+    p.src = '팝콘.png';
+    p.className = 'popcorn-particle';
+
+    // Convert clientX/Y to gameContainer relative
+    const gameRect = gameContainer.getBoundingClientRect();
+    const relativeX = ((x - gameRect.left) / gameRect.width) * 100;
+    const relativeY = 100 - ((y - gameRect.top) / gameRect.height) * 100;
+
+    p.style.left = `${relativeX}%`;
+    p.style.bottom = `${relativeY}%`;
+    gameContainer.appendChild(p);
+
+    // Animation: fly up and then down
+    const angle = (Math.random() * 60 - 30) * (Math.PI / 180); // -30 to 30 degrees
+    const speed = 3 + Math.random() * 5;
+    let vx = Math.sin(angle) * speed * 0.2;
+    let vy = (5 + Math.random() * 5) * 0.2;
+    const gravity = 0.015;
+
+    let posX = relativeX;
+    let posY = (relativeY - 8.05) / 0.9195; // Game Y coordinate
+
+    function animatePop() {
+        vy -= gravity;
+        posX += vx;
+        posY += vy;
+
+        // Bounce off walls (0% and 100%)
+        if (posX <= 2) { // 2% margin for particle width
+            posX = 2;
+            vx *= -0.6; // Bounce back with some energy loss
+        } else if (posX >= 98) { // 98% margin for particle width
+            posX = 98;
+            vx *= -0.6;
+        }
+
+        p.style.left = `${posX}%`;
+        p.style.bottom = `calc(8.05% + ${posY * 0.9195}%)`;
+
+        // If popcorn hits the ground (posY <= 0)
+        if (posY <= 0) {
+            const randomHeightOffset = Math.random() * 10 - 5; // -5px to +5px variance
+            const randomRotation = Math.random() * 360;
+
+            p.style.bottom = `calc(8.05% - 20px + ${randomHeightOffset}px)`;
+            p.style.transform = `rotate(${randomRotation}deg)`;
+            p.classList.add('settled-popcorn');
+
+            // Track settled popcorn with its coordinates for collision
+            settledPopcornItems.push({
+                el: p,
+                x: posX,
+                y: 8.05 + posY * 0.9195, // Effective bottom % position
+                collected: false
+            });
+            return;
+        }
+
+        if (posY > -20) { // Keep animating until it hits ground or falls far below
+            requestAnimationFrame(animatePop);
+        } else {
+            p.remove();
+        }
+    }
+    requestAnimationFrame(animatePop);
+}
+
+let settledPopcornItems = []; // Track actual objects for better performance
+function checkPopcornCollisions() {
+    const skyHeight = gameContainer.clientHeight * 0.9195;
+    const skyWidth = gameContainer.clientWidth;
+
+    // Use balloon marker (blue dot) for precise collision
+    const markerXPx = (balloonX / 100) * skyWidth;
+    const markerYPx = ((balloonY + getMarkerOffset()) / 100) * skyHeight;
+    const markerXPct = (markerXPx / skyWidth) * 100;
+    const markerYPct = (markerYPx / skyHeight) * 100;
+
+    // Even smaller radius for marker (approx 10px)
+    const markerRadiusPct = (10 / skyWidth) * 100;
+
+    for (let i = settledPopcornItems.length - 1; i >= 0; i--) {
+        const pop = settledPopcornItems[i];
+        if (pop.collected) continue;
+
+        // Even tighter popcorn hitbox (approx 16px diameter)
+        const popRadiusPct = (8 / skyWidth) * 100; // 16px / 2
+
+        const dx = markerXPct - pop.x;
+        const dy = markerYPct - pop.y;
+        const distSq = dx * dx + dy * dy;
+        const combinedRadiusPct = markerRadiusPct + popRadiusPct;
+
+        if (distSq < combinedRadiusPct * combinedRadiusPct) {
+            pop.collected = true;
+
+            // Floating +20 text
+            const plusText = document.createElement('div');
+            plusText.className = 'popcorn-plus-text';
+            plusText.innerText = '+20';
+            plusText.style.left = `${pop.x}%`;
+            plusText.style.bottom = `${pop.y}%`;
+            gameContainer.appendChild(plusText);
+            setTimeout(() => plusText.remove(), 800);
+
+            // Visual effect - Much slower removal to match transition
+            pop.el.classList.add('item-collected');
+            setTimeout(() => pop.el.remove(), 2000);
+            settledPopcornItems.splice(i, 1);
+
+            // Add to temporary gathered bucket
+            popcornGatheredScore += 20;
+            if (event3PopcornScore) {
+                event3PopcornScore.innerText = sessionEventCredits + popcornGatheredScore;
+                event3PopcornScore.classList.remove('score-pulse');
+                void event3PopcornScore.offsetWidth;
+                event3PopcornScore.classList.add('score-pulse');
+            }
+
+            // Reset deposit timer
+            if (popcornDepositTimer) clearTimeout(popcornDepositTimer);
+            popcornDepositTimer = setTimeout(depositPopcornCredits, 1000);
+
+            soundMgr.play('coin', false, 0.4);
+        }
+    }
+}
+
+function depositPopcornCredits() {
+    if (popcornGatheredScore === 0) return;
+
+    // Add credits to session and total
+    sessionEventCredits += popcornGatheredScore;
+    totalCredits += popcornGatheredScore;
+
+    // Update UI
+    if (eventCreditsValEl) {
+        eventCreditsValEl.innerText = sessionEventCredits;
+        // Sparkle effect
+        eventCreditsValEl.classList.remove('credit-sparkle');
+        void eventCreditsValEl.offsetWidth;
+        eventCreditsValEl.classList.add('credit-sparkle');
+    }
+
+    if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
+    const groundCredits = document.getElementById('ground-credits-display');
+    if (groundCredits) groundCredits.innerText = `${totalCredits}C`;
+
+    // Keep showing cumulative total instead of resetting to 0
+    if (event3PopcornScore) event3PopcornScore.innerText = sessionEventCredits;
+
+    popcornGatheredScore = 0;
+    popcornDepositTimer = null;
+
+    savePlayerData();
 }
 
 function updateWindLabels() {

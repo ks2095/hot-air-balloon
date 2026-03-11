@@ -1724,6 +1724,29 @@ button:hover {
     filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.4));
 }
 
+/* EVENT 3 Corn */
+#corn-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, calc(-50% + 80px));
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#corn-img {
+    max-width: 96%;
+    /* 80% * 1.2 */
+    max-height: 72%;
+    /* 60% * 1.2 */
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.4));
+}
+
 @keyframes popAppear {
     0% {
         transform: translateX(-50%) scale(0);
@@ -2069,6 +2092,66 @@ button:hover {
     margin-left: 5px;
 }
 
+#event3-floating-score {
+    position: absolute;
+    left: 47.71%;
+    bottom: 65%;
+    transform: translate(-50%, 0);
+    text-align: center;
+    color: #fff;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.8), 0 0 5px rgba(0, 0, 0, 1);
+    z-index: 1000;
+    pointer-events: none;
+    line-height: 1.2;
+}
+
+#event3-popcorn-label {
+    font-size: 1rem;
+    color: #FFD32A;
+}
+
+#event3-popcorn-score {
+    font-size: 2.2rem;
+    color: #fff;
+    transition: transform 0.2s;
+}
+
+.score-pulse {
+    animation: scorePulseAnim 0.3s ease-out;
+}
+
+@keyframes scorePulseAnim {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.3);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.credit-sparkle {
+    animation: sparkleEffect 0.5s ease-out alternate 3;
+}
+
+@keyframes sparkleEffect {
+    0% {
+        text-shadow: 0 0 5px #fff, 0 0 10px #FFD32A;
+        color: #fff;
+    }
+
+    100% {
+        text-shadow: 0 0 20px #FF9F1A, 0 0 30px #FFD32A;
+        color: #FFD32A;
+    }
+}
+
 /* ���â ���� ���� ����� ���� */
 .total-score .unit {
     color: #FFD32A !important;
@@ -2222,4 +2305,43 @@ button:hover {
     pointer-events: none;
     font-family: var(--font-main);
     opacity: 0.8;
+}
+
+.popcorn-particle {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 200;
+}
+
+.item-collected {
+    transition: transform 2.0s ease-in, opacity 2.0s ease-in !important;
+    transform: scale(3.5) rotate(25deg) !important;
+    opacity: 0 !important;
+    pointer-events: none;
+}
+
+.popcorn-plus-text {
+    position: absolute;
+    color: #ffd32a;
+    font-weight: 900;
+    font-size: 1.2rem;
+    pointer-events: none;
+    z-index: 300;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    animation: floatUpFade 0.8s forwards ease-out;
+}
+
+@keyframes floatUpFade {
+    0% {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(-50%, -40px);
+        opacity: 0;
+    }
 }
