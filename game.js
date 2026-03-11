@@ -431,7 +431,7 @@ const LEVEL_CONFIGS = {
     },
     17: {
         displayName: "15",
-        winds: [2, -5, 5, -5, 5, -5, 2],
+        winds: [-2, 4.75, -1.75, 4.75, -1.75, 4.75, -1.75],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -442,6 +442,41 @@ const LEVEL_CONFIGS = {
         maxGas: 400,
         maxTime: 40,
         platformY: 6.5
+    },
+    19: {
+        displayName: "16",
+        winds: [2, -5, 5, -5, 5, -5, 2],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    20: {
+        displayName: "17",
+        winds: [-1, -1, -1, 4.75, -1.75, 4.75, -1.75],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    21: {
+        displayName: "18",
+        winds: [1.75, 1.75, 1.75, -1.75, -1.75, -1.75, 1.0],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    22: {
+        displayName: "19",
+        winds: [-2, 2, -5, -4.75, 4.75, -4.75, 3],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
+    23: {
+        displayName: "20",
+        winds: [-1, -1, -1, -1, -1, 5, -8],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
     }
 };
 
@@ -1279,11 +1314,11 @@ function updateStoreUI(isInventoryMode = false) {
             if (isInventoryMode) {
                 let isItemDisabled = (count === 0);
 
-                if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14") {
+                if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14" || displayName === "15") {
                     if (droppedItems.length > 0) {
                         isItemDisabled = true;
                     }
-                } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "15" || displayName === "EVENT 3") {
+                } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "16" || displayName === "17" || displayName === "18" || displayName === "19" || displayName === "20" || displayName === "EVENT 3") {
                     if (droppedItems.length >= 2) {
                         isItemDisabled = true;
                     }
@@ -1361,9 +1396,9 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('mousedown', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14") {
+                    if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14" || displayName === "15") {
                         if (droppedItems.length > 0) return;
-                    } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "15" || displayName === "EVENT 3") {
+                    } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "16" || displayName === "17" || displayName === "18" || displayName === "19" || displayName === "20" || displayName === "EVENT 3") {
                         if (droppedItems.length >= 2) return;
                     }
 
@@ -1374,9 +1409,9 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('touchstart', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14") {
+                    if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14" || displayName === "15") {
                         if (droppedItems.length > 0) return;
-                    } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "15" || displayName === "EVENT 3") {
+                    } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "16" || displayName === "17" || displayName === "18" || displayName === "19" || displayName === "20" || displayName === "EVENT 3") {
                         if (droppedItems.length >= 2) return;
                     }
 
@@ -1537,8 +1572,9 @@ function update(timestamp) {
         const currentGas = Math.floor(gas);
         const currentTime = Math.ceil(timeLeft);
 
-        // Level 11, 12, 13, 14, 15 Wind reversal logic (currentLevel 13 to 17)
-        if (currentLevel >= 13 && currentLevel <= 17) {
+        // Wind reversal logic (LV-11 to LV-20)
+        const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+        if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3") {
             const windElapsedSeconds = (now - windCycleStartTime) / 1000;
             const windCycle = windElapsedSeconds % 13;
             if (windCycle >= 10) {
@@ -1595,8 +1631,8 @@ function update(timestamp) {
 }
 
 function updateTargetLine() {
-    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~18레벨 공통)
-    if (currentLevel >= 1 && currentLevel <= 18) {
+    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~23레벨 공통)
+    if (currentLevel >= 1 && currentLevel <= 23) {
         targetLineX = 50;
         targetLineEl.style.left = `${targetLineX}%`;
 
@@ -1659,7 +1695,8 @@ function handleMovement() {
     const zoneIndex = Math.min(6, Math.max(0, Math.floor(markerY / zoneHeight)));
 
     let windForce = ZONE_WINDS[zoneIndex];
-    if (currentLevel >= 13 && currentLevel <= 17) windForce *= level11WindMultiplier;
+    const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+    if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3") windForce *= level11WindMultiplier;
     windForce += tempWindBoosts[zoneIndex];
 
     velX += windForce * 0.00165; // Reduced from 0.0033 (half of previous effect)
@@ -2190,7 +2227,8 @@ function updateParticlePos(p) {
     p.el.style.left = `${p.x}%`;
     p.el.style.top = `${p.y}%`;
     let currentWind = ZONE_WINDS[p.zoneIndex];
-    if (currentLevel >= 13 && currentLevel <= 17) currentWind *= level11WindMultiplier;
+    const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+    if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3") currentWind *= level11WindMultiplier;
     currentWind += tempWindBoosts[p.zoneIndex];
     p.el.style.width = `${Math.abs(currentWind) * 5 + 5}px`;
 }
@@ -2206,7 +2244,8 @@ function animateParticles(timestamp) {
 
     particles.forEach(p => {
         let wind = ZONE_WINDS[p.zoneIndex];
-        if (currentLevel >= 13 && currentLevel <= 17) wind *= level11WindMultiplier;
+        const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+        if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3") wind *= level11WindMultiplier;
         wind += tempWindBoosts[p.zoneIndex];
         p.x += wind * 0.12;
 
@@ -2390,11 +2429,11 @@ function resetGame() {
     if (levelHintEl) {
         levelHintEl.classList.remove('level-8-hint');
         const displayName = config.displayName;
-        if (displayName === "6" || displayName === "7" || displayName === "14") {
+        if (displayName === "6" || displayName === "7" || displayName === "14" || displayName === "15") {
             levelHintEl.innerHTML = `Use 1 item or less`;
             levelHintEl.classList.remove('hidden');
-        } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "15") {
-            levelHintEl.innerHTML = `Use 2 items or less`;
+        } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "16" || displayName === "17" || displayName === "18" || displayName === "19" || displayName === "20" || displayName === "EVENT 3") {
+            levelHintEl.innerHTML = (displayName === "EVENT 3") ? `Use 2 items` : `Use 2 items or less`;
             levelHintEl.classList.remove('hidden');
             if (displayName === "9" || displayName === "10") levelHintEl.classList.add('level-8-hint');
         } else {
@@ -2409,6 +2448,7 @@ function resetGame() {
             let pixelOffset = 12;
             if (config.displayName === "9") pixelOffset = 7;
             if (config.displayName === "10") pixelOffset = -3;
+            if (config.displayName === "EVENT 2" || config.displayName === "EVENT 3") pixelOffset = 12 - 50; // 50px down to match platform
             const platformHeightPercentage = (9 / skyHeight) * 100;
             const targetYTop = targetYBottom + (pixelOffset / skyHeight) * 100 + platformHeightPercentage;
 
@@ -2716,7 +2756,8 @@ function updateWindLabels() {
         const zoneIdx = parseInt(label.dataset.zone);
 
         let currentWind = ZONE_WINDS[zoneIdx];
-        if (currentLevel >= 13 && currentLevel <= 17) currentWind *= level11WindMultiplier;
+        const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+        if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3") currentWind *= level11WindMultiplier;
         currentWind += tempWindBoosts[zoneIdx];
 
         let displayWind = currentWind;
