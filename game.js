@@ -368,7 +368,7 @@ const LEVEL_CONFIGS = {
     },
     8: {
         displayName: "7",
-        winds: [-1, -1, -1, 4.75, -1.75, 4.75, -1.75],
+        winds: [-1, -1, -1, 4.75, -2, 4.75, -1.75],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
