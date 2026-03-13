@@ -60,14 +60,19 @@ const steakCanvas = document.getElementById('steak-canvas');
 const steakCtx = steakCanvas ? steakCanvas.getContext('2d', { willReadFrequently: true }) : null;
 const cornContainer = document.getElementById('corn-container');
 const windCountdownEl = document.getElementById('wind-countdown');
+const seaOverlayEl = document.getElementById('sea-overlay');
+const fishingGearEl = document.getElementById('fishing-gear');
 
 const event2FloatingScore = document.getElementById('event2-floating-score');
 const event2CookedPctEl = document.getElementById('event2-cooked-pct');
 const event2CookedScoreEl = document.getElementById('event2-cooked-score');
 const event3FloatingScore = document.getElementById('event3-floating-score');
 const event3PopcornScore = document.getElementById('event3-popcorn-score');
+const event4FloatingScore = document.getElementById('event4-floating-score');
+const event4FishScore = document.getElementById('event4-fish-score');
 
 let popcornGatheredScore = 0;
+let event4FishCaughtScore = 0;
 let popcornDepositTimer = null;
 
 let steak1Img = new Image();
@@ -314,6 +319,9 @@ const MAX_GAS = 1000;
 const MAX_TIME = 60;
 let particles = [];
 const PARTICLE_COUNT = 30;
+let activeFish = [];
+let attachedFish = null;
+let draggingOffset = { x: 0, y: 0 };
 
 let currentLevel = 1;
 const LEVEL_CONFIGS = {
@@ -466,17 +474,24 @@ const LEVEL_CONFIGS = {
     },
     22: {
         displayName: "19",
-        winds: [-2, 2, -5, -4.75, 4.75, -4.75, 3],
+        winds: [-1, -1, -1, -1, -1, 5, -8],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
     },
     23: {
         displayName: "20",
-        winds: [-1, -1, -1, -1, -1, 5, -8],
+        winds: [-2, 2, -5, -4.75, 4.75, -4.75, 3],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
+    },
+    24: {
+        displayName: "EVENT 4",
+        winds: [1, -1, -2, 2, -2, 2, -1],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.5
     }
 };
 
@@ -971,9 +986,9 @@ function init() {
 function startGame() {
     balloonX = 50;
     const config = LEVEL_CONFIGS[currentLevel];
-    const isEvent2 = config.displayName === "EVENT 2";
+    const isSpecialStart = config.displayName === "EVENT 2" || config.displayName === "EVENT 4";
 
-    if (isEvent2) {
+    if (isSpecialStart) {
         // EVENT 2: Start on top of the landing pad
         const skyHeight = gameContainer.clientHeight * 0.9195;
         const platformY = config.platformY;
@@ -1551,7 +1566,9 @@ function update(timestamp) {
         updateTargetLine();
         updateSteakCooking();
         updateCornPopping();
+        checkFishing();
     }
+    updateFish();
 
     // Render (Balloon starts above the 8.05% ground, sky is 93% high)
     balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
@@ -1631,8 +1648,8 @@ function update(timestamp) {
 }
 
 function updateTargetLine() {
-    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~23레벨 공통)
-    if (currentLevel >= 1 && currentLevel <= 23) {
+    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~24레벨 공통)
+    if (currentLevel >= 1 && currentLevel <= 24) {
         targetLineX = 50;
         targetLineEl.style.left = `${targetLineX}%`;
 
@@ -1643,8 +1660,14 @@ function updateTargetLine() {
         let pixelOffset = 12;
         if (config.displayName === "9") pixelOffset = 7;
         if (config.displayName === "10") pixelOffset = -3; // Raised by 20px from -23
-        if (config.displayName === "EVENT 2" || config.displayName === "EVENT 3") pixelOffset = 12 - 50; // 50px down
         targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + ${pixelOffset}px)`;
+
+        // EVENT 4에서만 착륙 패드 숨기기
+        if (config.displayName === "EVENT 4") {
+            targetLineEl.classList.add('hidden');
+        } else {
+            targetLineEl.classList.remove('hidden');
+        }
 
         return;
     }
@@ -1711,7 +1734,8 @@ function handleMovement() {
     let pixelOffset = 12;
     if (config.displayName === "9") pixelOffset = 7;
     if (config.displayName === "10") pixelOffset = -3;
-    if (config.displayName === "EVENT 2" || config.displayName === "EVENT 3") pixelOffset = 12 - 50; // 50px down
+    if (config.displayName === "19") pixelOffset = 12 - 20; // 20px down
+    if (config.displayName === "EVENT 2" || config.displayName === "EVENT 3" || config.displayName === "EVENT 4") pixelOffset = 12 - 50; // 50px down
     const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100; // Visual bottom of the platform
     const targetYTop = targetYBottom + platformHeightPercentage; // Top of the grass
 
@@ -1721,48 +1745,51 @@ function handleMovement() {
     const platTop = targetYTop;
     const platBottom = targetYBottom;
 
-    // 1. Balloon Body (Blue circle) Collision
-    const balloonCenterY = balloonY + getMarkerOffset();
-    const balloonRadius = (32.5 / skyHeight) * 100 / 2; // Approximate radius in %
+    // Platform Collision logic (Skip for EVENT 4)
+    if (config.displayName !== "EVENT 4") {
+        // 1. Balloon Body (Blue circle) Collision
+        const balloonCenterY = balloonY + getMarkerOffset();
+        const balloonRadius = (32.5 / skyHeight) * 100 / 2; // Approximate radius in %
 
-    // Check if blue circle touches any part of the platform box
-    const bodyWithinH = balloonX > platLeft - balloonRadius && balloonX < platRight + balloonRadius;
-    const bodyWithinV = balloonCenterY > platBottom - balloonRadius && balloonCenterY < platTop + balloonRadius;
+        // Check if blue circle touches any part of the platform box
+        const bodyWithinH = balloonX > platLeft - balloonRadius && balloonX < platRight + balloonRadius;
+        const bodyWithinV = balloonCenterY > platBottom - balloonRadius && balloonCenterY < platTop + balloonRadius;
 
-    if (bodyWithinH && bodyWithinV) {
-        gameOver('CRASH');
-        return;
-    }
+        if (bodyWithinH && bodyWithinV) {
+            gameOver('CRASH');
+            return;
+        }
 
-    // 2. Red Dot (Basket) Collision and Landing logic
-    const basketY = balloonY + getBasketOffset();
-    const basketWithinH = balloonX >= platLeft && balloonX <= platRight;
+        // 2. Red Dot (Basket) Collision and Landing logic
+        const basketY = balloonY + getBasketOffset();
+        const basketWithinH = balloonX >= platLeft && balloonX <= platRight;
 
-    if (basketWithinH) {
-        // Check for top-down landing on the Yellow line (platTop)
-        const isTouchingTop = basketY <= platTop + 0.3 && basketY >= platTop - 0.7;
+        if (basketWithinH) {
+            // Check for top-down landing on the Yellow line (platTop)
+            const isTouchingTop = basketY <= platTop + 0.3 && basketY >= platTop - 0.7;
 
-        if (isTouchingTop) {
-            // 게임 시작 직후 바로 클리어 방지 (최소 2초 비행 필요)
-            const isFreshStart = (Date.now() - missionStartTime) < 2000;
-            if (velY < 0 && !isFreshStart) { // Moving Top -> Bottom
-                winGame();
+            if (isTouchingTop) {
+                // 게임 시작 직후 바로 클리어 방지 (최소 2초 비행 필요)
+                const isFreshStart = (Date.now() - missionStartTime) < 2000;
+                if (velY < 0 && !isFreshStart) { // Moving Top -> Bottom
+                    winGame();
+                    return;
+                }
+                // velY > 0 (상승) 시에는 크래시 없이 패드에서 벗어날 수 있도록 함
+            }
+            // If inside the platform but not at the very top -> Crash
+            else if (basketY < platTop && basketY > platBottom) {
+                gameOver('CRASH');
                 return;
             }
-            // velY > 0 (상승) 시에는 크래시 없이 패드에서 벗어날 수 있도록 함
-        }
-        // If inside the platform but not at the very top -> Crash
-        else if (basketY < platTop && basketY > platBottom) {
-            gameOver('CRASH');
-            return;
-        }
-    } else {
-        // Check for hitting sides with the red dot
-        const basketNearV = basketY > platBottom && basketY < platTop;
-        const basketNearH = balloonX > platLeft - 1 && balloonX < platRight + 1;
-        if (basketNearV && basketNearH) {
-            gameOver('CRASH');
-            return;
+        } else {
+            // Check for hitting sides with the red dot
+            const basketNearV = basketY > platBottom && basketY < platTop;
+            const basketNearH = balloonX > platLeft - 1 && balloonX < platRight + 1;
+            if (basketNearV && basketNearH) {
+                gameOver('CRASH');
+                return;
+            }
         }
     }
 
@@ -1919,6 +1946,15 @@ function gameOver(msg = 'OVERHEAT') {
     gameState = 'GAMEOVER';
     isBurning = false;
     soundMgr.stop('burner');
+    attachedFish = null;
+
+    // 11~20레벨 실패 시 바람 방향을 처음 시작 방향(multiplier=1)으로 복구
+    const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+    if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3") {
+        level11WindMultiplier = 1;
+        if (showWindLabels) updateWindLabels();
+        if (windCountdownEl) windCountdownEl.classList.add('hidden');
+    }
 
     const config = LEVEL_CONFIGS[currentLevel];
     const isEventLevel = config && config.displayName.startsWith("EVENT");
@@ -2022,7 +2058,7 @@ function gameOver(msg = 'OVERHEAT') {
             // 시작 위치로 살짝 이동 (resetGame의 로직 반영)
             balloonX = 50;
             const config = LEVEL_CONFIGS[currentLevel];
-            if (config.displayName === "EVENT 2") {
+            if (config.displayName === "EVENT 2" || config.displayName === "EVENT 4") {
                 const skyHeight = gameContainer.clientHeight * 0.9195;
                 const platformY = config.platformY;
                 const pixelOffset = 12 - 50;
@@ -2057,6 +2093,16 @@ function winGame() {
     const isSteakEvent = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2";
 
     gameState = 'CLEAR';
+    attachedFish = null;
+    
+    // 11~20레벨 클리어 시 바람 방향을 처음 시작 방향(multiplier=1)으로 복구
+    const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+    if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3") {
+        level11WindMultiplier = 1;
+        if (showWindLabels) updateWindLabels();
+        if (windCountdownEl) windCountdownEl.classList.add('hidden');
+    }
+
     mainActionBtn.innerText = 'START';
     mainActionBtn.classList.remove('burner-mode');
     mainActionBtn.classList.add('restart-mode');
@@ -2140,7 +2186,7 @@ function winGame() {
     if (groundCredits) groundCredits.innerText = `${totalCredits}C`;
     if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
 
-    const currentDisplayName = LEVEL_CONFIGS[currentLevel].displayName;
+    // currentDisplayName already defined above
     if (clearTitleEl) clearTitleEl.innerText = currentDisplayName.startsWith("EVENT") ? "EVENT LEVEL CLEAR!" : `LEVEL-${currentDisplayName} CLEAR`;
 
     if (currentDisplayName.startsWith("EVENT") && !isSteakEvent) {
@@ -2303,7 +2349,8 @@ function resetGame() {
 
     // EVENT 2: Start on top of the landing pad even before clicking start
     const isSteakEvent = config.displayName === "EVENT 2";
-    if (isSteakEvent) {
+    const isSpecialStart = config.displayName === "EVENT 2" || config.displayName === "EVENT 4";
+    if (isSpecialStart) {
         const skyHeight = gameContainer.clientHeight * 0.9195;
         const platformY = config.platformY;
         const pixelOffset = 12 - 50; // Use same adjusted offset as in handleMovement
@@ -2420,7 +2467,25 @@ function resetGame() {
         if (eventCounterEl) eventCounterEl.classList.add('hidden');
         if (event2FloatingScore) event2FloatingScore.classList.add('hidden');
         if (event3FloatingScore) event3FloatingScore.classList.add('hidden');
+        if (event4FloatingScore) event4FloatingScore.classList.add('hidden');
     }
+
+    // EVENT 4: 바다 표현 및 낚싯대 추가
+    if (config.displayName === "EVENT 4") {
+        if (seaOverlayEl) seaOverlayEl.classList.remove('hidden');
+        if (fishingGearEl) fishingGearEl.classList.remove('hidden');
+        if (event4FloatingScore) {
+            event4FloatingScore.classList.remove('hidden');
+            if (event4FishScore) event4FishScore.innerText = "0";
+        }
+        event4FishCaughtScore = 0;
+        createFish();
+    } else {
+        if (seaOverlayEl) seaOverlayEl.classList.add('hidden');
+        if (fishingGearEl) fishingGearEl.classList.add('hidden');
+        clearFish();
+    }
+    attachedFish = null;
 
     // Clear accumulated popcorn
     document.querySelectorAll('.settled-popcorn').forEach(p => p.remove());
@@ -2435,25 +2500,15 @@ function resetGame() {
         } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "16" || displayName === "17" || displayName === "18" || displayName === "19" || displayName === "20" || displayName === "EVENT 3") {
             levelHintEl.innerHTML = (displayName === "EVENT 3") ? `Use 2 items` : `Use 2 items or less`;
             levelHintEl.classList.remove('hidden');
-            if (displayName === "9" || displayName === "10") levelHintEl.classList.add('level-8-hint');
+            // Removed level-8-hint class addition as positioning is now fixed
         } else {
             levelHintEl.classList.add('hidden');
         }
 
-        // Position level-hint 15px above the landing pad
+        // Position level-hint at the bottom center of Zone 2
         if (!levelHintEl.classList.contains('hidden')) {
-            const skyHeight = gameContainer.clientHeight * 0.9195;
-            const platformY = config.platformY;
-            const targetYBottom = (100 / 7) * platformY;
-            let pixelOffset = 12;
-            if (config.displayName === "9") pixelOffset = 7;
-            if (config.displayName === "10") pixelOffset = -3;
-            if (config.displayName === "EVENT 2" || config.displayName === "EVENT 3") pixelOffset = 12 - 50; // 50px down to match platform
-            const platformHeightPercentage = (9 / skyHeight) * 100;
-            const targetYTop = targetYBottom + (pixelOffset / skyHeight) * 100 + platformHeightPercentage;
-
-            levelHintEl.style.top = 'auto'; // Disable centering from CSS
-            levelHintEl.style.bottom = `calc(8.05% + ${targetYTop * 0.9195}% + 15px)`;
+            levelHintEl.style.top = 'auto';
+            levelHintEl.style.bottom = `calc(8.05% + (91.95% / 7) + 10px)`; // Bottom of Zone 2
             levelHintEl.style.transform = 'translateX(-50%)';
             levelHintEl.style.left = '50%';
             levelHintEl.style.width = '100.0%';
@@ -2774,6 +2829,250 @@ function updateWindLabels() {
 
         label.innerText = `${displayWind.toFixed(2)}m/s`;
     });
+}
+
+function createFish() {
+    clearFish();
+    const config = LEVEL_CONFIGS[currentLevel];
+    if (config.displayName !== "EVENT 4") return;
+
+    for (let type = 1; type <= 5; type++) {
+        let count = 2;
+        if (type === 1) count = 1;
+        else if (type >= 3) count = 3;
+
+        for (let i = 0; i < count; i++) {
+            const fishEl = document.createElement('img');
+            fishEl.src = `물고기${type}.png`;
+            fishEl.className = 'fish';
+            // 초기 위치 및 스타일 설정
+            fishEl.style.position = 'absolute';
+            
+            let fishSize = 70;
+            if (type === 1) fishSize = 70 * 1.56; // 1.3 * 1.2
+            else if (type === 2) fishSize = 70 * 1.15; // 1.0 * 1.15
+            else if (type === 3) fishSize = 70 * 0.8;
+            else if (type === 4) fishSize = 70 * 0.75;
+            else if (type === 5) fishSize = 70 * 0.7;
+
+            fishEl.style.width = `${fishSize}px`;
+            fishEl.style.height = `${fishSize}px`;
+            fishEl.style.objectFit = 'contain';
+            fishEl.style.zIndex = '2';
+            fishEl.style.pointerEvents = 'none';
+            // fishEl.style.filter = 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'; 
+            
+            gameContainer.appendChild(fishEl);
+
+            const fishHeightPct = (fishSize / (gameContainer.clientHeight * 0.9195)) * 100;
+            const maxSurface = (100 / 7) * 2.5; // 3구역 중간 (약 35.7%)
+            const maxBodyY = maxSurface - fishHeightPct;
+
+            const fish = {
+                el: fishEl,
+                x: Math.random() * 90 + 5, // 5% to 95%
+                y: Math.random() * maxBodyY, 
+                baseY: 0,
+                heightPct: fishHeightPct,
+                swimOffset: Math.random() * Math.PI * 2,
+                velX: (Math.random() * 0.15 + 0.05) * (Math.random() > 0.5 ? 1 : -1),
+                type: type
+            };
+            fish.baseY = fish.y;
+            activeFish.push(fish);
+        }
+    }
+}
+
+function updateFish() {
+    const now = Date.now();
+    activeFish.forEach(fish => {
+        let currentY;
+        let flip;
+
+        if (fish === attachedFish) {
+            if (fish.type === 1) {
+                // 물고기1은 미끼를 끌고 다님 (정상 이동 루틴 유지)
+                fish.x += fish.velX;
+                if (fish.x < 2 || fish.x > 98) {
+                    fish.velX *= -1;
+                }
+                const bob = Math.sin(now * 0.0015 + fish.swimOffset) * 1.5; 
+                currentY = fish.baseY + bob;
+                
+                const maxSurface = (100 / 7) * 2.5;
+                const maxBodyY = maxSurface - fish.heightPct;
+                currentY = Math.max(0, Math.min(maxBodyY, currentY));
+                
+                // 열기구를 물고기 위치에 맞춰 이동 (미끼 오프셋 고려)
+                balloonX = fish.x - draggingOffset.x;
+                balloonY = currentY - draggingOffset.y;
+                
+                flip = fish.velX > 0 ? 'scaleX(-1)' : 'scaleX(1)';
+                fish.el.style.zIndex = "10";
+            } else {
+                const baitEl = document.querySelector('.fishing-bait');
+                if (baitEl) {
+                    const gameRect = gameContainer.getBoundingClientRect();
+                    const baitRect = baitEl.getBoundingClientRect();
+                    const centerX = baitRect.left + baitRect.width/2;
+                    const centerY = baitRect.top + baitRect.height/2;
+                    
+                    fish.x = (centerX - gameRect.left) / gameRect.width * 100;
+                    const skyHeight = gameRect.height * 0.9195;
+                    const yPxFromBottom = gameRect.bottom - centerY - (gameRect.height * 0.0805);
+                    fish.y = (yPxFromBottom / skyHeight) * 100;
+                }
+                currentY = fish.y;
+
+                // 일반 물고기도 낚인 상태에서 수면 위로 못 올라오게 제한
+                const maxSurface = (100 / 7) * 2.5;
+                const maxBodyY = maxSurface - fish.heightPct;
+                currentY = Math.max(0, Math.min(maxBodyY, currentY));
+
+                const wiggle = Math.sin(now * 0.01) * 10;
+                flip = `scaleX(1) rotate(${90 + wiggle}deg)`;
+                fish.el.style.zIndex = "10";
+            }
+        } else {
+            fish.x += fish.velX;
+            if (fish.x < 2 || fish.x > 98) {
+                fish.velX *= -1;
+            }
+            const bob = Math.sin(now * 0.0015 + fish.swimOffset) * 1.5; 
+            currentY = fish.baseY + bob;
+            
+            // 수면 높이 제한 적용 (물고기 머리가 3구역 중간을 넘지 않게)
+            const maxSurface = (100 / 7) * 2.5;
+            const maxBodyY = maxSurface - (fish.heightPct || 0);
+            currentY = Math.max(0, Math.min(maxBodyY, currentY));
+            flip = fish.velX > 0 ? 'scaleX(-1)' : 'scaleX(1)';
+            fish.el.style.zIndex = "2";
+        }
+        
+        fish.el.style.left = `${fish.x}%`;
+        fish.el.style.bottom = `calc(8.05% + ${currentY * 0.9195}%)`;
+        fish.el.style.transform = `translateX(-50%) ${flip}`;
+    });
+}
+
+function checkFishing() {
+    if (gameState !== 'PLAY') return;
+    if (Date.now() - missionStartTime < 1000) return;
+    if (LEVEL_CONFIGS[currentLevel].displayName !== "EVENT 4") return;
+
+    const baitEl = document.querySelector('.fishing-bait');
+    if (!baitEl) return;
+    const baitRect = baitEl.getBoundingClientRect();
+
+    if (attachedFish) {
+        if (attachedFish.type === 1) return; // 물고기1은 안 잡힘
+
+        if (isBurning && continuousBurnStartTime !== 0) {
+            if (Date.now() - continuousBurnStartTime >= 500) {
+                catchFish(attachedFish);
+            }
+        }
+    } else {
+        const baitCenterX = baitRect.left + baitRect.width / 2;
+        const baitCenterY = baitRect.top + baitRect.height / 2;
+
+        for (let fish of activeFish) {
+            if (fish.caught) continue;
+            const fishRect = fish.el.getBoundingClientRect();
+            const fishCenterX = fishRect.left + fishRect.width / 2;
+            const fishCenterY = fishRect.top + fishRect.height / 2;
+
+            const dx = baitCenterX - fishCenterX;
+            const dy = baitCenterY - fishCenterY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < fishRect.width * 0.35) {
+                // 미끼에 닿은 상태에서 버너를 눌러야 낚임
+                if (isBurning) {
+                    attachedFish = fish;
+                    if (fish.type === 1) {
+                        draggingOffset = getBaitOffset();
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
+
+function getBaitOffset() {
+    const baitEl = document.querySelector('.fishing-bait');
+    if (!baitEl) return { x: 0, y: 0 };
+    
+    const gameRect = gameContainer.getBoundingClientRect();
+    const balloonRect = balloon.getBoundingClientRect();
+    const baitRect = baitEl.getBoundingClientRect();
+    
+    const skyHeight = gameRect.height * 0.9195;
+    
+    // Balloon position in % (center)
+    const bCenterX = balloonRect.left + balloonRect.width / 2;
+    const bCenterY = balloonRect.top + balloonRect.height / 2;
+    
+    // Bait center
+    const btCenterX = baitRect.left + baitRect.width / 2;
+    const btCenterY = baitRect.top + baitRect.height / 2;
+    
+    return {
+        x: (btCenterX - bCenterX) / gameRect.width * 100,
+        y: (bCenterY - btCenterY) / skyHeight * 100
+    };
+}
+
+function catchFish(fish) {
+    fish.caught = true;
+    attachedFish = null;
+    
+    // 점수 계산 (요청하신 대로 타입별 차등)
+    let points = 50;
+    if (fish.type === 2) points = 200;
+    else if (fish.type === 3 || fish.type === 4) points = 100;
+    else if (fish.type === 5) points = 50;
+    
+    totalCredits += points;
+    event4FishCaughtScore += points;
+    savePlayerData();
+    
+    // 상단 플로팅 스코어 업데이트
+    if (event4FishScore) {
+        event4FishScore.innerText = event4FishCaughtScore;
+        event4FishScore.style.transform = "scale(1.3)";
+        setTimeout(() => { event4FishScore.style.transform = "scale(1)"; }, 200);
+    }
+    
+    // 효과음 및 애니메이션
+    soundMgr.play('coin');
+    fish.el.classList.add('item-collected');
+    
+    // 플로팅 텍스트
+    const plusText = document.createElement('div');
+    plusText.className = 'popcorn-plus-text';
+    plusText.innerText = `+${points}`;
+    plusText.style.left = `${fish.x}%`;
+    plusText.style.bottom = fish.el.style.bottom;
+    gameContainer.appendChild(plusText);
+    setTimeout(() => plusText.remove(), 1000);
+    
+    setTimeout(() => {
+        const idx = activeFish.indexOf(fish);
+        if (idx > -1) activeFish.splice(idx, 1);
+        fish.el.remove();
+    }, 500);
+}
+
+function clearFish() {
+    activeFish.forEach(fish => {
+        if (fish.el && fish.el.parentNode) {
+            fish.el.remove();
+        }
+    });
+    activeFish = [];
 }
 
 function updateNextLevelButtonVisibility() {

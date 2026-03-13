@@ -1,4 +1,4 @@
-﻿:root {
+:root {
     --primary-color: #ff6b6b;
     --secondary-color: #4ecdc4;
     --bg-color: linear-gradient(to bottom, #050b1a, #0a1128, #1c2a4a);
@@ -92,13 +92,13 @@ body {
     left: 0;
     right: 0;
     height: 3.5px;
-    /* ?�디(Grass) �?*/
+    /* ?�디(Grass) �?*/
     background: #2ecc71;
     border-radius: 2px 2px 0 0;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
     border-bottom: 1px solid #27ae60;
     border-top: 1.5px solid #ffd32a;
-    /* ?��? �?추�? */
+    /* ?��? �?추�? */
 }
 
 .target-line::after {
@@ -109,7 +109,7 @@ body {
     right: 0;
     height: 1.5px;
 
-    /* ?�디?� ?�의 경계 초록???�턴 */
+    /* ?�디?�??�의 경계 초록???�턴 */
     background: repeating-linear-gradient(90deg,
             #2ecc71 0,
             #2ecc71 3px,
@@ -209,7 +209,7 @@ body {
     color: #7f8c8d;
     border: none !important;
     box-shadow: none !important;
-    min-width: 40px;
+    min-width: 32px;
     padding: 8px 0;
     font-weight: 900;
     cursor: pointer;
@@ -261,7 +261,7 @@ body {
     transform: translateY(calc(-50% - 40px));
     color: #ffd32a;
     /* Yellow */
-    font-weight: 800;
+    font-weight: 680;
     font-size: 1.4rem;
     /* 0.95rem?�서 ??50% ?��? */
     letter-spacing: 0.5px;
@@ -397,7 +397,7 @@ body {
     background: transparent;
 }
 
-/* �??��???*/
+/* �??��???*/
 .star {
     position: absolute;
     background: white;
@@ -697,7 +697,7 @@ body {
     flex: 1;
     max-width: 110px;
     margin-top: 5px;
-    /* ?�래�??�동 */
+    /* ?�래�??�동 */
     margin-right: 18px;
     /* ?�쪽?�로 ???�동 */
 }
@@ -808,7 +808,7 @@ body {
     background-color: #7f8c8d !important;
     /* ?�색 바탕 */
     background-image: linear-gradient(to top, #3498db var(--fill, 0%), transparent var(--fill, 0%)) !important;
-    /* ?��???차오�?*/
+    /* ?��???차오�?*/
     border-color: #bdc3c7;
 }
 
@@ -829,7 +829,7 @@ body {
 }
 
 #main-action-btn.burner-mode {
-    /* 배경?� 기본 ?�속 �?그라?�이???�용 */
+    /* 배경?�?기본 ?�속 �?그라?�이???�용 */
     box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4), inset 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
@@ -912,7 +912,7 @@ body {
     pointer-events: none;
 }
 
-/* 마커 ?�시 모드 (기본?� ?��?) */
+/* 마커 ?�시 모드 (기본?�??��?) */
 #balloon-marker,
 #basket-marker {
     display: none;
@@ -1407,7 +1407,7 @@ button:hover {
     display: none;
 }
 
-/* ?�명(?�기�? ?�이�?30% ?��? */
+/* ?�명(?�기�? ?�이�?30% ?��? */
 .item-life .item-icon-mini {
     width: 81.9px;
     height: 81.9px;
@@ -1418,7 +1418,7 @@ button:hover {
     top: -20px;
 }
 
-/* 무게�??�이�?20% ?��? �?개별 ?�치 조정 */
+/* 무게�??�이�?20% ?��? �?개별 ?�치 조정 */
 .item-weight .item-icon-mini {
     width: 75.6px;
     height: 75.6px;
@@ -1430,7 +1430,7 @@ button:hover {
 .item-weight .item-price-mini {
     position: relative;
     top: -13px;
-    /* 1?��? ???�로 (�?13?��?) ?�동 */
+    /* 1?��? ???�로 (�?13?��?) ?�동 */
 }
 
 
@@ -2078,7 +2078,7 @@ button:hover {
 #event2-cooked-pct {
     font-size: 1.2rem;
     color: #FFD32A;
-    /* ����� ���� */
+    /* �����?���� */
 }
 
 #event2-cooked-score {
@@ -2152,7 +2152,7 @@ button:hover {
     }
 }
 
-/* ���â ���� ���� ����� ���� */
+/* ����?���� ���� �����?���� */
 .total-score .unit {
     color: #FFD32A !important;
 }
@@ -2344,4 +2344,112 @@ button:hover {
         transform: translate(-50%, -40px);
         opacity: 0;
     }
+}
+
+/* Sea Overlay for EVENT 4 */
+#sea-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: calc(8.05% + (91.95% * 3 / 7));
+    background: linear-gradient(180deg, rgba(41, 128, 185, 0.45) 0%, rgba(26, 82, 118, 0.7) 100%);
+    z-index: 1; 
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    /* Wave-shaped top: height reduced 1/3, count doubled */
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M0 2 Q 25 0.5, 50 2 T 100 2 L 100 100 L 0 100 Z' fill='black'/%3E%3C/svg%3E");
+    -webkit-mask-size: 40px 100%;
+    -webkit-mask-repeat: repeat-x;
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M0 2 Q 25 0.5, 50 2 T 100 2 L 100 100 L 0 100 Z' fill='black'/%3E%3C/svg%3E");
+    mask-size: 40px 100%;
+    mask-repeat: repeat-x;
+    animation: wave-move 3s linear infinite;
+}
+
+@keyframes wave-move {
+    from {
+        -webkit-mask-position: 0 0;
+        mask-position: 0 0;
+    }
+    to {
+        -webkit-mask-position: -40px 0;
+        mask-position: -40px 0;
+    }
+}
+
+#sea-overlay.hidden {
+    display: none;
+}
+
+/* Fishing Gear for EVENT 4 */
+#fishing-gear {
+    position: absolute;
+    bottom: calc(58% - 30px + 3.9px); /* Connects exactly to the red marker */
+    left: 50%;
+    width: 0;
+    height: 0;
+    z-index: 5;
+    pointer-events: none;
+}
+
+#fishing-gear.hidden {
+    display: none;
+}
+
+.fishing-rod {
+    position: absolute;
+    width: 30px; /* Halved from 60px */
+    height: 2px; /* Halved from 4px */
+    background: linear-gradient(to right, #3e2723, #5d4037); /* Slightly more detailed rod */
+    border-radius: 1px;
+    transform: rotate(-35deg);
+    transform-origin: left center;
+}
+
+.fishing-line {
+    position: absolute;
+    top: -16px; /* End of the angled rod (approx 30 * sin(-35)) */
+    left: 24px; /* End of the angled rod (approx 30 * cos(-35)) */
+    width: 0.8px;
+    height: 350px; /* Reduced by one zone height (approx 100px) */
+    background: rgba(200, 230, 255, 0.5); /* Fishline blue-ish tint */
+}
+
+.fishing-bait {
+    position: absolute;
+    bottom: -30px; /* Position at the end of the line */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+.fish { position: absolute; object-fit: contain; z-index: 2; pointer-events: none; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)); }
+
+#event4-floating-score {
+    position: absolute;
+    left: 47.71%;
+    bottom: 65%;
+    transform: translate(-50%, 0);
+    text-align: center;
+    color: #fff;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.8), 0 0 5px rgba(0, 0, 0, 1);
+    z-index: 1000;
+    pointer-events: none;
+    line-height: 1.2;
+}
+
+#event4-fish-label {
+    font-size: 1rem;
+    color: #FFD32A;
+}
+
+#event4-fish-score {
+    font-size: 2.2rem;
+    color: #fff;
+    transition: transform 0.2s;
 }

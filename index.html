@@ -21,6 +21,7 @@
     <div id="game-container">
         <div id="level-hint" class="hidden"></div>
         <div id="wind-countdown" class="hidden"></div>
+        <div id="sea-overlay" class="hidden"></div>
         <!-- 7 Zones will be generated here or defined -->
         <div id="sky-background">
             <div class="zone" id="zone-7">
@@ -134,6 +135,12 @@
                 <span id="event3-popcorn-score">0</span><span class="unit-c">C</span>
             </div>
         </div>
+        <div id="event4-floating-score" class="hidden">
+            <div id="event4-fish-label">FISH CAUGHT</div>
+            <div id="event4-fish-score-container">
+                <span id="event4-fish-score">0</span><span class="unit-c">C</span>
+            </div>
+        </div>
         <button id="next-level-btn" class="hidden">LEVEL 2</button>
 
 
@@ -173,6 +180,12 @@
             <div id="basket-marker"></div>
             <div class="burner-flame"></div>
             <img src="balloon.png" alt="Hot Air Balloon" id="balloon-img">
+            <div id="fishing-gear" class="hidden">
+                <div class="fishing-rod"></div>
+                <div class="fishing-line">
+                    <img src="낚시미끼.png" class="fishing-bait">
+                </div>
+            </div>
         </div>
 
         <div id="steak-cooking-container" class="hidden">
