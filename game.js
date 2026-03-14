@@ -141,6 +141,7 @@ let myLevelBestScores = JSON.parse(localStorage.getItem('balloon_level_best_scor
 
 function saveLevelBestScore(scoreEarned) {
     if (scoreEarned <= 0) return;
+    if (currentLevel === 0 || (LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "튜토리얼")) return;
     if (LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName.includes('EVENT')) return;
     myLevelBestScores[currentLevel] = Math.max((myLevelBestScores[currentLevel] || 0), scoreEarned);
     localStorage.setItem('balloon_level_best_scores', JSON.stringify(myLevelBestScores));
@@ -149,6 +150,7 @@ function saveLevelBestScore(scoreEarned) {
 function calculateMyOverallScore() {
     let total = 0;
     for (let lvl in LEVEL_CONFIGS) {
+        if (lvl === "0" || (LEVEL_CONFIGS[lvl] && LEVEL_CONFIGS[lvl].displayName === "튜토리얼")) continue;
         if (LEVEL_CONFIGS[lvl] && LEVEL_CONFIGS[lvl].displayName.includes('EVENT')) continue;
         total += (myLevelBestScores[lvl] || 0) * parseInt(lvl || 1);
     }
@@ -3455,11 +3457,11 @@ async function updateRankUI() {
     if (currentRankMode === 'level') {
         const config = LEVEL_CONFIGS[currentLevel];
         const dispName = config ? config.displayName : currentLevel;
-        if (dispName.toString().includes('EVENT')) {
-            if(rankScoreLabelEl) rankScoreLabelEl.innerText = `[LV-${dispName}] 이벤트 레벨은 랭킹 제외`;
+        if (dispName.toString().includes('EVENT') || dispName === "튜토리얼" || currentLevel === 0) {
+            if(rankScoreLabelEl) rankScoreLabelEl.innerText = `[LV-${dispName}] 랭킹 제외 레벨`;
             if(myRankScoreEl) myRankScoreEl.innerText = '-';
             if(myRankPosEl) myRankPosEl.innerText = '-';
-            if(rankListEl) rankListEl.innerHTML = '<div style="text-align:center; padding:20px; color:#ccc;">이벤트 레벨은 랭킹이 제공되지 않습니다.</div>';
+            if(rankListEl) rankListEl.innerHTML = '<div style="text-align:center; padding:20px; color:#ccc;">튜토리얼 및 이벤트 레벨은 랭킹이 제공되지 않습니다.</div>';
             if (tabLevelBtn) { tabLevelBtn.style.background = '#2ecc71'; tabLevelBtn.style.color = '#000'; }
             if (tabOverallBtn) { tabOverallBtn.style.background = 'transparent'; tabOverallBtn.style.color = '#fff'; }
             return;
