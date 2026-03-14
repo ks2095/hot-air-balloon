@@ -99,6 +99,35 @@
 
         <div class="target-line"></div>
         <div id="level-indicator">LV-1</div>
+        <div id="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 100; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px;">Rank</div>
+        
+        <div id="rank-screen" class="overlay hidden">
+            <div class="rank-container" style="background: rgba(255, 255, 255, 0.1); padding: 25px 20px; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.2); width: 85%; max-width: 320px; text-align: center; backdrop-filter: blur(10px); color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <h2 style="color: #2ecc71; margin-bottom: 15px; text-shadow: 0 0 10px rgba(46, 204, 113, 0.5); font-size: 1.05rem; font-weight: 500;">LEADERBOARD</h2>
+                
+                <div style="display: flex; margin-bottom: 15px; background: rgba(0,0,0,0.5); border-radius: 20px;">
+                    <button id="tab-level" style="flex:1; padding: 8px; background: #2ecc71; color: #000; border: none; border-radius: 20px; font-weight: normal; font-size: 0.7rem; cursor: pointer; transition: 0.2s;">Level Rank</button>
+                    <button id="tab-overall" style="flex:1; padding: 8px; background: transparent; color: #fff; border: none; border-radius: 20px; font-weight: normal; font-size: 0.7rem; cursor: pointer; transition: 0.2s;">Overall Rank</button>
+                </div>
+
+                <div style="margin-bottom: 20px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px;">
+                    <p style="font-size: 0.8rem; color: #ffd32a; font-weight: normal; margin-bottom: 5px;"><span id="rank-score-label">My Level Score:</span> <span id="my-rank-score">0</span></p>
+                    <p style="font-size: 0.8rem; font-weight: normal;">My Rank: <span id="my-rank-pos" style="color: #3498db;">-</span></p>
+                </div>
+                
+                <div style="margin-bottom: 25px; display: flex; justify-content: space-between;">
+                    <input type="text" id="rank-nickname" placeholder="Nickname" maxlength="8" style="padding: 8px; width: 65%; background: rgba(0,0,0,0.5); border: 1px solid #2ecc71; color: white; border-radius: 5px; outline: none; font-size: 0.7rem; font-family: inherit;">
+                    <button id="submit-rank-btn" style="padding: 8px; width: 30%; background: #2ecc71; color: #000; border: none; font-weight: normal; font-size: 0.7rem; border-radius: 5px; cursor: pointer; white-space: nowrap;">Submit</button>
+                </div>
+
+                <div class="rank-list" id="rank-list" style="text-align: left; margin-bottom: 25px; font-size: 0.75rem; line-height: 2; padding: 0 10px;">
+                    <!-- 1st to 5th place injected here -->
+                </div>
+
+                <button id="close-rank-btn" style="padding: 10px 25px; background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.3); border-radius: 25px; cursor: pointer; font-size: 0.7rem; font-weight: normal; transition: all 0.2s;">CLOSE</button>
+            </div>
+        </div>
+
         <div id="settings-screen" class="overlay hidden">
             <div class="settings-container">
                 <h2 class="settings-title">Settings</h2>
@@ -141,7 +170,8 @@
                 <span id="event4-fish-score">0</span><span class="unit-c">C</span>
             </div>
         </div>
-        <button id="next-level-btn" class="hidden">LEVEL 2</button>
+        <button id="prev-level-btn" class="hidden">◀</button>
+        <button id="next-level-btn" class="hidden">▶</button>
 
 
         <div id="goal-area">

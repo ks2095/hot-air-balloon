@@ -12,6 +12,7 @@ const timeFillEl = document.getElementById('time-fill');
 const gasTextEl = document.getElementById('gas-text');
 const timeTextEl = document.getElementById('time-text');
 const coordDebugger = document.getElementById('coord-debugger');
+const prevLevelBtn = document.getElementById('prev-level-btn');
 const nextLevelBtn = document.getElementById('next-level-btn');
 const levelIndicator = document.getElementById('level-indicator');
 const levelHintEl = document.getElementById('level-hint');
@@ -71,6 +72,15 @@ const event3PopcornScore = document.getElementById('event3-popcorn-score');
 const event4FloatingScore = document.getElementById('event4-floating-score');
 const event4FishScore = document.getElementById('event4-fish-score');
 
+const rankBtn = document.getElementById('rank-btn');
+const rankScreen = document.getElementById('rank-screen');
+const closeRankBtn = document.getElementById('close-rank-btn');
+const submitRankBtn = document.getElementById('submit-rank-btn');
+const myRankScoreEl = document.getElementById('my-rank-score');
+const myRankPosEl = document.getElementById('my-rank-pos');
+const rankListEl = document.getElementById('rank-list');
+const rankNicknameInput = document.getElementById('rank-nickname');
+
 let popcornGatheredScore = 0;
 let event4FishCaughtScore = 0;
 let popcornDepositTimer = null;
@@ -108,6 +118,23 @@ let lives = parseInt(localStorage.getItem('balloon_lives')) || 7;
 if (lives > 7) lives = 7; // Cap at 7
 let lastLifeUpdate = parseInt(localStorage.getItem('balloon_last_life_update')) || Date.now();
 let clearedLevels = JSON.parse(localStorage.getItem('balloon_cleared_levels')) || [];
+let myLevelBestScores = JSON.parse(localStorage.getItem('balloon_level_best_scores')) || {};
+
+function saveLevelBestScore(scoreEarned) {
+    if (scoreEarned <= 0) return;
+    myLevelBestScores[currentLevel] = Math.max((myLevelBestScores[currentLevel] || 0), scoreEarned);
+    localStorage.setItem('balloon_level_best_scores', JSON.stringify(myLevelBestScores));
+}
+
+function calculateMyOverallScore() {
+    let total = 0;
+    const maxLevels = Object.keys(LEVEL_CONFIGS).length;
+    for (let lvl = 1; lvl <= maxLevels; lvl++) {
+        total += (myLevelBestScores[lvl] || 0) * lvl;
+    }
+    return total;
+}
+
 
 // Check if old store data exists and force update to new PNG items
 let savedStoreData = localStorage.getItem('balloon_store_data');
@@ -614,6 +641,17 @@ function init() {
             const nextLv = currentLevel + 1;
             if (LEVEL_CONFIGS[nextLv]) {
                 currentLevel = nextLv;
+                resetGame();
+            }
+        });
+    }
+
+    if (prevLevelBtn) {
+        prevLevelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const prevLv = currentLevel - 1;
+            if (LEVEL_CONFIGS[prevLv]) {
+                currentLevel = prevLv;
                 resetGame();
             }
         });
@@ -2086,6 +2124,17 @@ function gameOver(msg = 'OVERHEAT') {
             }
         }
     }, 2000); // 2-second wait
+    
+    // 랭킹에 실패 시 획득한 부분 점수 기록 (주로 이벤트 레벨)
+    let failScore = 0;
+    if (isEvent2) {
+        failScore = Math.floor(cookedPercentage * 2) * 10;
+    } else if (config && (config.displayName === "EVENT 1" || config.displayName === "EVENT 3")) {
+        failScore = sessionEventCredits;
+    } else if (config && config.displayName === "EVENT 4") {
+        failScore = event4FishCaughtScore;
+    }
+    saveLevelBestScore(failScore);
 }
 
 function winGame() {
@@ -2168,6 +2217,16 @@ function winGame() {
         finalScore = 0; // 이미 클리어한 레벨은 점수 합산 안 함
         console.log("Already cleared level - Score shown but mission points not added");
     }
+
+    // 랭킹용 점수 계산 (클리어 보너스나 누적 점수 포함하여 그 레벨만의 점수 기록)
+    let scoreForRank = isSteakEvent ? (displayCookedPct * 10) : (score + itemBonus);
+    if (isEventLevel) {
+        scoreForRank += 200; // Clear bonus
+        const evtName = LEVEL_CONFIGS[currentLevel].displayName;
+        if(evtName === "EVENT 1" || evtName === "EVENT 3") scoreForRank += sessionEventCredits;
+        if(evtName === "EVENT 4") scoreForRank += event4FishCaughtScore;
+    }
+    saveLevelBestScore(scoreForRank);
 
     if (finalScore > 0) {
         totalCredits += finalScore;
@@ -2839,7 +2898,8 @@ function createFish() {
     for (let type = 1; type <= 5; type++) {
         let count = 2;
         if (type === 1) count = 1;
-        else if (type >= 3) count = 3;
+        else if (type === 3) count = 3;
+        else if (type >= 4) count = 4;
 
         for (let i = 0; i < count; i++) {
             const fishEl = document.createElement('img');
@@ -2969,7 +3029,12 @@ function checkFishing() {
         if (attachedFish.type === 1) return; // 물고기1은 안 잡힘
 
         if (isBurning && continuousBurnStartTime !== 0) {
-            if (Date.now() - continuousBurnStartTime >= 500) {
+            let catchThreshold = 500; // 기본 (물고기 2: 0.5초)
+            if (attachedFish.type === 3) catchThreshold = 400;      // 물고기 3: 0.4초
+            else if (attachedFish.type === 4) catchThreshold = 300; // 물고기 4: 0.3초
+            else if (attachedFish.type === 5) catchThreshold = 200; // 물고기 5: 0.2초
+
+            if (Date.now() - continuousBurnStartTime >= catchThreshold) {
                 catchFish(attachedFish);
             }
         }
@@ -3076,19 +3141,27 @@ function clearFish() {
 }
 
 function updateNextLevelButtonVisibility() {
-    if (!nextLevelBtn) return;
+    if (nextLevelBtn) {
+        const nextLv = currentLevel + 1;
+        const isCleared = clearedLevels.includes(currentLevel);
+        const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName.startsWith("EVENT");
 
-    const nextLv = currentLevel + 1;
-    const isCleared = clearedLevels.includes(currentLevel);
-    const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName.startsWith("EVENT");
+        // 이미 클리어한 레벨이거나, 이벤트 레벨이거나, 방금 클리어한 상태라면 다음 레벨 버튼 표시
+        if (LEVEL_CONFIGS[nextLv] && (isCleared || isEventLevel || gameState === 'CLEAR')) {
+            nextLevelBtn.classList.remove('hidden');
+        } else {
+            nextLevelBtn.classList.add('hidden');
+        }
+    }
 
-    // 이미 클리어한 레벨이거나, 이벤트 레벨이거나, 방금 클리어한 상태라면 다음 레벨 버튼 표시
-    if (LEVEL_CONFIGS[nextLv] && (isCleared || isEventLevel || gameState === 'CLEAR')) {
-        const nextDisplayName = LEVEL_CONFIGS[nextLv].displayName;
-        nextLevelBtn.innerText = (nextDisplayName.startsWith("EVENT")) ? nextDisplayName : `LEVEL ${nextDisplayName}`;
-        nextLevelBtn.classList.remove('hidden');
-    } else {
-        nextLevelBtn.classList.add('hidden');
+    if (prevLevelBtn) {
+        const prevLv = currentLevel - 1;
+        // 이전 레벨이 존재하고 해당 레벨이 클리어되었거나(1스테이지 등 포함) 하면 뒤로 가기 표시
+        if (LEVEL_CONFIGS[prevLv] && (clearedLevels.includes(prevLv) || prevLv === 1)) {
+            prevLevelBtn.classList.remove('hidden');
+        } else {
+            prevLevelBtn.classList.add('hidden');
+        }
     }
 }
 
@@ -3256,6 +3329,185 @@ if (adsBtn) {
             return;
         }
         showAd();
+    });
+}
+
+function getDummyLeaderboard() {
+    return [];
+}
+
+let currentRankMode = 'level'; // 'level' or 'overall'
+
+function updateRankUI() {
+    let board = JSON.parse(localStorage.getItem('balloon_leaderboard_profiles'));
+    if (!board || !Array.isArray(board)) {
+        board = [];
+    } else {
+        // 이전에 저장되었을 수 있는 가상 계정 삭제
+        const dummyNames = ["CloudKing", "SkyRider", "AeroMaster", "WindWalker", "BalloonPro", "StormChaser"];
+        board = board.filter(user => !dummyNames.includes(user.nickname));
+    }
+    localStorage.setItem('balloon_leaderboard_profiles', JSON.stringify(board));
+
+    const rankScoreLabelEl = document.getElementById('rank-score-label');
+    const tabLevelBtn = document.getElementById('tab-level');
+    const tabOverallBtn = document.getElementById('tab-overall');
+
+    let myDisplayScore = 0;
+    
+    if (currentRankMode === 'level') {
+        const config = LEVEL_CONFIGS[currentLevel];
+        const dispName = config ? config.displayName : currentLevel;
+        if(rankScoreLabelEl) rankScoreLabelEl.innerText = `[LV-${dispName}] My Score:`;
+        myDisplayScore = myLevelBestScores[currentLevel] || 0;
+        
+        // Sort descending by level score
+        board.sort((a,b) => (b.levelScores[currentLevel] || 0) - (a.levelScores[currentLevel] || 0));
+        
+        if (tabLevelBtn) { tabLevelBtn.style.background = '#2ecc71'; tabLevelBtn.style.color = '#000'; }
+        if (tabOverallBtn) { tabOverallBtn.style.background = 'transparent'; tabOverallBtn.style.color = '#fff'; }
+    } else {
+        if(rankScoreLabelEl) rankScoreLabelEl.innerText = 'Overall My Score:';
+        myDisplayScore = calculateMyOverallScore();
+        
+        // Sort descending by overall score
+        board.sort((a,b) => (b.overallScore || 0) - (a.overallScore || 0));
+        
+        if (tabLevelBtn) { tabLevelBtn.style.background = 'transparent'; tabLevelBtn.style.color = '#fff'; }
+        if (tabOverallBtn) { tabOverallBtn.style.background = '#2ecc71'; tabOverallBtn.style.color = '#000'; }
+    }
+
+    if(myRankScoreEl) myRankScoreEl.innerText = myDisplayScore;
+
+    // Calculate my rank
+    let myRank = 1;
+    for (let entry of board) {
+        if (currentRankMode === 'level') {
+            if (myDisplayScore < (entry.levelScores[currentLevel] || 0)) myRank++;
+        } else {
+            if (myDisplayScore < (entry.overallScore || 0)) myRank++;
+        }
+    }
+    
+    if(myRankPosEl) {
+        if (myDisplayScore === 0) {
+             myRankPosEl.innerText = `-`;
+        } else if(myRank <= 3) {
+            myRankPosEl.innerHTML = `<span style="color:#f1c40f;">${myRank}위</span>`;
+        } else {
+            myRankPosEl.innerText = `${myRank}위`;
+        }
+    }
+
+    // Render top 5
+    if(rankListEl) {
+        rankListEl.innerHTML = '';
+        const top5 = board.slice(0, 5);
+        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+        for (let i = 0; i < top5.length; i++) {
+            const scoreToDisplay = currentRankMode === 'level' ? (top5[i].levelScores[currentLevel] || 0) : (top5[i].overallScore || 0);
+            const item = document.createElement('div');
+            item.style.display = 'flex';
+            item.style.justifyContent = 'space-between';
+            item.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+            item.style.padding = '5px 0';
+            item.innerHTML = `<span>${medals[i]} &nbsp; ${top5[i].nickname}</span> <span style="color: #ffd32a; font-weight: normal;">${scoreToDisplay}</span>`;
+            rankListEl.appendChild(item);
+        }
+    }
+}
+
+// Add Rank Events
+const tabLevelBtn = document.getElementById('tab-level');
+const tabOverallBtn = document.getElementById('tab-overall');
+
+if (tabLevelBtn && tabOverallBtn) {
+    tabLevelBtn.addEventListener('click', () => {
+        currentRankMode = 'level';
+        updateRankUI();
+    });
+    tabOverallBtn.addEventListener('click', () => {
+        currentRankMode = 'overall';
+        updateRankUI();
+    });
+}
+
+
+
+
+// Add Rank Events
+if (rankBtn) {
+    rankBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!isSoundPreloaded && typeof startSoundSystem === 'function') await startSoundSystem();
+        
+        if (gameState === 'PLAY') {
+            gameState = 'PAUSED';
+            pauseStartTime = Date.now();
+            if (mainActionBtn) {
+                mainActionBtn.innerText = 'PAUSE';
+                mainActionBtn.classList.add('item-paused');
+            }
+        }
+        if (clearScreen) clearScreen.classList.add('hidden');
+        if (levelHintEl) levelHintEl.classList.add('hidden');
+        if (storeScreen) storeScreen.classList.add('hidden');
+        if (settingsScreen) settingsScreen.classList.add('hidden');
+
+        if (rankScreen) {
+            rankScreen.classList.remove('hidden');
+            updateRankUI();
+        }
+    });
+}
+
+if (closeRankBtn) {
+    closeRankBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (rankScreen) rankScreen.classList.add('hidden');
+        if (gameState === 'PAUSED') {
+            const isStoreHidden = !document.getElementById('store-screen') || document.getElementById('store-screen').classList.contains('hidden');
+            const isSettingsHidden = !document.getElementById('settings-screen') || document.getElementById('settings-screen').classList.contains('hidden');
+            if (isStoreHidden && isSettingsHidden) {
+                resumeGame();
+            }
+        }
+    });
+}
+
+if (submitRankBtn) {
+    submitRankBtn.addEventListener('click', () => {
+        const nickname = rankNicknameInput ? rankNicknameInput.value.trim() : "";
+        if (!nickname) {
+            alert("닉네임을 입력하세요!");
+            return;
+        }
+        let board = JSON.parse(localStorage.getItem('balloon_leaderboard_profiles'));
+        if (!board || !Array.isArray(board)) {
+            board = [];
+        } else {
+            const dummyNames = ["CloudKing", "SkyRider", "AeroMaster", "WindWalker", "BalloonPro", "StormChaser"];
+            board = board.filter(user => !dummyNames.includes(user.nickname));
+        }
+        
+        let existing = board.find(user => user.nickname === nickname);
+        
+        if (existing) {
+            existing.levelScores = Object.assign({}, existing.levelScores, myLevelBestScores);
+            existing.overallScore = calculateMyOverallScore();
+        } else {
+            board.push({ 
+                nickname: nickname, 
+                levelScores: Object.assign({}, myLevelBestScores), 
+                overallScore: calculateMyOverallScore() 
+            });
+        }
+        
+        localStorage.setItem('balloon_leaderboard_profiles', JSON.stringify(board));
+        
+        alert("기록이 성공적으로 갱신되었습니다!");
+        if(rankNicknameInput) rankNicknameInput.value = "";
+        updateRankUI();
     });
 }
 
