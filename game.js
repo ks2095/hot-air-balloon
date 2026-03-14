@@ -182,6 +182,11 @@ if (!storeData.items.life) {
     savePlayerData();
 }
 
+function canReceiveEventPoints() {
+    const hasNoItems = (upgrades.clock === 0 && upgrades.fan_left === 0 && upgrades.fan_right === 0 && upgrades.gas_item === 0 && upgrades.weight === 0);
+    return (lives <= 1 && hasNoItems && totalCredits <= 99);
+}
+
 function savePlayerData() {
     localStorage.setItem('balloon_credits', totalCredits);
     localStorage.setItem('balloon_upgrades', JSON.stringify(upgrades));
@@ -752,7 +757,7 @@ function init() {
 
     if (resetRecordSettingsBtn) {
         resetRecordSettingsBtn.addEventListener('click', () => {
-            if (confirm("모든 기록(크레딧, 아이템, 진행 상황)을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+            if (confirm("모든 기록(크레딧, 아이템, 진행 상황, 랭킹)을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
                 // Clear localStorage
                 localStorage.removeItem('balloon_credits');
                 localStorage.removeItem('balloon_upgrades');
@@ -761,6 +766,8 @@ function init() {
                 localStorage.removeItem('balloon_lives');
                 localStorage.removeItem('balloon_last_life_update');
                 localStorage.removeItem('balloon_music_enabled');
+                localStorage.removeItem('balloon_level_best_scores');
+                localStorage.removeItem('balloon_leaderboard_profiles');
 
                 // Reset variables
                 totalCredits = 0;
@@ -771,6 +778,7 @@ function init() {
                 lastLifeUpdate = Date.now();
                 isMusicEnabled = true;
                 storeData = defaultStoreData;
+                myLevelBestScores = {};
 
                 // Update UI and Save
                 savePlayerData();
@@ -1934,7 +1942,8 @@ function collectCoin(coin) {
     sessionEventCredits += 10;
     if (eventCreditsValEl) eventCreditsValEl.innerText = sessionEventCredits;
 
-    if (!clearedLevels.includes(currentLevel) || LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL") {
+    const isAlreadyCleared = clearedLevels.includes(currentLevel);
+    if (!isAlreadyCleared || canReceiveEventPoints()) {
         totalCredits += 10;
         savePlayerData();
         if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
@@ -2020,9 +2029,12 @@ function gameOver(msg = 'OVERHEAT') {
         // 미션 실패해도 EVENT 2에서 얻은 요리 점수는 합산
         const displayCookedPct = Math.floor(cookedPercentage * 2);
         const earnedScore = displayCookedPct * 10;
+        const isAlreadyCleared = clearedLevels.includes(currentLevel);
         if (earnedScore > 0) {
-            totalCredits += earnedScore;
-            console.log(`EVENT 2 Failed: Added ${earnedScore}C from cooking.`);
+            if (!isAlreadyCleared || canReceiveEventPoints()) {
+                totalCredits += earnedScore;
+                console.log(`EVENT 2 Failed: Added ${earnedScore}C from cooking.`);
+            }
         }
     }
 
@@ -2237,10 +2249,14 @@ function winGame() {
     }
 
     if (isEventLevel) {
-        if (isSteakEvent) {
-            finalScore = (isAlreadyCleared ? 200 : finalScore + 200);
+        if (!isAlreadyCleared || canReceiveEventPoints()) {
+            if (isSteakEvent) {
+                finalScore = finalScore + 200;
+            } else {
+                finalScore = score + 200;
+            }
         } else {
-            finalScore = (isAlreadyCleared ? 200 : score + 200);
+            finalScore = 0;
         }
         showEventBonusText();
     } else if (isAlreadyCleared) {
@@ -2870,7 +2886,10 @@ function depositPopcornCredits() {
 
     // Add credits to session and total
     sessionEventCredits += popcornGatheredScore;
-    totalCredits += popcornGatheredScore;
+    const isAlreadyCleared = clearedLevels.includes(currentLevel);
+    if (!isAlreadyCleared || canReceiveEventPoints()) {
+        totalCredits += popcornGatheredScore;
+    }
 
     // Update UI
     if (eventCreditsValEl) {
@@ -3130,8 +3149,12 @@ function catchFish(fish) {
     else if (fish.type === 3 || fish.type === 4) points = 100;
     else if (fish.type === 5) points = 50;
     
-    totalCredits += points;
     event4FishCaughtScore += points;
+    
+    const isAlreadyCleared = clearedLevels.includes(currentLevel);
+    if (!isAlreadyCleared || canReceiveEventPoints()) {
+        totalCredits += points;
+    }
     savePlayerData();
     
     // 상단 플로팅 스코어 업데이트
