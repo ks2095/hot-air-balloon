@@ -138,6 +138,7 @@ if (lives > 7) lives = 7; // Cap at 7
 let lastLifeUpdate = parseInt(localStorage.getItem('balloon_last_life_update')) || Date.now();
 let clearedLevels = JSON.parse(localStorage.getItem('balloon_cleared_levels')) || [];
 let myLevelBestScores = JSON.parse(localStorage.getItem('balloon_level_best_scores')) || {};
+let currentLevel = parseInt(localStorage.getItem('balloon_current_level')) || 0;
 
 function saveLevelBestScore(scoreEarned) {
     if (scoreEarned <= 0) return;
@@ -217,6 +218,7 @@ function savePlayerData() {
     localStorage.setItem('balloon_lives', lives);
     localStorage.setItem('balloon_last_life_update', lastLifeUpdate);
     localStorage.setItem('balloon_music_enabled', isMusicEnabled);
+    localStorage.setItem('balloon_current_level', currentLevel);
 
     // Update ground credit display
     const groundCredits = document.getElementById('ground-credits-display');
@@ -377,7 +379,6 @@ let activeFish = [];
 let attachedFish = null;
 let draggingOffset = { x: 0, y: 0 };
 
-let currentLevel = 0;
 const LEVEL_CONFIGS = {
     0: {
         displayName: "튜토리얼",
@@ -2551,6 +2552,7 @@ function resetGame() {
     }
 
     console.log(`Resetting to Level ${currentLevel}`);
+    savePlayerData();
 
     if (lives <= 0) {
         balloon.style.opacity = "0";
@@ -3433,12 +3435,21 @@ function getDummyLeaderboard() {
 let currentRankMode = 'level'; // 'level' or 'overall'
 
 async function updateRankUI() {
+    if(rankListEl) rankListEl.innerHTML = '<div style="text-align:center; padding:10px; color:#2ecc71;">Loading ranking...</div>';
     let board = [];
     try {
         const querySnapshot = await db.collection("leaderboard").get();
         querySnapshot.forEach((doc) => {
-            board.push(doc.data());
+            const data = doc.data();
+            // Ensure necessary fields exist to avoid crashes
+            if (data && data.nickname) {
+                if (!data.levelScores) data.levelScores = {};
+                if (typeof data.overallScore !== 'number') data.overallScore = 0;
+                board.push(data);
+            }
         });
+        // Cache the successful fetch
+        localStorage.setItem('balloon_leaderboard_profiles', JSON.stringify(board));
     } catch (error) {
         console.error("서버에서 랭킹을 불러오는데 실패했습니다.", error);
         let localBoard = JSON.parse(localStorage.getItem('balloon_leaderboard_profiles'));
@@ -3511,6 +3522,10 @@ async function updateRankUI() {
     // Render top 5
     if(rankListEl) {
         rankListEl.innerHTML = '';
+        if (board.length === 0) {
+            rankListEl.innerHTML = '<div style="text-align:center; padding:20px; color:#ccc;">등록된 랭킹이 없습니다.</div>';
+            return;
+        }
         const top5 = board.slice(0, 5);
         const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
         for (let i = 0; i < top5.length; i++) {

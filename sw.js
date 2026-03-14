@@ -1,4 +1,4 @@
-const CACHE_NAME = 'balloon-game-v1';
+const CACHE_NAME = 'balloon-game-v2';
 const ASSETS = [
     './',
     './index.html',
@@ -44,7 +44,6 @@ self.addEventListener('fetch', (event) => {
         })
     );
 });
-드래그
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
