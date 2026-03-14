@@ -122,6 +122,7 @@ let myLevelBestScores = JSON.parse(localStorage.getItem('balloon_level_best_scor
 
 function saveLevelBestScore(scoreEarned) {
     if (scoreEarned <= 0) return;
+    if (LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName.includes('EVENT')) return;
     myLevelBestScores[currentLevel] = Math.max((myLevelBestScores[currentLevel] || 0), scoreEarned);
     localStorage.setItem('balloon_level_best_scores', JSON.stringify(myLevelBestScores));
 }
@@ -130,6 +131,7 @@ function calculateMyOverallScore() {
     let total = 0;
     const maxLevels = Object.keys(LEVEL_CONFIGS).length;
     for (let lvl = 1; lvl <= maxLevels; lvl++) {
+        if (LEVEL_CONFIGS[lvl] && LEVEL_CONFIGS[lvl].displayName.includes('EVENT')) continue;
         total += (myLevelBestScores[lvl] || 0) * lvl;
     }
     return total;
@@ -529,6 +531,18 @@ const LEVEL_CONFIGS = {
 
 let currentMaxGas = LEVEL_CONFIGS[1].maxGas;
 let currentMaxTime = LEVEL_CONFIGS[1].maxTime;
+
+// 이벤트 레벨 기록 정리 (이전 버전 사용자 대비)
+let changedBestScores = false;
+for (let lvl in myLevelBestScores) {
+    if (LEVEL_CONFIGS[lvl] && LEVEL_CONFIGS[lvl].displayName.includes('EVENT')) {
+        delete myLevelBestScores[lvl];
+        changedBestScores = true;
+    }
+}
+if (changedBestScores) {
+    localStorage.setItem('balloon_level_best_scores', JSON.stringify(myLevelBestScores));
+}
 
 // Game state
 let gameState = 'START';
@@ -3411,6 +3425,16 @@ function updateRankUI() {
     if (currentRankMode === 'level') {
         const config = LEVEL_CONFIGS[currentLevel];
         const dispName = config ? config.displayName : currentLevel;
+        if (dispName.toString().includes('EVENT')) {
+            if(rankScoreLabelEl) rankScoreLabelEl.innerText = `[LV-${dispName}] 이벤트 레벨은 랭킹 제외`;
+            if(myRankScoreEl) myRankScoreEl.innerText = '-';
+            if(myRankPosEl) myRankPosEl.innerText = '-';
+            if(rankListEl) rankListEl.innerHTML = '<div style="text-align:center; padding:20px; color:#ccc;">이벤트 레벨은 랭킹이 제공되지 않습니다.</div>';
+            if (tabLevelBtn) { tabLevelBtn.style.background = '#2ecc71'; tabLevelBtn.style.color = '#000'; }
+            if (tabOverallBtn) { tabOverallBtn.style.background = 'transparent'; tabOverallBtn.style.color = '#fff'; }
+            return;
+        }
+
         if(rankScoreLabelEl) rankScoreLabelEl.innerText = `[LV-${dispName}] My Score:`;
         myDisplayScore = myLevelBestScores[currentLevel] || 0;
         
