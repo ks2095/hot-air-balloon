@@ -1,3 +1,22 @@
+// ================= Firebase 설정 ================= //
+const firebaseConfig = {
+    apiKey: "AIzaSyCMxIph1RVrJw4V8l03OyWTTNfFzvEsKVE",
+    authDomain: "hot-air-balloon-game-3945f.firebaseapp.com",
+    projectId: "hot-air-balloon-game-3945f",
+    storageBucket: "hot-air-balloon-game-3945f.firebasestorage.app",
+    messagingSenderId: "761893772746",
+    appId: "1:761893772746:web:9f3129a8dc04e95a6c0333",
+    measurementId: "G-4SRRNRZSV5"
+};
+
+try {
+    firebase.initializeApp(firebaseConfig);
+} catch(e) {
+    if(!/already exists/.test(e.message)) console.error("Firebase init error", e);
+}
+const db = firebase.firestore();
+// =============================================== //
+
 const gameContainer = document.getElementById('game-container');
 const balloon = document.getElementById('balloon');
 const restartBtn = document.getElementById('restart-btn');
@@ -129,10 +148,9 @@ function saveLevelBestScore(scoreEarned) {
 
 function calculateMyOverallScore() {
     let total = 0;
-    const maxLevels = Object.keys(LEVEL_CONFIGS).length;
-    for (let lvl = 1; lvl <= maxLevels; lvl++) {
+    for (let lvl in LEVEL_CONFIGS) {
         if (LEVEL_CONFIGS[lvl] && LEVEL_CONFIGS[lvl].displayName.includes('EVENT')) continue;
-        total += (myLevelBestScores[lvl] || 0) * lvl;
+        total += (myLevelBestScores[lvl] || 0) * parseInt(lvl || 1);
     }
     return total;
 }
@@ -357,8 +375,15 @@ let activeFish = [];
 let attachedFish = null;
 let draggingOffset = { x: 0, y: 0 };
 
-let currentLevel = 1;
+let currentLevel = 0;
 const LEVEL_CONFIGS = {
+    0: {
+        displayName: "튜토리얼",
+        winds: [1.5, -1.5, 1.5, -1.5, 1.5, -1.5, 1.5],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0
+    },
     1: {
         displayName: "1",
         winds: [1.5, -1.5, 1.5, -1.5, 1.5, -1.5, 1.5],
@@ -529,8 +554,8 @@ const LEVEL_CONFIGS = {
     }
 };
 
-let currentMaxGas = LEVEL_CONFIGS[1].maxGas;
-let currentMaxTime = LEVEL_CONFIGS[1].maxTime;
+let currentMaxGas = LEVEL_CONFIGS[0].maxGas;
+let currentMaxTime = LEVEL_CONFIGS[0].maxTime;
 
 // 이벤트 레벨 기록 정리 (이전 버전 사용자 대비)
 let changedBestScores = false;
@@ -788,7 +813,7 @@ function init() {
                 upgrades = { clock: 0, fan_left: 0, fan_right: 0, gas_item: 0, weight: 0 };
                 lives = 7;
                 clearedLevels = [];
-                currentLevel = 1;
+                currentLevel = 0;
                 lastLifeUpdate = Date.now();
                 isMusicEnabled = true;
                 storeData = defaultStoreData;
@@ -954,7 +979,7 @@ function init() {
         // 개발자용 레벨 이동 (Ctrl + L: 다음, Ctrl + K: 이전)
         if (e.ctrlKey && e.key.toLowerCase() === 'l') {
             e.preventDefault();
-            const maxLevel = Object.keys(LEVEL_CONFIGS).length;
+            const maxLevel = Object.keys(LEVEL_CONFIGS).length - 1;
             if (currentLevel < maxLevel) {
                 currentLevel++;
                 resetGame();
@@ -963,7 +988,7 @@ function init() {
         }
         if (e.ctrlKey && e.key.toLowerCase() === 'k') {
             e.preventDefault();
-            if (currentLevel > 1) {
+            if (currentLevel > 0) {
                 currentLevel--;
                 resetGame();
                 console.log(`Switched to Level ${currentLevel}`);
@@ -1726,8 +1751,8 @@ function update(timestamp) {
 }
 
 function updateTargetLine() {
-    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (1~24레벨 공통)
-    if (currentLevel >= 1 && currentLevel <= 24) {
+    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (0~24레벨 공통)
+    if (currentLevel >= 0 && currentLevel <= 24) {
         targetLineX = 50;
         targetLineEl.style.left = `${targetLineX}%`;
 
@@ -2537,7 +2562,7 @@ function resetGame() {
     mainActionBtn.classList.remove('overheated', 'burner-mode');
     mainActionBtn.classList.add('restart-mode');
     const currentDisplayName = config.displayName;
-    mainActionBtn.innerText = currentLevel === 1 ? 'START' : (currentDisplayName.startsWith("EVENT") ? 'START EVENT LEVEL' : `START LEVEL ${currentDisplayName}`);
+    mainActionBtn.innerText = currentLevel === 0 ? 'START' : (currentDisplayName.startsWith("EVENT") ? 'START EVENT LEVEL' : `START LEVEL ${currentDisplayName}`);
     clearScreen.classList.add('hidden');
     failScreen.classList.add('hidden');
     if (failReasonBubble) failReasonBubble.classList.add('hidden');
@@ -3405,16 +3430,21 @@ function getDummyLeaderboard() {
 
 let currentRankMode = 'level'; // 'level' or 'overall'
 
-function updateRankUI() {
-    let board = JSON.parse(localStorage.getItem('balloon_leaderboard_profiles'));
-    if (!board || !Array.isArray(board)) {
-        board = [];
-    } else {
-        // 이전에 저장되었을 수 있는 가상 계정 삭제
-        const dummyNames = ["CloudKing", "SkyRider", "AeroMaster", "WindWalker", "BalloonPro", "StormChaser"];
-        board = board.filter(user => !dummyNames.includes(user.nickname));
+async function updateRankUI() {
+    let board = [];
+    try {
+        const querySnapshot = await db.collection("leaderboard").get();
+        querySnapshot.forEach((doc) => {
+            board.push(doc.data());
+        });
+    } catch (error) {
+        console.error("서버에서 랭킹을 불러오는데 실패했습니다.", error);
+        let localBoard = JSON.parse(localStorage.getItem('balloon_leaderboard_profiles'));
+        if (localBoard && Array.isArray(localBoard)) board = localBoard;
     }
-    localStorage.setItem('balloon_leaderboard_profiles', JSON.stringify(board));
+
+    const dummyNames = ["CloudKing", "SkyRider", "AeroMaster", "WindWalker", "BalloonPro", "StormChaser"];
+    board = board.filter(user => !dummyNames.includes(user.nickname));
 
     const rankScoreLabelEl = document.getElementById('rank-score-label');
     const tabLevelBtn = document.getElementById('tab-level');
@@ -3553,38 +3583,29 @@ if (closeRankBtn) {
 }
 
 if (submitRankBtn) {
-    submitRankBtn.addEventListener('click', () => {
+    submitRankBtn.addEventListener('click', async () => {
         const nickname = rankNicknameInput ? rankNicknameInput.value.trim() : "";
         if (!nickname) {
             alert("닉네임을 입력하세요!");
             return;
         }
-        let board = JSON.parse(localStorage.getItem('balloon_leaderboard_profiles'));
-        if (!board || !Array.isArray(board)) {
-            board = [];
-        } else {
-            const dummyNames = ["CloudKing", "SkyRider", "AeroMaster", "WindWalker", "BalloonPro", "StormChaser"];
-            board = board.filter(user => !dummyNames.includes(user.nickname));
+
+        try {
+            await db.collection("leaderboard").doc(nickname).set({
+                nickname: nickname,
+                levelScores: Object.assign({}, myLevelBestScores),
+                overallScore: calculateMyOverallScore(),
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            alert("기록이 성공적으로 서버에 갱신되었습니다!");
+            if(rankNicknameInput) rankNicknameInput.value = "";
+            
+            updateRankUI(); 
+        } catch (error) {
+            console.error("랭킹 서버 저장 중 오류 발생: ", error);
+            alert("서버 연결에 실패했습니다.");
         }
-        
-        let existing = board.find(user => user.nickname === nickname);
-        
-        if (existing) {
-            existing.levelScores = Object.assign({}, existing.levelScores, myLevelBestScores);
-            existing.overallScore = calculateMyOverallScore();
-        } else {
-            board.push({ 
-                nickname: nickname, 
-                levelScores: Object.assign({}, myLevelBestScores), 
-                overallScore: calculateMyOverallScore() 
-            });
-        }
-        
-        localStorage.setItem('balloon_leaderboard_profiles', JSON.stringify(board));
-        
-        alert("기록이 성공적으로 갱신되었습니다!");
-        if(rankNicknameInput) rankNicknameInput.value = "";
-        updateRankUI();
     });
 }
 
