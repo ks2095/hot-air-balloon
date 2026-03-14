@@ -642,6 +642,9 @@ function init() {
             if (LEVEL_CONFIGS[nextLv]) {
                 currentLevel = nextLv;
                 resetGame();
+                if (rankScreen && !rankScreen.classList.contains('hidden')) {
+                    updateRankUI();
+                }
             }
         });
     }
@@ -653,6 +656,9 @@ function init() {
             if (LEVEL_CONFIGS[prevLv]) {
                 currentLevel = prevLv;
                 resetGame();
+                if (rankScreen && !rankScreen.classList.contains('hidden')) {
+                    updateRankUI();
+                }
             }
         });
     }
@@ -1449,10 +1455,16 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('mousedown', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14" || displayName === "15") {
-                        if (droppedItems.length > 0) return;
-                    } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "16" || displayName === "17" || displayName === "18" || displayName === "19" || displayName === "20" || displayName === "EVENT 3") {
+                    const max1ItemLevels = ["6", "7", "14", "15"];
+                    const max2ItemLevels = ["8", "9", "10", "16", "17", "18", "19", "20", "EVENT 3"];
+
+                    if (max1ItemLevels.includes(displayName)) {
+                        if (droppedItems.length >= 1) return;
+                    } else if (max2ItemLevels.includes(displayName)) {
                         if (droppedItems.length >= 2) return;
+                    } else {
+                        // 아이템 미션이 없는 레벨
+                        return;
                     }
 
                     if (upgrades[key] > 0) {
@@ -1462,10 +1474,16 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('touchstart', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14" || displayName === "15") {
-                        if (droppedItems.length > 0) return;
-                    } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "16" || displayName === "17" || displayName === "18" || displayName === "19" || displayName === "20" || displayName === "EVENT 3") {
+                    const max1ItemLevels = ["6", "7", "14", "15"];
+                    const max2ItemLevels = ["8", "9", "10", "16", "17", "18", "19", "20", "EVENT 3"];
+
+                    if (max1ItemLevels.includes(displayName)) {
+                        if (droppedItems.length >= 1) return;
+                    } else if (max2ItemLevels.includes(displayName)) {
                         if (droppedItems.length >= 2) return;
+                    } else {
+                        // 아이템 미션이 없는 레벨
+                        return;
                     }
 
                     if (upgrades[key] > 0) {
@@ -1997,7 +2015,6 @@ function gameOver(msg = 'OVERHEAT') {
     const config = LEVEL_CONFIGS[currentLevel];
     const isEventLevel = config && config.displayName.startsWith("EVENT");
     const isEvent2 = config && config.displayName === "EVENT 2";
-    const isAlreadyCleared = clearedLevels.includes(currentLevel);
 
     if (isEvent2) {
         // 미션 실패해도 EVENT 2에서 얻은 요리 점수는 합산
@@ -2009,14 +2026,14 @@ function gameOver(msg = 'OVERHEAT') {
         }
     }
 
-    if (!isEventLevel && !isAlreadyCleared) {
+    if (!isEventLevel) {
         lives--;
         if (lives < 7 && lives >= 0) {
             // 생명이 깎인 시점부터 충전 타이머 시작 (이미 충전 중이 아니라면)
             if (lives === 6) lastLifeUpdate = Date.now();
         }
     } else {
-        console.log("Life reduction skipped: Event Level or Already Cleared Level.");
+        console.log("Life reduction skipped: Event Level.");
     }
 
     savePlayerData();
@@ -2180,9 +2197,22 @@ function winGame() {
 
     let itemBonus = 0;
     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
-    // 아이템 2개 제한 레벨 (8, 9, 10, 15)에서 1개 이하로 사용시 5000점 보너스
-    if ((displayName === "8" || displayName === "9" || displayName === "10" || displayName === "15") && sessionItemsUsed <= 1) {
-        itemBonus = 5000;
+    
+    const max1ItemLevels = ["6", "7", "14", "15"];
+    const max2ItemLevels = ["8", "9", "10", "16", "17", "18", "19", "20", "EVENT 3"];
+    
+    let allowedItems = 0;
+    if (max1ItemLevels.includes(displayName)) {
+        allowedItems = 1;
+    } else if (max2ItemLevels.includes(displayName)) {
+        allowedItems = 2;
+    }
+
+    if (allowedItems > 0) {
+        let savedItemsCount = allowedItems - sessionItemsUsed;
+        if (savedItemsCount > 0) {
+            itemBonus = savedItemsCount * 200;
+        }
     }
 
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
