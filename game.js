@@ -139,6 +139,23 @@ let lastLifeUpdate = parseInt(localStorage.getItem('balloon_last_life_update')) 
 let clearedLevels = JSON.parse(localStorage.getItem('balloon_cleared_levels')) || [];
 let myLevelBestScores = JSON.parse(localStorage.getItem('balloon_level_best_scores')) || {};
 let currentLevel = parseInt(localStorage.getItem('balloon_current_level')) || 0;
+let lastEventCreditTime = parseInt(localStorage.getItem('balloon_last_event_credit_time')) || 0;
+
+function shouldAllowEventCredits() {
+    const isAlreadyCleared = clearedLevels.includes(currentLevel);
+    // 아직 클리어하지 않은 레벨은 항상 크레딧 지급
+    if (!isAlreadyCleared) return true;
+    
+    // 이미 클리어한 레벨의 경우, 마지막 이벤트 크레딧 획득으로부터 30분이 지났는지 확인
+    const now = Date.now();
+    const thirtyMinutes = 30 * 60 * 1000;
+    return (now - lastEventCreditTime > thirtyMinutes);
+}
+
+function recordEventCreditGain() {
+    lastEventCreditTime = Date.now();
+    savePlayerData();
+}
 
 function saveLevelBestScore(scoreEarned) {
     if (scoreEarned <= 0) return;
@@ -205,10 +222,6 @@ if (!storeData.items.life) {
     savePlayerData();
 }
 
-function canReceiveEventPoints() {
-    const hasNoItems = (upgrades.clock === 0 && upgrades.fan_left === 0 && upgrades.fan_right === 0 && upgrades.gas_item === 0 && upgrades.weight === 0);
-    return (lives <= 1 && hasNoItems && totalCredits <= 99);
-}
 
 function savePlayerData() {
     localStorage.setItem('balloon_credits', totalCredits);
@@ -219,6 +232,7 @@ function savePlayerData() {
     localStorage.setItem('balloon_last_life_update', lastLifeUpdate);
     localStorage.setItem('balloon_music_enabled', isMusicEnabled);
     localStorage.setItem('balloon_current_level', currentLevel);
+    localStorage.setItem('balloon_last_event_credit_time', lastEventCreditTime);
 
     // Update ground credit display
     const groundCredits = document.getElementById('ground-credits-display');
@@ -2032,9 +2046,9 @@ function collectCoin(coin) {
     if (eventCreditsValEl) eventCreditsValEl.innerText = sessionEventCredits;
 
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
-    if (!isAlreadyCleared || canReceiveEventPoints()) {
+    if (shouldAllowEventCredits()) {
         totalCredits += 10;
-        savePlayerData();
+        recordEventCreditGain();
         if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
         console.log("Credits added:", totalCredits);
     } else {
@@ -2121,8 +2135,9 @@ function gameOver(msg = 'OVERHEAT') {
         const earnedScore = displayCookedPct * 10;
         const isAlreadyCleared = clearedLevels.includes(currentLevel);
         if (earnedScore > 0) {
-            if (!isAlreadyCleared || canReceiveEventPoints()) {
+            if (shouldAllowEventCredits()) {
                 totalCredits += earnedScore;
+                recordEventCreditGain();
                 console.log(`EVENT 2 Failed: Added ${earnedScore}C from cooking.`);
             }
         }
@@ -2346,12 +2361,13 @@ function winGame() {
     let scoreForRank = isSteakEvent ? (displayCookedPct * 10) : (score + itemBonus);
 
     if (isEventLevel) {
-        if (!isAlreadyCleared || canReceiveEventPoints()) {
+        if (shouldAllowEventCredits()) {
             if (isSteakEvent) {
                 finalScore = (displayCookedPct * 10);
             } else {
                 finalScore = score;
             }
+            if (finalScore > 0) recordEventCreditGain();
         } else {
             finalScore = 0;
         }
@@ -3012,8 +3028,9 @@ function depositPopcornCredits() {
     // Add credits to session and total
     sessionEventCredits += popcornGatheredScore;
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
-    if (!isAlreadyCleared || canReceiveEventPoints()) {
+    if (shouldAllowEventCredits()) {
         totalCredits += popcornGatheredScore;
+        recordEventCreditGain();
     }
 
     // Update UI
@@ -3277,8 +3294,9 @@ function catchFish(fish) {
     event4FishCaughtScore += points;
     
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
-    if (!isAlreadyCleared || canReceiveEventPoints()) {
+    if (shouldAllowEventCredits()) {
         totalCredits += points;
+        recordEventCreditGain();
     }
     savePlayerData();
     
