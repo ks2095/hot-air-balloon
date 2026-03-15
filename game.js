@@ -594,9 +594,11 @@ let sessionEventCredits = 0; // 이번 세션(이벤트 레벨)에서 획득한 
 let droppedItems = []; // 화면에 드롭된 아이템들
 let sessionItemsUsed = 0; // 이번 세션에서 실제로 사용한 아이템 개수
 let lastUpdate = 0; // FPS 캡을 위한 시간 기록
+let accumulator = 0; // 추가: 물리 연산 보정을 위한 누적 시간
 let level11WindMultiplier = 1;
 let windCycleStartTime = 0;
 let lastParticleUpdate = 0; // 파티클 애니메이션 FPS 캡
+let particleAccumulator = 0; // 추가: 파티클 연산 보정을 위한 누적 시간
 
 // Initialize
 function init() {
@@ -1657,26 +1659,34 @@ function applyStoreDecoration() {
 }
 
 function update(timestamp) {
-    // 60FPS 고정 (고주사율 스마트폰 대응)
     if (!timestamp) timestamp = performance.now();
-    const delta = timestamp - lastUpdate;
-    if (delta < 16.5) { // 약 60FPS (1000ms / 60 = 16.66ms)
-        requestAnimationFrame(update);
-        return;
-    }
+    if (!lastUpdate) lastUpdate = timestamp;
+    
+    let delta = timestamp - lastUpdate;
     lastUpdate = timestamp;
 
-    if (gameState === 'PLAY') {
-        handleMovement();
-        checkBoundaries();
-        updateTargetLine();
-        updateSteakCooking();
-        updateCornPopping();
-        checkFishing();
-    }
-    updateFish();
+    // 고주사율(120Hz 등) 대응 및 저주사율(30Hz 이하) 보정
+    // delta가 너무 크면(탭 전환 등) 한꺼번에 너무 많이 이동하므로 100ms로 제한
+    if (delta > 100) delta = 100;
+    accumulator += delta;
 
-    // Render (Balloon starts above the 8.05% ground, sky is 93% high)
+    const targetDelta = 16.66; // 60FPS 기준 (약 16.66ms)
+
+    // 물리 및 상태 로직 업데이트 (누적된 시간만큼 고정 단계 실행)
+    while (accumulator >= targetDelta) {
+        if (gameState === 'PLAY') {
+            handleMovement();
+            checkBoundaries();
+            updateTargetLine();
+            updateSteakCooking();
+            updateCornPopping();
+            checkFishing();
+        }
+        updateFish();
+        accumulator -= targetDelta;
+    }
+
+    // --- 렌더링 및 UI 업데이트 (실제 모니터 주사율에 맞춰 1회 실행) ---
     balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
     balloon.style.left = `${balloonX}%`;
 
@@ -1686,7 +1696,7 @@ function update(timestamp) {
         balloon.classList.remove('burning');
     }
 
-    // Update UI
+    // UI 및 시간 제한 체크
     if (gameState === 'PLAY') {
         const now = Date.now();
         const diffSeconds = (now - missionStartTime) / 1000;
@@ -1695,7 +1705,7 @@ function update(timestamp) {
         const currentGas = Math.floor(gas);
         const currentTime = Math.ceil(timeLeft);
 
-        // Wind reversal logic (LV-11 to LV-20)
+        // 풍향 반전 로직 (LV-11 ~ LV-20)
         const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
         if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3") {
             const windElapsedSeconds = (now - windCycleStartTime) / 1000;
@@ -1727,16 +1737,16 @@ function update(timestamp) {
             timeFillEl.style.width = `${Math.max(0, (timeLeft / currentMaxTime) * 100)}%`;
         }
 
-        // Update dev labels
+        // 개발용 좌표/시간 표시
         if (gasValEl) gasValEl.innerText = Math.floor(currentMaxGas - gas);
-        if (timeValEl) timeValEl.innerText = Math.floor(diffSeconds); // Show elapsed time as requested/original
+        if (timeValEl) timeValEl.innerText = Math.floor(diffSeconds);
 
-        // Check fail conditions
+        // 실패 조건 체크 (가스 0 또는 시간 종료)
         if (timeLeft <= 0 || gas <= 0) {
             gameOver(timeLeft <= 0 ? 'TIME OUT' : 'NO GAS');
         }
 
-        // 버너 버튼 색상 차오르는 효과 업데이트
+        // 버너 버튼 색상 업데이트
         if (isBurning && continuousBurnStartTime !== 0) {
             const fillPercent = Math.min(100, (now - continuousBurnStartTime) / 2000 * 100);
             mainActionBtn.style.setProperty('--fill', `${fillPercent}%`);
@@ -1744,14 +1754,14 @@ function update(timestamp) {
             mainActionBtn.style.setProperty('--fill', '0%');
         }
     } else if (gameState === 'PAUSED') {
-        // 일시정지 중에는 아무 작업도 하지 않음 (resumeGame()에서 처리됨)
         mainActionBtn.style.setProperty('--fill', '0%');
-    } else if (gameState === 'START' || gameState === 'CLEAR') {
+    } else {
         mainActionBtn.style.setProperty('--fill', '0%');
     }
 
     requestAnimationFrame(update);
 }
+
 
 function updateTargetLine() {
     // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (0~24레벨 공통)
@@ -2428,30 +2438,44 @@ function updateParticlePos(p) {
 
 function animateParticles(timestamp) {
     if (!timestamp) timestamp = performance.now();
-    const delta = timestamp - lastParticleUpdate;
-    if (delta < 16.5) {
-        requestAnimationFrame(animateParticles);
-        return;
-    }
+    if (!lastParticleUpdate) lastParticleUpdate = timestamp;
+    
+    let delta = timestamp - lastParticleUpdate;
     lastParticleUpdate = timestamp;
 
+    if (delta > 100) delta = 100;
+    particleAccumulator += delta;
+
+    const targetDelta = 16.66;
+
+    while (particleAccumulator >= targetDelta) {
+        particles.forEach(p => {
+            let wind = ZONE_WINDS[p.zoneIndex];
+            const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+            if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3") wind *= level11WindMultiplier;
+            wind += tempWindBoosts[p.zoneIndex];
+            p.x += wind * 0.12;
+
+            if (p.x > 110) p.x = -10;
+            if (p.x < -10) p.x = 110;
+        });
+        particleAccumulator -= targetDelta;
+    }
+
+    // 렌더링은 프레임당 1회
     particles.forEach(p => {
+        p.el.style.left = `${p.x}%`;
+        
         let wind = ZONE_WINDS[p.zoneIndex];
         const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
         if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3") wind *= level11WindMultiplier;
         wind += tempWindBoosts[p.zoneIndex];
-        p.x += wind * 0.12;
-
-        if (p.x > 110) p.x = -10;
-        if (p.x < -10) p.x = 110;
-
-        p.el.style.left = `${p.x}%`;
-
-        // 바람 세기나 아이템 효과가 변할 때 길이를 실시간 반영
         p.el.style.width = `${Math.abs(wind) * 5 + 5}px`;
     });
+
     requestAnimationFrame(animateParticles);
 }
+
 
 function createStars() {
     const sky = document.getElementById('sky-background');
