@@ -2290,7 +2290,7 @@ function winGame() {
             resultFormulaEl.innerHTML = `COOKED: ${displayCookedPct}% * 10`;
         }
     } else {
-        if (resultScoreEl) resultScoreEl.innerText = score;
+        if (resultScoreEl) resultScoreEl.innerText = isSteakEvent ? (displayCookedPct * 10) : (score + itemBonus);
         if (resultFormulaEl) {
             let formula = `(${Math.floor(gas)} + (${Math.floor(timeLeft)} * 10) + <span style="color: #ffd32a;">${landingBonus}</span>)`;
             if (itemBonus > 0) {
@@ -2300,10 +2300,12 @@ function winGame() {
         }
     }
 
+    let scoreForRank = isSteakEvent ? (displayCookedPct * 10) : (score + itemBonus);
+
     if (isEventLevel) {
         if (!isAlreadyCleared || canReceiveEventPoints()) {
             if (isSteakEvent) {
-                finalScore = finalScore + 200;
+                finalScore = (displayCookedPct * 10) + 200;
             } else {
                 finalScore = score + 200;
             }
@@ -2311,13 +2313,24 @@ function winGame() {
             finalScore = 0;
         }
         showEventBonusText();
-    } else if (isAlreadyCleared) {
-        finalScore = 0; // 이미 클리어한 레벨은 점수 합산 안 함
-        console.log("Already cleared level - Score shown but mission points not added");
+    } else {
+        // 일반 레벨: 최고기록 경신 시에만 (새로운 점수 - 기존 최고기록) 만큼의 크레딧을 추가로 지급
+        const oldBest = myLevelBestScores[currentLevel] || 0;
+        if (scoreForRank > oldBest) {
+            finalScore = scoreForRank - oldBest;
+            if (isAlreadyCleared && resultFormulaEl) {
+                resultFormulaEl.innerHTML += `<br><span style="color: #ffd32a; font-size: 0.8em;">(신기록 달성! +${finalScore}C 추가 획득)</span>`;
+            }
+        } else {
+            finalScore = 0;
+            if (isAlreadyCleared && resultFormulaEl) {
+                resultFormulaEl.innerHTML += `<br><span style="color: #666; font-size: 0.7em;">(최고기록 미달성 - 기존: ${oldBest})</span>`;
+            }
+        }
     }
 
+
     // 랭킹용 점수 계산 (클리어 보너스나 누적 점수 포함하여 그 레벨만의 점수 기록)
-    let scoreForRank = isSteakEvent ? (displayCookedPct * 10) : (score + itemBonus);
     if (isEventLevel) {
         scoreForRank += 200; // Clear bonus
         const evtName = LEVEL_CONFIGS[currentLevel].displayName;
