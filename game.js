@@ -3261,13 +3261,20 @@ function clearFish() {
 }
 
 function updateNextLevelButtonVisibility() {
+    if (gameState === 'PLAY') {
+        if (nextLevelBtn) nextLevelBtn.classList.add('hidden');
+        if (prevLevelBtn) prevLevelBtn.classList.add('hidden');
+        return;
+    }
+
     if (nextLevelBtn) {
         const nextLv = currentLevel + 1;
-        const isCleared = clearedLevels.includes(currentLevel);
-        const isEventLevel = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName.startsWith("EVENT");
+        const isCurrentCleared = clearedLevels.includes(currentLevel);
+        const isNextExists = !!LEVEL_CONFIGS[nextLv];
+        const isNextCleared = clearedLevels.includes(nextLv);
 
-        // 이미 클리어한 레벨이거나, 이벤트 레벨이거나, 방금 클리어한 상태라면 다음 레벨 버튼 표시
-        if (LEVEL_CONFIGS[nextLv] && (isCleared || isEventLevel || gameState === 'CLEAR')) {
+        // 표시 조건: 다음 레벨이 존재하고 (현재 레벨 클리어 OR 다음 레벨이 이미 클리어된 상태 OR 방금 클리어)
+        if (isNextExists && (isCurrentCleared || isNextCleared || gameState === 'CLEAR')) {
             nextLevelBtn.classList.remove('hidden');
         } else {
             nextLevelBtn.classList.add('hidden');
@@ -3276,14 +3283,15 @@ function updateNextLevelButtonVisibility() {
 
     if (prevLevelBtn) {
         const prevLv = currentLevel - 1;
-        // 이전 레벨이 존재하고 해당 레벨이 클리어되었거나(1스테이지 등 포함) 하면 뒤로 가기 표시
-        if (LEVEL_CONFIGS[prevLv] && (clearedLevels.includes(prevLv) || prevLv === 1)) {
+        // 이전 레벨이 존재하면 뒤로 가기 버튼 노출 (클리어 여부와 상관없이 뒤로 가기는 상시 허용)
+        if (LEVEL_CONFIGS[prevLv] !== undefined) {
             prevLevelBtn.classList.remove('hidden');
         } else {
             prevLevelBtn.classList.add('hidden');
         }
     }
 }
+
 
 function updateLivesUI() {
     checkLifeRegen(); // UI 업데이트 전 리젠 확인
