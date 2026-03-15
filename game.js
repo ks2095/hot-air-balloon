@@ -307,8 +307,10 @@ const soundMgr = new SoundManager();
 // BGM is long, keep it as Audio element for streaming
 const bgmFiles = [
     '열기구음악1.mp3', '열기구음악2.mp3', '열기구음악3.mp3', '열기구음악4.mp3',
-    '열기구음악5.MP3', '열기구음악6.MP3', '열기구음악7.mp3', '열기구음악8.mp3'
+    '열기구음악5.MP3', '열기구음악6.MP3', '열기구음악7.mp3', '열기구음악8.mp3',
+    '열기구음악9.mp3', '열기구음악10.mp3'
 ];
+
 let bgmAudio = new Audio();
 bgmAudio.loop = false; // 곡이 끝나고 'ended' 이벤트가 발생하도록 false로 설정
 
@@ -1423,17 +1425,24 @@ function updateStoreUI(isInventoryMode = false) {
             const itemDiv = document.createElement('div');
             itemDiv.className = `store-mini-item item-${key}`;
             if (isInventoryMode) {
+                const max1ItemLevels = ["6", "7", "14", "15"];
+                const max2ItemLevels = ["8", "9", "10", "16", "17", "18", "19", "20", "EVENT 3"];
+                const allItemLevels = [...max1ItemLevels, ...max2ItemLevels];
                 let isItemDisabled = (count === 0);
 
-                if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "14" || displayName === "15") {
-                    if (droppedItems.length > 0) {
+                // 아이템 미션이 없는 레벨이라면 비활성화
+                if (!allItemLevels.includes(displayName)) {
+                    isItemDisabled = true;
+                } else if (max1ItemLevels.includes(displayName)) {
+                    if (droppedItems.length >= 1) {
                         isItemDisabled = true;
                     }
-                } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "16" || displayName === "17" || displayName === "18" || displayName === "19" || displayName === "20" || displayName === "EVENT 3") {
+                } else if (max2ItemLevels.includes(displayName)) {
                     if (droppedItems.length >= 2) {
                         isItemDisabled = true;
                     }
                 }
+
 
                 if (isItemDisabled) {
                     itemDiv.classList.add('disabled-item');
@@ -2064,6 +2073,7 @@ function gameOver(msg = 'OVERHEAT') {
     isBurning = false;
     soundMgr.stop('burner');
     attachedFish = null;
+    updateNextLevelButtonVisibility(); // 즉시 화살표 표시
 
     // 11~20레벨 실패 시 바람 방향을 처음 시작 방향(multiplier=1)으로 복구
     const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
@@ -2193,12 +2203,8 @@ function gameOver(msg = 'OVERHEAT') {
             balloon.style.left = `${balloonX}%`;
         }
 
-        if (LEVEL_CONFIGS[currentLevel].displayName === "EVENT LEVEL" || clearedLevels.includes(currentLevel)) {
-            updateNextLevelButtonVisibility();
-        }
-
-        // 5, 6, 7, 8 레벨 실패 시 미션 가이드 다시 표시
         if (levelHintEl) {
+
             const displayName = LEVEL_CONFIGS[currentLevel].displayName;
             if (displayName === "5" || displayName === "6" || displayName === "7" || displayName === "8" || displayName === "14" || displayName === "15") {
                 levelHintEl.classList.remove('hidden');
