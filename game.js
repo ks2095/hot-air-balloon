@@ -1826,7 +1826,8 @@ function updateTargetLine() {
         const targetYBottom = (100 / 7) * platformY;
         let pixelOffset = 12;
         if (config.displayName === "9") pixelOffset = 7;
-        if (config.displayName === "10") pixelOffset = -3; // Raised by 20px from -23
+        if (config.displayName === "10") pixelOffset = -3; 
+        if (config.displayName === "19") pixelOffset = 2; // Lowered by 10px from 12
         targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + ${pixelOffset}px)`;
 
         // EVENT 레벨들에서 착륙 패드 숨기기
