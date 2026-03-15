@@ -566,7 +566,7 @@ const LEVEL_CONFIGS = {
     },
     24: {
         displayName: "EVENT 4",
-        winds: [1, -1, -2, 2, -2, 2, -1],
+        winds: [-2.5, 2.5, -2.5, 2.5, -2.5, 2.5, -2.5],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.5
@@ -1475,7 +1475,7 @@ function updateStoreUI(isInventoryMode = false) {
             const itemDiv = document.createElement('div');
             itemDiv.className = `store-mini-item item-${key}`;
             if (isInventoryMode) {
-                const allItemLevels = [...BONUS_G1_LEVELS, ...BONUS_G2_LEVELS, "EVENT 3"];
+                const allItemLevels = [...BONUS_G1_LEVELS, ...BONUS_G2_LEVELS];
                 let isItemDisabled = (count === 0);
 
                 // 아이템 미션이 없는 레벨이라면 비활성화
@@ -1485,7 +1485,7 @@ function updateStoreUI(isInventoryMode = false) {
                     if (droppedItems.length >= 1) {
                         isItemDisabled = true;
                     }
-                } else if (BONUS_G2_LEVELS.includes(displayName) || displayName === "EVENT 3") {
+                } else if (BONUS_G2_LEVELS.includes(displayName)) {
                     if (droppedItems.length >= 2) {
                         isItemDisabled = true;
                     }
@@ -1566,7 +1566,7 @@ function updateStoreUI(isInventoryMode = false) {
 
                     if (BONUS_G1_LEVELS.includes(displayName)) {
                         if (droppedItems.length >= 1) return;
-                    } else if (BONUS_G2_LEVELS.includes(displayName) || displayName === "EVENT 3") {
+                    } else if (BONUS_G2_LEVELS.includes(displayName)) {
                         if (droppedItems.length >= 2) return;
                     } else {
                         // 아이템 미션이 없는 레벨
@@ -1582,7 +1582,7 @@ function updateStoreUI(isInventoryMode = false) {
 
                     if (BONUS_G1_LEVELS.includes(displayName)) {
                         if (droppedItems.length >= 1) return;
-                    } else if (BONUS_G2_LEVELS.includes(displayName) || displayName === "EVENT 3") {
+                    } else if (BONUS_G2_LEVELS.includes(displayName)) {
                         if (droppedItems.length >= 2) return;
                     } else {
                         // 아이템 미션이 없는 레벨
@@ -2084,13 +2084,16 @@ function checkBoundaries() {
         velY = 0;
     }
 
+    const config = LEVEL_CONFIGS[currentLevel];
+    const isEventLevel = config && config.displayName.startsWith("EVENT");
+
     if (balloonX < 5) {
         balloonX = 5;
-        gameOver('CRASH');
+        if (!isEventLevel) gameOver('CRASH');
     }
     if (balloonX > 95) {
         balloonX = 95;
-        gameOver('CRASH');
+        if (!isEventLevel) gameOver('CRASH');
     }
 
     // Top boundary check
@@ -2111,6 +2114,23 @@ function clearDroppedItems() {
 
 function gameOver(msg = 'OVERHEAT') {
     if (gameState !== 'PLAY') return;
+
+    const config = LEVEL_CONFIGS[currentLevel];
+    const isEventLevel = config && config.displayName.startsWith("EVENT");
+
+    if (isEventLevel) {
+        // 이벤트 레벨에서는 터져도 클리어로 간주 (상태를 즉시 CLEAR로 변경하여 이동 중지)
+        gameState = 'CLEAR';
+        balloon.classList.add('explosion');
+        gameContainer.classList.add('shake');
+        soundMgr.play('explosion');
+        
+        setTimeout(() => {
+            winGame();
+        }, 500);
+        return;
+    }
+
     gameState = 'GAMEOVER';
     isBurning = false;
     soundMgr.stop('burner');
@@ -2125,8 +2145,6 @@ function gameOver(msg = 'OVERHEAT') {
         if (windCountdownEl) windCountdownEl.classList.add('hidden');
     }
 
-    const config = LEVEL_CONFIGS[currentLevel];
-    const isEventLevel = config && config.displayName.startsWith("EVENT");
     const isEvent2 = config && config.displayName === "EVENT 2";
 
     if (isEvent2) {
@@ -2418,11 +2436,22 @@ function winGame() {
     // currentDisplayName already defined above
     if (clearTitleEl) clearTitleEl.innerText = currentDisplayName.startsWith("EVENT") ? "EVENT LEVEL CLEAR!" : `LEVEL-${currentDisplayName} CLEAR`;
 
-    if (currentDisplayName.startsWith("EVENT") && !isSteakEvent) {
-        console.log("Event Level Cleared: Score stored quietly.");
+    if (currentDisplayName.startsWith("EVENT")) {
+        if (clearScreen) clearScreen.classList.add('hidden');
+        if (eventClearScreen) {
+            // 이벤트 전용 데이터는 업데이트하되 창은 띄우지 않음
+            if (eventResultScoreEl) {
+                let eventScore = 0;
+                if (currentDisplayName === "EVENT 1" || currentDisplayName === "EVENT 3") eventScore = sessionEventCredits;
+                else if (currentDisplayName === "EVENT 4") eventScore = event4FishCaughtScore;
+                eventResultScoreEl.innerText = eventScore;
+            }
+            if (eventAccumulatedTotalEl) eventAccumulatedTotalEl.innerText = totalCredits;
+            eventClearScreen.classList.add('hidden'); 
+        }
     } else {
-        if (eventClearScreen) eventClearScreen.classList.add('hidden'); // 이벤트 결과창과 겹침 방지
-        clearScreen.classList.remove('hidden'); // 클리어 여부 상관없이 점수판 노출
+        if (eventClearScreen) eventClearScreen.classList.add('hidden');
+        clearScreen.classList.remove('hidden'); // 일반 레벨만 점수판 노출
     }
 
     updateNextLevelButtonVisibility();
@@ -2743,9 +2772,6 @@ function resetGame() {
             levelHintEl.classList.remove('hidden');
         } else if (BONUS_G2_LEVELS.includes(displayName)) {
             levelHintEl.innerHTML = `Use 2 items or less`;
-            levelHintEl.classList.remove('hidden');
-        } else if (displayName === "EVENT 3") {
-            levelHintEl.innerHTML = `Use 2 items`;
             levelHintEl.classList.remove('hidden');
         } else {
             levelHintEl.classList.add('hidden');
@@ -3116,7 +3142,7 @@ function createFish() {
             gameContainer.appendChild(fishEl);
 
             const fishHeightPct = (fishSize / (gameContainer.clientHeight * 0.9195)) * 100;
-            const maxSurface = (100 / 7) * 2.5; // 3구역 중간 (약 35.7%)
+            const maxSurface = (100 / 7) * 2.8; // 3구역 80% 지점 (약 40%)
             const maxBodyY = maxSurface - fishHeightPct;
 
             const fish = {
@@ -3151,7 +3177,7 @@ function updateFish() {
                 const bob = Math.sin(now * 0.0015 + fish.swimOffset) * 1.5; 
                 currentY = fish.baseY + bob;
                 
-                const maxSurface = (100 / 7) * 2.5;
+                const maxSurface = (100 / 7) * 2.8;
                 const maxBodyY = maxSurface - fish.heightPct;
                 currentY = Math.max(0, Math.min(maxBodyY, currentY));
                 
@@ -3177,7 +3203,7 @@ function updateFish() {
                 currentY = fish.y;
 
                 // 일반 물고기도 낚인 상태에서 수면 위로 못 올라오게 제한
-                const maxSurface = (100 / 7) * 2.5;
+                const maxSurface = (100 / 7) * 2.8;
                 const maxBodyY = maxSurface - fish.heightPct;
                 currentY = Math.max(0, Math.min(maxBodyY, currentY));
 
@@ -3193,8 +3219,8 @@ function updateFish() {
             const bob = Math.sin(now * 0.0015 + fish.swimOffset) * 1.5; 
             currentY = fish.baseY + bob;
             
-            // 수면 높이 제한 적용 (물고기 머리가 3구역 중간을 넘지 않게)
-            const maxSurface = (100 / 7) * 2.5;
+            // 수면 높이 제한 적용 (물고기 머리가 3구역 80% 지점을 넘지 않게)
+            const maxSurface = (100 / 7) * 2.8;
             const maxBodyY = maxSurface - (fish.heightPct || 0);
             currentY = Math.max(0, Math.min(maxBodyY, currentY));
             flip = fish.velX > 0 ? 'scaleX(-1)' : 'scaleX(1)';
@@ -3217,12 +3243,20 @@ function checkFishing() {
     const baitRect = baitEl.getBoundingClientRect();
 
     if (attachedFish) {
-        if (attachedFish.type === 1) return; // 물고기1은 안 잡힘
+        if (attachedFish.type === 1) {
+            // 물고기1은 5초 동안만 끌고 다님
+            if (Date.now() - attachedFish.attachTime > 5000) {
+                attachedFish.lastReleaseTime = Date.now();
+                attachedFish = null;
+                return;
+            }
+            return; 
+        }
 
         if (isBurning && continuousBurnStartTime !== 0) {
-            let catchThreshold = 500; // 기본 (물고기 2: 0.5초)
-            if (attachedFish.type === 3) catchThreshold = 400;      // 물고기 3: 0.4초
-            else if (attachedFish.type === 4) catchThreshold = 300; // 물고기 4: 0.3초
+            let catchThreshold = 800; // 기본 (물고기 2: 0.8초)
+            if (attachedFish.type === 3) catchThreshold = 600;      // 물고기 3: 0.6초
+            else if (attachedFish.type === 4) catchThreshold = 400; // 물고기 4: 0.4초
             else if (attachedFish.type === 5) catchThreshold = 200; // 물고기 5: 0.2초
 
             if (Date.now() - continuousBurnStartTime >= catchThreshold) {
@@ -3246,9 +3280,15 @@ function checkFishing() {
             if (dist < fishRect.width * 0.35) {
                 // 미끼에 닿은 상태에서 버너를 눌러야 낚임
                 if (isBurning) {
+                    // 최근에 풀려난 물고기면 3초간 재부착 방지
+                    if (fish.type === 1 && fish.lastReleaseTime && (Date.now() - fish.lastReleaseTime < 3000)) {
+                        continue;
+                    }
+
                     attachedFish = fish;
                     if (fish.type === 1) {
                         draggingOffset = getBaitOffset();
+                        fish.attachTime = Date.now();
                     }
                     break;
                 }
