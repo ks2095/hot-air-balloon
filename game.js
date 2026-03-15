@@ -1902,7 +1902,7 @@ function handleMovement() {
     let pixelOffset = 12;
     if (config.displayName === "9") pixelOffset = 7;
     if (config.displayName === "10") pixelOffset = -3;
-    if (config.displayName === "19") pixelOffset = 12 - 20; // 20px down
+    if (config.displayName === "19") pixelOffset = 2; // Lowered by 10px from 12
     if (config.displayName === "EVENT 2" || config.displayName === "EVENT 3" || config.displayName === "EVENT 4") pixelOffset = 12 - 50; // 50px down
     const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100; // Visual bottom of the platform
     const targetYTop = targetYBottom + platformHeightPercentage; // Top of the grass
