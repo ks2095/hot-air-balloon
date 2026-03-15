@@ -2384,7 +2384,9 @@ function winGame() {
             if (isSteakEvent) {
                 finalScore = (displayCookedPct * 10);
             } else {
-                finalScore = score;
+                // EVENT 1, 3, 4는 플레이 중 이미 크레딧을 실시간 획득하므로
+                // 클리어(가스/시간) 보너스를 0으로 설정하여 중복 지급을 방지합니다.
+                finalScore = 0;
             }
             if (finalScore > 0) recordEventCreditGain();
         } else {
