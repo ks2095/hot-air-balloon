@@ -601,6 +601,22 @@ let level11WindMultiplier = 1;
 let windCycleStartTime = 0;
 let lastParticleUpdate = 0; // 파티클 애니메이션 FPS 캡
 let particleAccumulator = 0; // 추가: 파티클 연산 보정을 위한 누적 시간
+let initialItemCount = 0; // 게임 시작 직전 보유한 아이템 총 갯수
+
+// 보너스 점수 레벨 그룹 (표시 이름 기준)
+const BONUS_G1_LEVELS = ["6", "7", "14", "15"];
+const BONUS_G2_LEVELS = ["8", "9", "10", "16", "17", "18", "19", "20"];
+
+function getTotalItemsCount() {
+    let total = 0;
+    for (let key in upgrades) {
+        if (key !== 'life') {
+            total += (upgrades[key] || 0);
+        }
+    }
+    total += droppedItems.length;
+    return total;
+}
 
 // Initialize
 function init() {
@@ -1139,6 +1155,7 @@ function startGame() {
     gas = currentMaxGas;
     elapsedTime = 0;
     sessionItemsUsed = 0;
+    initialItemCount = getTotalItemsCount();
     missionStartTime = Date.now();
     windCycleStartTime = missionStartTime;
     playRandomBGM();
@@ -1222,7 +1239,7 @@ function startDragPlacement(key, initialEvent) {
 
             placeItemOnScreen(key, dropX, gameY);
             upgrades[key]--;
-            sessionItemsUsed++;
+            // sessionItemsUsed++; // 구 버전 로직용 변수, 새 로직에선 직접 개수 비교하므로 주석 처리하거나 맞춰줌
             savePlayerData();
             updateStoreUI(true);
             if (showWindLabels) updateWindLabels();
@@ -1444,19 +1461,17 @@ function updateStoreUI(isInventoryMode = false) {
             const itemDiv = document.createElement('div');
             itemDiv.className = `store-mini-item item-${key}`;
             if (isInventoryMode) {
-                const max1ItemLevels = ["6", "7", "14", "15"];
-                const max2ItemLevels = ["8", "9", "10", "16", "17", "18", "19", "20", "EVENT 3"];
-                const allItemLevels = [...max1ItemLevels, ...max2ItemLevels];
+                const allItemLevels = [...BONUS_G1_LEVELS, ...BONUS_G2_LEVELS, "EVENT 3"];
                 let isItemDisabled = (count === 0);
 
                 // 아이템 미션이 없는 레벨이라면 비활성화
                 if (!allItemLevels.includes(displayName)) {
                     isItemDisabled = true;
-                } else if (max1ItemLevels.includes(displayName)) {
+                } else if (BONUS_G1_LEVELS.includes(displayName)) {
                     if (droppedItems.length >= 1) {
                         isItemDisabled = true;
                     }
-                } else if (max2ItemLevels.includes(displayName)) {
+                } else if (BONUS_G2_LEVELS.includes(displayName) || displayName === "EVENT 3") {
                     if (droppedItems.length >= 2) {
                         isItemDisabled = true;
                     }
@@ -1535,12 +1550,9 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('mousedown', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    const max1ItemLevels = ["6", "7", "14", "15"];
-                    const max2ItemLevels = ["8", "9", "10", "16", "17", "18", "19", "20", "EVENT 3"];
-
-                    if (max1ItemLevels.includes(displayName)) {
+                    if (BONUS_G1_LEVELS.includes(displayName)) {
                         if (droppedItems.length >= 1) return;
-                    } else if (max2ItemLevels.includes(displayName)) {
+                    } else if (BONUS_G2_LEVELS.includes(displayName) || displayName === "EVENT 3") {
                         if (droppedItems.length >= 2) return;
                     } else {
                         // 아이템 미션이 없는 레벨
@@ -1554,12 +1566,9 @@ function updateStoreUI(isInventoryMode = false) {
                 itemDiv.addEventListener('touchstart', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
 
-                    const max1ItemLevels = ["6", "7", "14", "15"];
-                    const max2ItemLevels = ["8", "9", "10", "16", "17", "18", "19", "20", "EVENT 3"];
-
-                    if (max1ItemLevels.includes(displayName)) {
+                    if (BONUS_G1_LEVELS.includes(displayName)) {
                         if (droppedItems.length >= 1) return;
-                    } else if (max2ItemLevels.includes(displayName)) {
+                    } else if (BONUS_G2_LEVELS.includes(displayName) || displayName === "EVENT 3") {
                         if (droppedItems.length >= 2) return;
                     } else {
                         // 아이템 미션이 없는 레벨
@@ -2285,27 +2294,32 @@ function winGame() {
     const score = Math.floor(gas) + Math.floor(timeLeft * 10) + landingBonus;
 
     let itemBonus = 0;
-    const displayName = LEVEL_CONFIGS[currentLevel].displayName;
-    
-    const max1ItemLevels = ["6", "7", "14", "15"];
-    const max2ItemLevels = ["8", "9", "10", "16", "17", "18", "19", "20", "EVENT 3"];
-    
-    let allowedItems = 0;
-    if (max1ItemLevels.includes(displayName)) {
-        allowedItems = 1;
-    } else if (max2ItemLevels.includes(displayName)) {
-        allowedItems = 2;
+    const currentItemCount = getTotalItemsCount();
+    const actualItemsDecreased = Math.max(0, initialItemCount - currentItemCount);
+
+    if (BONUS_G1_LEVELS.includes(currentDisplayName)) {
+        // Group 1: 0개 줄면 200점, 1개 이상 줄면 0점
+        if (actualItemsDecreased === 0) {
+            itemBonus = 200;
+        } else {
+            itemBonus = 0;
+        }
+    } else if (BONUS_G2_LEVELS.includes(currentDisplayName)) {
+        // Group 2: 0개 줄면 400점, 1개 줄면 200점, 2개 이상 줄면 0점
+        if (actualItemsDecreased === 0) {
+            itemBonus = 400;
+        } else if (actualItemsDecreased === 1) {
+            itemBonus = 200;
+        } else {
+            itemBonus = 0;
+        }
     }
 
-    if (allowedItems > 0) {
-        let savedItemsCount = allowedItems - sessionItemsUsed;
-        if (savedItemsCount > 0) {
-            itemBonus = savedItemsCount * 200; 
-            // Show bonus text
-            setTimeout(() => {
-                showFloatingText(`+${itemBonus} (ITEM BONUS)`, "#2ecc71");
-            }, 500);
-        }
+    if (itemBonus > 0) {
+        // Show bonus text
+        setTimeout(() => {
+            showFloatingText(`+${itemBonus} (ITEM BONUS)`, "#2ecc71");
+        }, 500);
     }
 
     const isAlreadyCleared = clearedLevels.includes(currentLevel);
@@ -2708,13 +2722,15 @@ function resetGame() {
     if (levelHintEl) {
         levelHintEl.classList.remove('level-8-hint');
         const displayName = config.displayName;
-        if (displayName === "6" || displayName === "7" || displayName === "14" || displayName === "15") {
+        if (BONUS_G1_LEVELS.includes(displayName)) {
             levelHintEl.innerHTML = `Use 1 item or less`;
             levelHintEl.classList.remove('hidden');
-        } else if (displayName === "8" || displayName === "9" || displayName === "10" || displayName === "16" || displayName === "17" || displayName === "18" || displayName === "19" || displayName === "20" || displayName === "EVENT 3") {
-            levelHintEl.innerHTML = (displayName === "EVENT 3") ? `Use 2 items` : `Use 2 items or less`;
+        } else if (BONUS_G2_LEVELS.includes(displayName)) {
+            levelHintEl.innerHTML = `Use 2 items or less`;
             levelHintEl.classList.remove('hidden');
-            // Removed level-8-hint class addition as positioning is now fixed
+        } else if (displayName === "EVENT 3") {
+            levelHintEl.innerHTML = `Use 2 items`;
+            levelHintEl.classList.remove('hidden');
         } else {
             levelHintEl.classList.add('hidden');
         }
