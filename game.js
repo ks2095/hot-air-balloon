@@ -153,7 +153,7 @@ function calculateMyOverallScore() {
     for (let lvl in LEVEL_CONFIGS) {
         if (lvl === "0" || (LEVEL_CONFIGS[lvl] && LEVEL_CONFIGS[lvl].displayName === "튜토리얼")) continue;
         if (LEVEL_CONFIGS[lvl] && LEVEL_CONFIGS[lvl].displayName.includes('EVENT')) continue;
-        total += (myLevelBestScores[lvl] || 0) * parseInt(lvl || 1);
+        total += (myLevelBestScores[lvl] || 0);
     }
     return total;
 }
@@ -1024,18 +1024,37 @@ function init() {
             updateLivesUI();
             console.log("Developer: Added 5 of each item (Alt+X)");
         }
-        // 신규 유저 초기 화면처럼 모든 데이터 초기화 (Ctrl + Y)
-        if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+        // 관리자 전용: 서버 랭킹 초기화 (Alt + Ctrl + M)
+        if (e.altKey && e.ctrlKey && e.key.toLowerCase() === 'm') {
             e.preventDefault();
-            if (confirm("모든 게임 기록과 포인트를 초기화하고 처음부터 다시 시작하시겠습니까?")) {
-                localStorage.removeItem('balloon_credits');
-                localStorage.removeItem('balloon_upgrades');
-                localStorage.removeItem('balloon_store_data');
-                localStorage.removeItem('balloon_cleared_levels');
-                localStorage.removeItem('balloon_lives');
-                localStorage.removeItem('balloon_last_life_update');
-                console.log("User Data Reset: All data cleared (Ctrl+Y)");
-                location.reload(); // 페이지를 새로고침하여 완전 초기 상태로 복구
+            const pw = prompt("관리자 비밀번호를 입력하세요:");
+            if (pw === "ydp3200@@") {
+                if (confirm("정말로 서버의 모든 랭킹 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+                    const deleteServerRankings = async () => {
+                        try {
+                            const snapshot = await db.collection("leaderboard").get();
+                            if (snapshot.empty) {
+                                alert("삭제할 기록이 없습니다.");
+                                return;
+                            }
+                            const batch = db.batch();
+                            snapshot.docs.forEach((doc) => {
+                                batch.delete(doc.ref);
+                            });
+                            await batch.commit();
+                            alert("서버의 모든 랭킹 기록이 성공적으로 삭제되었습니다.");
+                            if (rankScreen && !rankScreen.classList.contains('hidden')) {
+                                updateRankUI();
+                            }
+                        } catch (err) {
+                            console.error("서버 랭킹 삭제 중 오류 발생:", err);
+                            alert("서버 기록 삭제 중 오류가 발생했습니다.");
+                        }
+                    };
+                    deleteServerRankings();
+                }
+            } else if (pw !== null) {
+                alert("비밀번호가 틀렸습니다.");
             }
         }
     });
@@ -1787,8 +1806,8 @@ function updateTargetLine() {
         if (config.displayName === "10") pixelOffset = -3; // Raised by 20px from -23
         targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + ${pixelOffset}px)`;
 
-        // EVENT 4에서만 착륙 패드 숨기기
-        if (config.displayName === "EVENT 4") {
+        // EVENT 레벨들에서 착륙 패드 숨기기
+        if (config.displayName.startsWith("EVENT")) {
             targetLineEl.classList.add('hidden');
         } else {
             targetLineEl.classList.remove('hidden');
@@ -1870,8 +1889,8 @@ function handleMovement() {
     const platTop = targetYTop;
     const platBottom = targetYBottom;
 
-    // Platform Collision logic (Skip for EVENT 4)
-    if (config.displayName !== "EVENT 4") {
+    // Platform Collision logic (Skip for all EVENT levels)
+    if (!config.displayName.startsWith("EVENT")) {
         // 1. Balloon Body (Blue circle) Collision
         const balloonCenterY = balloonY + getMarkerOffset();
         const balloonRadius = (32.5 / skyHeight) * 100 / 2; // Approximate radius in %
@@ -2281,7 +2300,11 @@ function winGame() {
     if (allowedItems > 0) {
         let savedItemsCount = allowedItems - sessionItemsUsed;
         if (savedItemsCount > 0) {
-            itemBonus = savedItemsCount * 200;
+            itemBonus = savedItemsCount * 200; 
+            // Show bonus text
+            setTimeout(() => {
+                showFloatingText(`+${itemBonus} (ITEM BONUS)`, "#2ecc71");
+            }, 500);
         }
     }
 
@@ -2300,7 +2323,7 @@ function winGame() {
         if (resultFormulaEl) {
             let formula = `(${Math.floor(gas)} + (${Math.floor(timeLeft)} * 10) + <span style="color: #ffd32a;">${landingBonus}</span>)`;
             if (itemBonus > 0) {
-                formula += ` + <span style="color: #2ecc71;">${itemBonus}(MISSION)</span>`;
+                formula += ` + <span style="color: #2ecc71;">${itemBonus}(ITEM BONUS)</span>`;
             }
             resultFormulaEl.innerHTML = formula;
         }
@@ -2311,14 +2334,14 @@ function winGame() {
     if (isEventLevel) {
         if (!isAlreadyCleared || canReceiveEventPoints()) {
             if (isSteakEvent) {
-                finalScore = (displayCookedPct * 10) + 200;
+                finalScore = (displayCookedPct * 10);
             } else {
-                finalScore = score + 200;
+                finalScore = score;
             }
         } else {
             finalScore = 0;
         }
-        showEventBonusText();
+        // Removed showEventBonusText call
     } else {
         // 일반 레벨: 최고기록 경신 시에만 (새로운 점수 - 기존 최고기록) 만큼의 크레딧을 추가로 지급
         const oldBest = myLevelBestScores[currentLevel] || 0;
@@ -2338,7 +2361,7 @@ function winGame() {
 
     // 랭킹용 점수 계산 (클리어 보너스나 누적 점수 포함하여 그 레벨만의 점수 기록)
     if (isEventLevel) {
-        scoreForRank += 200; // Clear bonus
+        // Changed: Removed +200 clear bonus for rank
         const evtName = LEVEL_CONFIGS[currentLevel].displayName;
         if(evtName === "EVENT 1" || evtName === "EVENT 3") scoreForRank += sessionEventCredits;
         if(evtName === "EVENT 4") scoreForRank += event4FishCaughtScore;
@@ -3280,7 +3303,8 @@ function clearFish() {
 }
 
 function updateNextLevelButtonVisibility() {
-    if (gameState === 'PLAY') {
+    const isEventLevel = LEVEL_CONFIGS[currentLevel]?.displayName?.startsWith("EVENT");
+    if (gameState === 'PLAY' && !isEventLevel) {
         if (nextLevelBtn) nextLevelBtn.classList.add('hidden');
         if (prevLevelBtn) prevLevelBtn.classList.add('hidden');
         return;
@@ -3292,8 +3316,9 @@ function updateNextLevelButtonVisibility() {
         const isNextExists = !!LEVEL_CONFIGS[nextLv];
         const isNextCleared = clearedLevels.includes(nextLv);
 
-        // 표시 조건: 다음 레벨이 존재하고 (현재 레벨 클리어 OR 다음 레벨이 이미 클리어된 상태 OR 방금 클리어)
-        if (isNextExists && (isCurrentCleared || isNextCleared || gameState === 'CLEAR')) {
+        // 표시 조건: 다음 레벨이 존재하고 (현재 레벨 클리어 OR 다음 레벨이 이미 클리어된 상태 OR 방금 클리어 OR 현재 또는 다음이 이벤트 레벨)
+        const isNextEventLevel = LEVEL_CONFIGS[nextLv]?.displayName?.startsWith("EVENT");
+        if (isNextExists && (isCurrentCleared || isNextCleared || gameState === 'CLEAR' || isEventLevel || isNextEventLevel)) {
             nextLevelBtn.classList.remove('hidden');
         } else {
             nextLevelBtn.classList.add('hidden');
@@ -3374,20 +3399,18 @@ function updateSettingsUI() {
     }
 }
 
-function showEventBonusText() {
+// showEventBonusText function removed as requested
+
+function showFloatingText(text, color = "#ffd32a") {
     const bonusEl = document.createElement('div');
     bonusEl.className = 'bonus-float-text';
-    bonusEl.innerText = '+200';
+    bonusEl.innerText = text;
+    if (color) bonusEl.style.color = color;
 
-    // Position: Right of the platform
-    const platformHalfWidth = (100 / 12) / 2;
-    const posX = targetLineX + platformHalfWidth + 1; // 1% gap
-
-    const platformY = LEVEL_CONFIGS[currentLevel].platformY;
-    const posY = (100 / 7) * platformY;
-
-    bonusEl.style.left = `${posX}%`;
-    bonusEl.style.bottom = `calc(8.05% + ${posY * 0.9195}% + 15px)`;
+    // Position near the top center
+    bonusEl.style.left = `50%`;
+    bonusEl.style.bottom = `60%`;
+    bonusEl.style.transform = `translateX(-50%)`;
 
     gameContainer.appendChild(bonusEl);
 
