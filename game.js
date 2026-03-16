@@ -146,10 +146,16 @@ function shouldAllowEventCredits() {
     // 아직 클리어하지 않은 레벨은 항상 크레딧 지급
     if (!isAlreadyCleared) return true;
     
-    // 이미 클리어한 레벨의 경우, 마지막 이벤트 크레딧 획득으로부터 30분이 지났는지 확인
+    // 이미 클리어한 레벨의 경우:
+    // 생명이 1이 남고 크레딧이 100 미만인 절박한 상황에서만 30분 간격으로 점수 획득 가능
     const now = Date.now();
     const thirtyMinutes = 30 * 60 * 1000;
-    return (now - lastEventCreditTime > thirtyMinutes);
+    
+    if (lives === 1 && totalCredits < 100) {
+        return (now - lastEventCreditTime > thirtyMinutes);
+    }
+    
+    return false;
 }
 
 function recordEventCreditGain() {
@@ -353,7 +359,8 @@ async function preloadSounds() {
         { name: 'explosion', url: '폭발.MP3' },
         { name: 'coin', url: '코인소리.mp3' },
         { name: 'life', url: '생명소리.MP3' },
-        { name: 'popcorn', url: '팝콘소리.MP3' }
+        { name: 'popcorn', url: '팝콘소리.MP3' },
+        { name: 'hit', url: '히트.MP3' }
     ];
     // Parallel decode-into-memory
     await Promise.all(effects.map(effect => soundMgr.loadSound(effect.name, effect.url)));
@@ -2097,6 +2104,15 @@ function checkBoundaries() {
         if (!isEventLevel) gameOver('CRASH');
     }
 
+    // EVENT 4: 낚싯대 자동 반전 (벽에 닿을 때)
+    if (config.displayName === "EVENT 4" && fishingGearEl) {
+        if (balloonX < 15) {
+            fishingGearEl.classList.remove('flipped');
+        } else if (balloonX > 85) {
+            fishingGearEl.classList.add('flipped');
+        }
+    }
+
     // Top boundary check
     if (balloonY > 105) { // Allow bottom to go slightly off screen before failing
         balloonY = 105;
@@ -2749,7 +2765,10 @@ function resetGame() {
     // EVENT 4: 바다 표현 및 낚싯대 추가
     if (config.displayName === "EVENT 4") {
         if (seaOverlayEl) seaOverlayEl.classList.remove('hidden');
-        if (fishingGearEl) fishingGearEl.classList.remove('hidden');
+        if (fishingGearEl) {
+            fishingGearEl.classList.remove('hidden');
+            fishingGearEl.classList.remove('flipped');
+        }
         if (event4FloatingScore) {
             event4FloatingScore.classList.remove('hidden');
             if (event4FishScore) event4FishScore.innerText = "0";
@@ -3289,6 +3308,7 @@ function checkFishing() {
                     }
 
                     attachedFish = fish;
+                    soundMgr.play('hit');
                     if (fish.type === 1) {
                         draggingOffset = getBaitOffset();
                         fish.attachTime = Date.now();

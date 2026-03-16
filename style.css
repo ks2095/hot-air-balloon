@@ -2405,6 +2405,11 @@ button:hover {
     height: 0;
     z-index: 5;
     pointer-events: none;
+    transition: transform 0.3s ease;
+}
+
+#fishing-gear.flipped {
+    transform: scaleX(-1);
 }
 
 #fishing-gear.hidden {
