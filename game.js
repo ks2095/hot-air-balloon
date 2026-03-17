@@ -360,7 +360,8 @@ async function preloadSounds() {
         { name: 'coin', url: '코인소리.mp3' },
         { name: 'life', url: '생명소리.MP3' },
         { name: 'popcorn', url: '팝콘소리.MP3' },
-        { name: 'hit', url: '히트.MP3' }
+        { name: 'hit', url: '히트.MP3' },
+        { name: 'bird_hit', url: '새충돌소리.MP3' }
     ];
     // Parallel decode-into-memory
     await Promise.all(effects.map(effect => soundMgr.loadSound(effect.name, effect.url)));
@@ -399,6 +400,8 @@ const MAX_TIME = 60;
 let particles = [];
 const PARTICLE_COUNT = 30;
 let activeFish = [];
+let activeBirds = []; // Level 21 birds
+let activeEagles = []; // Level 23 eagles
 let attachedFish = null;
 let draggingOffset = { x: 0, y: 0 };
 
@@ -577,6 +580,30 @@ const LEVEL_CONFIGS = {
         maxGas: 400,
         maxTime: 40,
         platformY: 6.5
+    },
+    25: {
+        displayName: "21",
+        winds: [1.5, -1.5, 1.5, -1.5, 1.5, -1.5, 1.5],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0,
+        skyColor: "linear-gradient(to bottom, #0c0c24, #19194d, #2d2d86)"
+    },
+    26: {
+        displayName: "22",
+        winds: [-1.5, 1.5, 2.5, -2.0, 1.5, -1.25, 1.5],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0,
+        skyColor: "linear-gradient(to bottom, #0c0c24, #19194d, #2d2d86)"
+    },
+    27: {
+        displayName: "23",
+        winds: [1.0, 1.5, -1.5, -3.0, 1.5, -2.5, 1.5],
+        maxGas: 400,
+        maxTime: 40,
+        platformY: 6.0,
+        skyColor: "linear-gradient(to bottom, #0c0c24, #19194d, #2d2d86)"
     }
 };
 
@@ -623,6 +650,8 @@ let windCycleStartTime = 0;
 let lastParticleUpdate = 0; // 파티클 애니메이션 FPS 캡
 let particleAccumulator = 0; // 추가: 파티클 연산 보정을 위한 누적 시간
 let initialItemCount = 0; // 게임 시작 직전 보유한 아이템 총 갯수
+let isStunned = false; // 붉은새 충돌 시 상태
+let stunEndTime = 0; // 스턴 종료 시간
 
 // 보너스 점수 레벨 그룹 (표시 이름 기준)
 const BONUS_G1_LEVELS = ["6", "7", "14", "15"];
@@ -1739,8 +1768,12 @@ function update(timestamp) {
             updateSteakCooking();
             updateCornPopping();
             checkFishing();
+            checkBirdCollisions();
+            checkEagleCollisions();
         }
         updateFish();
+        updateBirds();
+        updateEagles();
         accumulator -= targetDelta;
     }
 
@@ -1822,9 +1855,15 @@ function update(timestamp) {
 
 
 function updateTargetLine() {
-    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (0~24레벨 공통)
-    if (currentLevel >= 0 && currentLevel <= 24) {
-        targetLineX = 50;
+    // 모든 레벨에서 착륙 패드가 가로로 움직이지 않도록 고정 (0~27레벨 공통)
+    if (currentLevel >= 0 && currentLevel <= 27) {
+        if (currentLevel === 25 || currentLevel === 26 || currentLevel === 27) {
+            // 레벨 21, 22, 23: 좌측으로 1m/s 속도로 이동 (가중치 0.2 적용 시 -0.2)
+            targetLineX -= 0.2;
+            if (targetLineX < 0) targetLineX = 100;
+        } else {
+            targetLineX = 50;
+        }
         targetLineEl.style.left = `${targetLineX}%`;
 
         // 레벨별 플랫폼 높이 반영 (비주얼)
@@ -1876,13 +1915,25 @@ function handleMovement() {
     } else {
         continuousBurnStartTime = 0;
     }
+
     velY -= GRAVITY * activeGravityMultiplier;
     velY *= FRICTION;
 
     // Limit upward speed
     if (velY > MAX_UPWARD_VELOCITY) velY = MAX_UPWARD_VELOCITY;
 
-    balloonY += velY * 0.2; // Scaling factor for smoothness
+    let movementScale = 0.2;
+    if (isStunned) {
+        if (Date.now() < stunEndTime) {
+            movementScale *= 0.25; // 기존 50%에서 추가로 50% 더 감소 (총 75% 감소)
+            balloon.classList.add('shake-balloon');
+        } else {
+            isStunned = false;
+            balloon.classList.remove('shake-balloon');
+        }
+    }
+
+    balloonY += velY * movementScale; // Scaling factor for smoothness
 
     // Horizontal logic (Wind triggered by the center marker dot)
     const skyHeight = gameContainer.clientHeight * 0.9195;
@@ -1900,7 +1951,10 @@ function handleMovement() {
     velX += windForce * 0.00165; // Reduced from 0.0033 (half of previous effect)
     velX *= FRICTION;
 
-    balloonX += velX;
+    let finalVelX = velX;
+    if (isStunned) finalVelX *= 0.5; // 가로 속도도 50% 감소
+
+    balloonX += finalVelX;
 
     // Platform Dimensions
     const platformHeightPercentage = (9 / skyHeight) * 100;
@@ -2072,13 +2126,12 @@ function collectCoin(coin) {
 
 function getMarkerOffset() {
     const skyHeight = gameContainer.clientHeight * 0.9195;
-    return (79 / skyHeight) * 100;
+    return (79 / skyHeight) * 100; // 79px from balloon bottom
 }
 
 function getBasketOffset() {
     const skyHeight = gameContainer.clientHeight * 0.9195;
-    // Calculate based on style.css: bottom: calc(58% - 30px) of 140px height
-    const basketPixels = (140 * 0.58) - 30;
+    const basketPixels = (140 * 0.58) - 30; // 51.2px from balloon bottom
     return (basketPixels / skyHeight) * 100;
 }
 
@@ -2152,6 +2205,10 @@ function gameOver(msg = 'OVERHEAT') {
     isBurning = false;
     soundMgr.stop('burner');
     attachedFish = null;
+    isStunned = false;
+    balloon.classList.remove('shake-balloon');
+    activeBirds.forEach(bird => bird.el.classList.remove('shake-bird'));
+    activeEagles.forEach(eagle => eagle.el.classList.remove('shake-bird'));
     updateNextLevelButtonVisibility(); // 즉시 화살표 표시
 
     // 11~20레벨 실패 시 바람 방향을 처음 시작 방향(multiplier=1)으로 복구
@@ -2308,6 +2365,8 @@ function winGame() {
 
     gameState = 'CLEAR';
     attachedFish = null;
+    isStunned = false;
+    balloon.classList.remove('shake-balloon');
     
     // 11~20레벨 클리어 시 바람 방향을 처음 시작 방향(multiplier=1)으로 복구
     const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
@@ -2618,7 +2677,18 @@ function createStars() {
 
 function resetGame() {
     gameState = 'START';
+    isStunned = false; 
+    balloon.classList.remove('shake-balloon');
+    activeBirds.forEach(bird => bird.el.classList.remove('shake-bird'));
+    activeEagles.forEach(eagle => eagle.el.classList.remove('shake-bird'));
     const config = LEVEL_CONFIGS[currentLevel];
+    
+    // Apply level-specific sky color if defined
+    if (config.skyColor) {
+        gameContainer.style.background = config.skyColor;
+    } else {
+        gameContainer.style.background = ''; // Use CSS default
+    }
 
     // Sync winds with config
     for (let i = 0; i < 7; i++) {
@@ -2780,6 +2850,21 @@ function resetGame() {
         if (fishingGearEl) fishingGearEl.classList.add('hidden');
         clearFish();
     }
+
+    // Level 21, 22, 23: Bird Obstacles
+    if (currentLevel === 25 || currentLevel === 26 || currentLevel === 27) {
+        createBirds();
+    } else {
+        clearBirds();
+    }
+
+    // Level 23: Eagle Obstacles
+    if (currentLevel === 27) {
+        createEagles();
+    } else {
+        clearEagles();
+    }
+
     attachedFish = null;
 
     // Clear accumulated popcorn
@@ -3397,6 +3482,276 @@ function clearFish() {
         }
     });
     activeFish = [];
+}
+
+function createBirds() {
+    clearBirds();
+    
+    // 기본 생성 구역: 2, 3, 4, 5구역(인덱스 1~4)
+    let zonesToSpawn = [1, 2, 3, 4];
+    
+    // 레벨 22 (인덱스 26)은 3구역(index 2)과 5구역(index 4)에 한 마리씩 더 추가
+    if (currentLevel === 26) {
+        zonesToSpawn.push(2); // 3구역 한 마리 더
+        zonesToSpawn.push(4); // 5구역 한 마리 더
+    }
+
+    zonesToSpawn.forEach(zoneIdx => {
+        const birdContainer = document.createElement('div');
+        birdContainer.className = 'bird-css';
+        birdContainer.innerHTML = `
+                <div class="bird-beak"></div>
+                <div class="bird-head">
+                    <div class="bird-eye"></div>
+                </div>
+                <div class="bird-body"></div>
+                <div class="bird-wing"></div>
+                <div class="bird-tail"></div>
+            `;
+        gameContainer.appendChild(birdContainer);
+
+        let birdVelX = (Math.random() * 0.28 + 0.21) * (Math.random() > 0.5 ? 1 : -1);
+        // 레벨 23(currentLevel 27), 2구역(zoneIdx 1) 붉은새는 우측에서 좌측으로 이동 (음수)
+        if (currentLevel === 27 && zoneIdx === 1) {
+            birdVelX = -Math.abs(birdVelX);
+        }
+
+        const bird = {
+            el: birdContainer,
+            x: Math.random() * 100,
+            y: zoneIdx * (110 / 7) + (Math.random() * 10),
+            velX: birdVelX,
+            width: 21.3,
+            height: 15.3
+        };
+        activeBirds.push(bird);
+    });
+}
+
+function updateBirds() {
+    const now = performance.now();
+    activeBirds.forEach(bird => {
+        bird.x += bird.velX;
+        
+        // Wrap around
+        if (bird.x > 110) bird.x = -10;
+        if (bird.x < -10) bird.x = 110;
+
+        bird.el.style.left = `${bird.x}%`;
+        bird.el.style.bottom = `calc(8.05% + ${bird.y * 0.9195}%)`;
+        
+        // Face movement direction
+        const flip = bird.velX > 0 ? 'scaleX(-1)' : 'scaleX(1)';
+        bird.el.style.transform = `translateX(-50%) ${flip}`;
+    });
+}
+
+function clearBirds() {
+    activeBirds.forEach(bird => {
+        if (bird.el && bird.el.parentNode) {
+            bird.el.remove();
+        }
+    });
+    activeBirds = [];
+}
+
+function checkBirdCollisions() {
+    if (gameState !== 'PLAY') return;
+    if (isStunned && Date.now() < stunEndTime) return; // 이미 부딪힌 상태면 무시
+    
+    const skyHeight = gameContainer.clientHeight * 0.9195;
+    const skyWidth = gameContainer.clientWidth;
+
+    // 1. Balloon Body Center (Blue Circle)
+    const bodyXPx = (balloonX / 100) * skyWidth;
+    const bodyYPx = ((balloonY + getMarkerOffset()) / 100) * skyHeight;
+    const bodyRadius = 32.5 / 2;
+
+    // 2. Basket Center (Red Dot)
+    const basketXPx = (balloonX / 100) * skyWidth;
+    const basketYPx = ((balloonY + getBasketOffset()) / 100) * skyHeight;
+    const basketRadius = 7.8 / 2;
+
+    activeBirds.forEach(bird => {
+        const birdXPx = (bird.x / 100) * skyWidth;
+        // Bird collision point is roughly at its center (height is 15.3px)
+        const birdYPx = (bird.y / 100) * skyHeight + 7.65;
+        
+        // Bird Hitbox (approximate circle for the body/head area)
+        const birdRadius = 5.1;  // 더 정밀한 판정 (6 * 0.85)
+        // Body-Bird Collision (Circumference check)
+        const dxBody = bodyXPx - birdXPx;
+        const dyBody = bodyYPx - birdYPx;
+        const distBodySq = dxBody * dxBody + dyBody * dyBody;
+        const combinedBodyRadiusSq = Math.pow(bodyRadius + birdRadius, 2);
+
+        // Basket-Bird Collision (Circumference check)
+        const dxBasket = basketXPx - birdXPx;
+        const dyBasket = basketYPx - birdYPx;
+        const distBasketSq = dxBasket * dxBasket + dyBasket * dyBasket;
+        const combinedBasketRadiusSq = Math.pow(basketRadius + birdRadius, 2);
+
+        if (distBodySq < combinedBodyRadiusSq || distBasketSq < combinedBasketRadiusSq) {
+            // 붉은새 충돌 효과 적용
+            isStunned = true;
+            stunEndTime = Date.now() + 1500; // 2000 -> 1500
+            soundMgr.play('bird_hit'); // 'hit' 대신 'bird_hit' 재생
+            
+            // 충격으로 반대 방향 튕겨나기 (약 10.92% 이동 - 기존 대비 30% 감소)
+            const bounceDirection = (balloonX > (bird.x)) ? 10.92 : -10.92;
+            balloonX += bounceDirection;
+            velX = 0; // 가로 관성 제거하여 튕겨나간 위치 유지
+            velY *= 0.5; // 수직 속도 반감 (충격 흡수)
+            checkBoundaries(); // 튕겨나간 후 경계 체크 즉시 실행
+            
+            // 새도 같이 흔든다
+            bird.el.classList.add('shake-bird');
+            
+            setTimeout(() => {
+                bird.el.classList.remove('shake-bird');
+            }, 1500); // 2000 -> 1500
+        }
+    });
+}
+
+// --- 레벨 23 독수리 기믹 ---
+function createEagles() {
+    clearEagles();
+    const now = performance.now();
+    // 1마리 배치
+    for (let i = 0; i < 1; i++) {
+        const eagleEl = document.createElement('img');
+        eagleEl.src = '독수리.png';
+        eagleEl.className = 'eagle-obstacle';
+        eagleEl.style.position = 'absolute';
+        eagleEl.style.width = '72px'; // 60px * 1.2 = 72px
+        eagleEl.style.height = 'auto';
+        eagleEl.style.zIndex = '12';
+        gameContainer.appendChild(eagleEl);
+
+        // 서로 멀리 떨어져서 비행하도록 초기 위치 설정 (20%, 80%)
+        const startX = (i === 0) ? 20 : 80;
+        // 1구역 하단(약 5%) ~ 5구역 상단(약 70%) 범위 내에서 시작
+        const startY = 10 + (Math.random() * 50); 
+        
+        const eagle = {
+            el: eagleEl,
+            x: startX,
+            y: startY,
+            velX: (Math.random() * 0.15 + 0.15) * (i === 0 ? 1 : -1),
+            velY: (Math.random() * 0.1 + 0.1) * (Math.random() > 0.5 ? 1 : -1), // 대각선 비행을 위한 Y 속도
+            lastDirChangeTime: now,
+            width: 72,
+            height: 48 
+        };
+        activeEagles.push(eagle);
+    }
+}
+
+function updateEagles() {
+    const now = performance.now();
+    activeEagles.forEach(eagle => {
+        // 3초마다 대각선 방향 전환
+        if (now - eagle.lastDirChangeTime > 3000) {
+            eagle.velX *= -1;
+            eagle.velY *= -1;
+            eagle.lastDirChangeTime = now;
+        }
+
+        eagle.x += eagle.velX;
+        eagle.y += eagle.velY;
+        
+        // 화면 좌우 경계 체크
+        if (eagle.x > 100) {
+            eagle.x = 100;
+            eagle.velX *= -1;
+            eagle.lastDirChangeTime = now;
+        }
+        if (eagle.x < 0) {
+            eagle.x = 0;
+            eagle.velX *= -1;
+            eagle.lastDirChangeTime = now;
+        }
+
+        // 고도 경계 체크 (1구역 ~ 5구역 범위: 약 5% ~ 70%)
+        if (eagle.y > 70) {
+            eagle.y = 70;
+            eagle.velY *= -1;
+            eagle.lastDirChangeTime = now;
+        }
+        if (eagle.y < 5) {
+            eagle.y = 5;
+            eagle.velY *= -1;
+            eagle.lastDirChangeTime = now;
+        }
+
+        eagle.el.style.left = `${eagle.x}%`;
+        eagle.el.style.bottom = `calc(8.05% + ${eagle.y * 0.9195}%)`;
+        
+        // 진행 방향 및 하강/상승에 따라 이미지 반전 및 회전
+        const flip = eagle.velX > 0 ? 'scaleX(-1)' : 'scaleX(1)';
+        
+        // 하강할 때는 머리가 아래를 향하게, 상승할 때는 위를 향하게 각도 조정
+        let rotation = 0;
+        if (eagle.velX > 0) {
+            // 좌측에서 우측으로 이동 (이미지 반전 상태)
+            rotation = (eagle.velY < 0) ? -20 : 10;
+        } else {
+            // 우측에서 좌측으로 이동 (이미지 기본 상태)
+            // 하강 시 머리가 들리던 문제 수정을 위해 음수값(-20) 적용, 상승 시 수평이던 문제 수정을 위해 양수값(20) 적용
+            rotation = (eagle.velY < 0) ? -20 : 20;
+        }
+        
+        eagle.el.style.transform = `translateX(-50%) ${flip} rotate(${rotation}deg)`;
+    });
+}
+
+function clearEagles() {
+    activeEagles.forEach(eagle => {
+        if (eagle.el && eagle.el.parentNode) {
+            eagle.el.remove();
+        }
+    });
+    activeEagles = [];
+}
+
+function checkEagleCollisions() {
+    if (gameState !== 'PLAY') return;
+    if (isStunned && Date.now() < stunEndTime) return;
+    
+    const skyHeight = gameContainer.clientHeight * 0.9195;
+    const skyWidth = gameContainer.clientWidth;
+
+    const bodyXPx = (balloonX / 100) * skyWidth;
+    const bodyYPx = ((balloonY + getMarkerOffset()) / 100) * skyHeight;
+    const bodyRadius = 32.5 / 2;
+
+    const basketXPx = (balloonX / 100) * skyWidth;
+    const basketYPx = ((balloonY + getBasketOffset()) / 100) * skyHeight;
+    const basketRadius = 7.8 / 2;
+
+    activeEagles.forEach(eagle => {
+        const eagleXPx = (eagle.x / 100) * skyWidth;
+        const eagleYPx = (eagle.y / 100) * skyHeight + 24; // 이미지 중앙 부근 (48/2)
+        
+        const eagleRadius = 21.6; // 독수리는 히트박스가 더 큼 (18 * 1.2)
+        
+        const dxBody = bodyXPx - eagleXPx;
+        const dyBody = bodyYPx - eagleYPx;
+        const distBodySq = dxBody * dxBody + dyBody * dyBody;
+        const combinedBodyRadiusSq = Math.pow(bodyRadius + eagleRadius, 2);
+
+        const dxBasket = basketXPx - eagleXPx;
+        const dyBasket = basketYPx - eagleYPx;
+        const distBasketSq = dxBasket * dxBasket + dyBasket * dyBasket;
+        const combinedBasketRadiusSq = Math.pow(basketRadius + eagleRadius, 2);
+
+        if (distBodySq < combinedBodyRadiusSq || distBasketSq < combinedBasketRadiusSq) {
+            // 독수리에 닿으면 열기구 폭발 (FATAL COLLISION)
+            gameOver('CRASH'); // 넉백/흔들림 대신 즉시 게임 오버
+            return;
+        }
+    });
 }
 
 function updateNextLevelButtonVisibility() {

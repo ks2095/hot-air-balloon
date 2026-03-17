@@ -574,6 +574,121 @@ body {
     content: 'C';
 }
 
+/* Orange Bird CSS */
+.bird-css {
+    position: absolute;
+    width: 21.3px; /* 25 * 0.85 */
+    height: 15.3px; /* 18 * 0.85 */
+    z-index: 10;
+    pointer-events: none;
+    transition: transform 0.1s linear;
+}
+
+.bird-body {
+    position: absolute;
+    width: 15.3px; /* 18 * 0.85 */
+    height: 10.2px; /* 12 * 0.85 */
+    background: linear-gradient(to right, #ff4d4d, #ffa500, #ffff4d); /* Mix of Red, Orange, Yellow */
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    bottom: 0;
+    left: 2.6px; /* 3 * 0.85 */
+    box-shadow: inset -1px -1px 3px rgba(0,0,0,0.2);
+}
+
+.bird-head {
+    position: absolute;
+    width: 9.4px; /* 11 * 0.85 */
+    height: 9.4px; /* 11 * 0.85 */
+    background: #ff4d4d; /* Red head */
+    border-radius: 50%;
+    top: 0;
+    left: 0;
+    box-shadow: inset 1px 1px 2px rgba(255,255,255,0.3);
+}
+
+.bird-beak {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-top: 2.6px solid transparent;
+    border-bottom: 2.6px solid transparent;
+    border-right: 6px solid #ffd32a; /* 7 * 0.85 */
+    left: -5.1px; /* -6 * 0.85 */
+    top: 1.7px; /* 2 * 0.85 */
+}
+
+.bird-eye {
+    position: absolute;
+    width: 3.8px; /* 4.5 * 0.85 */
+    height: 3.8px; /* 4.5 * 0.85 */
+    background: white;
+    border-radius: 50%;
+    top: 1.7px; /* 2 * 0.85 */
+    left: 2.1px; /* 2.5 * 0.85 */
+}
+
+.bird-eye::after {
+    content: '';
+    position: absolute;
+    width: 1.7px; /* 2 * 0.85 */
+    height: 1.7px; /* 2 * 0.85 */
+    background: black;
+    border-radius: 50%;
+    top: 0.85px; /* 1 * 0.85 */
+    left: 0.4px; /* 0.5 * 0.85 */
+}
+
+.bird-wing {
+    position: absolute;
+    width: 9.4px; /* 11 * 0.85 */
+    height: 6px; /* 7 * 0.85 */
+    background: #ff4d4d; /* Match red head */
+    border-radius: 50% 50% 0 0;
+    top: 6.8px; /* 8 * 0.85 */
+    left: 6.8px; /* 8 * 0.85 */
+    transform-origin: top;
+    animation: flap-fast 0.1s infinite alternate ease-in-out;
+}
+
+.bird-tail {
+    position: absolute;
+    width: 6.8px; /* 8 * 0.85 */
+    height: 4.3px; /* 5 * 0.85 */
+    background: #ff4d4d; /* Match red head */
+    clip-path: polygon(0 50%, 100% 0, 100% 100%);
+    right: 0;
+    bottom: 4.3px; /* 5 * 0.85 */
+}
+
+@keyframes flap-fast {
+    from { transform: scaleY(1) rotate(0deg); }
+    to { transform: scaleY(-0.8) rotate(-10deg); }
+}
+
+.shake-balloon {
+    animation: shake-balloon 0.2s infinite;
+}
+
+@keyframes shake-balloon {
+    0% { transform: translateX(-50%) translate(0, 0); }
+    25% { transform: translateX(-50%) translate(-2.1px, 0.7px); }
+    50% { transform: translateX(-50%) translate(2.1px, -0.7px); }
+    75% { transform: translateX(-50%) translate(-1.4px, -1.4px); }
+    100% { transform: translateX(-50%) translate(1.4px, 1.4px); }
+}
+
+.shake-bird {
+    animation: shake-bird 0.2s infinite;
+}
+
+@keyframes shake-bird {
+    0% { translate: 0 0; }
+    25% { translate: -2.1px 0.7px; }
+    50% { translate: 2.1px -0.7px; }
+    75% { translate: -1.4px -1.4px; }
+    100% { translate: 1.4px 1.4px; }
+}
+
 @keyframes rotate-coin {
     0% {
         transform: scaleX(1);
@@ -912,7 +1027,7 @@ body {
 #basket-marker {
     position: absolute;
     bottom: calc(58% - 30px);
-    /* 諛붽뎄??理쒗븯???占쎌튂 */
+    /* 바구니 최하단 위치 */
     left: 50%;
     transform: translateX(-50%);
     width: 7.8px;
