@@ -88,12 +88,64 @@
             </div>
         </div>
 
+        <div id="ad-selection-overlay" class="overlay hidden">
+            <div class="selection-container">
+                <h2 class="selection-title">광고 보상 선택</h2>
+                <div class="selection-options">
+                    <button id="ad-select-life-btn" class="selection-btn">
+                        <span class="btn-title">생명 충전</span>
+                        <span class="btn-desc">30초 광고 시청 후<br>생명 2개 획득</span>
+                    </button>
+                    <button id="ad-select-event-btn" class="selection-btn">
+                        <span class="btn-title">이벤트 게임</span>
+                        <span class="btn-desc">30초 광고 시청 후<br>생명 1개 & 이벤트 게임</span>
+                    </button>
+                </div>
+                <button id="close-ad-selection-btn" class="close-btn-main">닫기</button>
+            </div>
+        </div>
+
         <div id="ad-overlay" class="overlay hidden">
             <div class="ad-content">
-                <h2 class="ad-title">광고시간</h2>
+                <h2 class="ad-title" id="ad-reward-title">광고시간</h2>
                 <p class="ad-message">열기구게임 많이 사랑해주세요!!!🎈🎈🎈</p>
                 <div class="ad-timer">20</div>
                 <button id="get-life-ad-btn" class="hidden">생명받기</button>
+                <div id="ad-event-rewards" class="hidden">
+                    <p class="reward-hint">원하는 이벤트 번호를 선택하세요!</p>
+                    <div class="event-reward-buttons">
+                        <button class="event-reward-btn" data-event="1">
+                            <span class="evt-num">1</span>
+                            <span class="evt-label">코인</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="2">
+                            <span class="evt-num">2</span>
+                            <span class="evt-label">스테이크</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="3">
+                            <span class="evt-num">3</span>
+                            <span class="evt-label">팝콘</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="4">
+                            <span class="evt-num">4</span>
+                            <span class="evt-label">낚시</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="5">
+                            <span class="evt-num">5</span>
+                            <span class="evt-label">피아노</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="event-selection-overlay" class="overlay hidden">
+            <div class="selection-container">
+                <h2 class="selection-title">이벤트 게임 선택</h2>
+                <div id="event-buttons-container" class="selection-options vertical">
+                    <!-- Javascript will populate cleared events here -->
+                </div>
+                <button id="close-event-selection-btn" class="close-btn-main">닫기</button>
             </div>
         </div>
 
@@ -225,12 +277,41 @@
         <div id="corn-container" class="hidden">
             <img src="옥수수.png" id="corn-img">
         </div>
+        <div id="piano-container" class="hidden">
+            <div class="piano-keys">
+                <div class="key white" data-note="do">도 <div class="key black" data-note="do-sharp"></div></div>
+                <div class="key white" data-note="re">레 <div class="key black" data-note="re-sharp"></div></div>
+                <div class="key white" data-note="mi">미</div>
+                <div class="key white" data-note="fa">파 <div class="key black" data-note="fa-sharp"></div></div>
+                <div class="key white" data-note="sol">솔 <div class="key black" data-note="sol-sharp"></div></div>
+                <div class="key white" data-note="la">라 <div class="key black" data-note="la-sharp"></div></div>
+                <div class="key white" data-note="si">시</div>
+                <div class="key white" data-note="do2">도</div>
+            </div>
+        </div>
+        <div id="music-staff" class="hidden">
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="note-container">
+                <div class="ledger-line"></div>
+                <div class="note-head"></div>
+                <div class="note-stem"></div>
+            </div>
+        </div>
 
         <div id="fail-reason-bubble" class="hidden"></div>
 
 
 
 
+
+        <div id="music-score-board" class="hidden">
+            <div class="score-label">SOUND CREDITS</div>
+            <div id="music-credits-val">0</div>
+        </div>
 
         <div id="ui-layer">
             <div class="stat-item">GAS: <span id="gas-val">0</span></div>
