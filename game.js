@@ -5398,52 +5398,10 @@ if (closeAdSelectionBtn) {
     });
 }
 
-function showAdRewardScreen(type) {
-    if (!adOverlay) return;
-    adOverlay.classList.remove('hidden');
-
-    if (adRewardTitle) {
-        adRewardTitle.innerText = type === 'life' ? "생명 충전 완료!" : "이벤트 보너스 획득!";
-    }
-
-    const timerEl = adOverlay.querySelector('.ad-timer');
-    if (timerEl) timerEl.classList.add('hidden');
-    if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
-    if (adEventRewardsEl) adEventRewardsEl.classList.add('hidden');
-
-    if (type === 'life') {
-        if (getLifeAdBtn) getLifeAdBtn.classList.remove('hidden');
-    } else {
-        // Reward for event ad: 1 life + event game selection
-        lives = Math.min(7, lives + 1);
-        savePlayerData();
-        updateLivesUI();
-        triggerLifeSparkle();
-
-        if (adEventRewardsEl) {
-            adEventRewardsEl.classList.remove('hidden');
-            // 클리어 여부에 따라 버튼 활성화/비활성화
-            const eventBtns = adEventRewardsEl.querySelectorAll('.event-reward-btn');
-            eventBtns.forEach(btn => {
-                const eventNum = btn.dataset.event;
-                const eventLevelIdx = Object.keys(LEVEL_CONFIGS).find(lv =>
-                    LEVEL_CONFIGS[lv].displayName === `EVENT ${eventNum}`
-                );
-
-                if (eventLevelIdx && clearedLevels.includes(parseInt(eventLevelIdx))) {
-                    btn.classList.remove('locked');
-                } else {
-                    btn.classList.add('locked');
-                }
-            });
-        }
-    }
-}
-
-function showFallbackTimerAd(type, duration) {
+function showAd(type, duration) {
     if (adOverlay) {
         adOverlay.classList.remove('hidden');
-
+        
         if (adRewardTitle) {
             adRewardTitle.innerText = type === 'life' ? "생명 충전 광고" : "이벤트 보너스 광고";
         }
@@ -5455,7 +5413,7 @@ function showFallbackTimerAd(type, duration) {
             timerEl.classList.remove('hidden');
             timerEl.innerText = timeLeft;
         }
-
+        
         // 버튼 초기화
         if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
         if (adEventRewardsEl) adEventRewardsEl.classList.add('hidden');
@@ -5466,49 +5424,37 @@ function showFallbackTimerAd(type, duration) {
 
             if (timeLeft <= 0) {
                 clearInterval(countdown);
-                showAdRewardScreen(type);
-            }
-        }, 1000);
-    }
-}
+                if (timerEl) timerEl.classList.add('hidden');
+                
+                if (type === 'life') {
+                    if (getLifeAdBtn) getLifeAdBtn.classList.remove('hidden');
+                } else {
+                    // Reward for event ad: 1 life + event game selection
+                    lives = Math.min(7, lives + 1);
+                    savePlayerData();
+                    updateLivesUI();
+                    triggerLifeSparkle();
 
-function showAd(type, duration) {
-    if (typeof adBreak === 'function') {
-        let adHandled = false;
-        try {
-            adBreak({
-                type: 'reward',
-                name: type === 'life' ? 'reward_life' : 'reward_event',
-                beforeAd: () => {
-                    if (typeof bgmAudio !== 'undefined' && bgmAudio) bgmAudio.pause();
-                },
-                afterAd: () => {
-                    if (isMusicEnabled && typeof playRandomBGM === 'function') playRandomBGM();
-                },
-                beforeReward: (showAdFn) => {
-                    adHandled = true;
-                    showAdFn();
-                },
-                adDismissed: () => {
-                    alert("광고를 끝까지 시청해야 보상을 받을 수 있습니다.");
-                },
-                adViewed: () => {
-                    showAdRewardScreen(type);
-                },
-                adBreakDone: (placementInfo) => {
-                    console.log("H5 AdBreak finished:", placementInfo);
-                    // 광고 로드 실패, 애드블록, 또는 광고 없음 상태일 경우 기존 20초/30초 자체 타이머 광고로 자동 전환
-                    if (!adHandled && placementInfo && placementInfo.breakStatus !== 'viewed' && placementInfo.breakStatus !== 'dismissed') {
-                        showFallbackTimerAd(type, duration);
+                    if (adEventRewardsEl) {
+                        adEventRewardsEl.classList.remove('hidden');
+                        // 클리어 여부에 따라 버튼 활성화/비활성화
+                        const eventBtns = adEventRewardsEl.querySelectorAll('.event-reward-btn');
+                        eventBtns.forEach(btn => {
+                            const eventNum = btn.dataset.event;
+                            const eventLevelIdx = Object.keys(LEVEL_CONFIGS).find(lv => 
+                                LEVEL_CONFIGS[lv].displayName === `EVENT ${eventNum}`
+                            );
+                            
+                            if (eventLevelIdx && clearedLevels.includes(parseInt(eventLevelIdx))) {
+                                btn.classList.remove('locked');
+                            } else {
+                                btn.classList.add('locked');
+                            }
+                        });
                     }
                 }
-            });
-        } catch (err) {
-            console.warn("adBreak error, falling back to timer ad:", err);
-            showFallbackTimerAd(type, duration);
-        }
-    } else {
-        showFallbackTimerAd(type, duration);
+            }
+        }, 1000);
     }
 }
 
