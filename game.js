@@ -5166,9 +5166,10 @@ function updateNextLevelButtonVisibility() {
         const isNextExists = !!LEVEL_CONFIGS[nextLv];
         const isNextCleared = clearedLevels.includes(nextLv);
 
-        // 표시 조건: 다음 레벨이 존재하고 (현재 레벨 클리어 OR 다음 레벨이 이미 클리어된 상태 OR 방금 클리어 OR 현재 또는 다음이 이벤트 레벨)
+        // 표시 조건: 다음 레벨이 존재하고 (현재가 튜토리얼 레벨 OR 현재 레벨 클리어 OR 다음 레벨이 이미 클리어된 상태 OR 방금 클리어 OR 현재 또는 다음이 이벤트 레벨)
+        const isTutorialLevel = currentLevel === 0 || LEVEL_CONFIGS[currentLevel]?.displayName === "튜토리얼";
         const isNextEventLevel = LEVEL_CONFIGS[nextLv]?.displayName?.startsWith("EVENT");
-        if (isNextExists && (isCurrentCleared || isNextCleared || gameState === 'CLEAR' || isEventLevel || isNextEventLevel)) {
+        if (isNextExists && (isTutorialLevel || isCurrentCleared || isNextCleared || gameState === 'CLEAR' || isEventLevel || isNextEventLevel)) {
             nextLevelBtn.classList.remove('hidden');
         } else {
             nextLevelBtn.classList.add('hidden');
