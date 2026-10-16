@@ -3104,3 +3104,28 @@ button:hover {
     padding-left: 8px;
 }
 
+.tutorial-main-title {
+    font-size: 1.7rem;
+    font-weight: 900;
+    letter-spacing: 2px;
+    line-height: 1.25;
+    margin-bottom: 50px;
+    background: linear-gradient(to right, #ff4757, #ffa502, #ffd32a, #2ecc71, #3498db);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent !important;
+    text-shadow: none !important;
+    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.85));
+    animation: rainbow-flow 4s linear infinite;
+}
+
+.tutorial-sub-guide {
+    font-size: 1.0rem;
+    font-weight: 700;
+    color: #ffd32a;
+    line-height: 1.5;
+    text-shadow: 2px 2px 4px #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
+
