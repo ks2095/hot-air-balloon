@@ -1029,6 +1029,11 @@ body {
     filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.5));
 }
 
+#balloon-img.space-balloon {
+    transform: scale(0.3333);
+    transform-origin: center;
+}
+
 .dropped-item {
     position: absolute;
     width: 30px;
@@ -1058,6 +1063,12 @@ body {
     filter: blur(2px);
     opacity: 0;
     transition: height 0.1s, opacity 0.1s;
+}
+
+#balloon.space-mode .burner-flame {
+    background: radial-gradient(circle, #ffffff 40%, #e0f7fa 75%, #80deea) !important;
+    box-shadow: 0 0 12px #ffffff, 0 0 25px rgba(255, 255, 255, 0.9), 0 0 35px rgba(128, 222, 234, 0.8) !important;
+    filter: blur(1px) !important;
 }
 
 #balloon-marker {
@@ -3064,3 +3075,32 @@ button:hover {
     0% { filter: drop-shadow(0 0 10px #ffff00) drop-shadow(0 0 20px #ffff00) brightness(1); }
     100% { filter: drop-shadow(0 0 30px #ffff00) drop-shadow(0 0 60px #ffff00) brightness(3); }
 }
+
+/* Swapped UI mode (Left-handed / Right-handed toggle around Burner button) */
+#ground.swapped-ui {
+    flex-direction: row-reverse;
+    padding: 0 18px 0 6px;
+}
+
+#ground.swapped-ui #status-bars {
+    margin-right: 0;
+    margin-left: 18px;
+}
+
+#ground.swapped-ui #main-action-btn {
+    margin-left: 0;
+    margin-right: 23px;
+}
+
+#ground.swapped-ui .item-label-container {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    margin-left: 0;
+    margin-right: -20px;
+}
+
+#ground.swapped-ui .item-label {
+    padding-right: 0;
+    padding-left: 8px;
+}
+

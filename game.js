@@ -72,6 +72,8 @@ const settingsBtn = document.getElementById('settings-btn');
 const settingsScreen = document.getElementById('settings-screen');
 const windToggleSettingsBtn = document.getElementById('wind-toggle-settings-btn');
 const musicToggleSettingsBtn = document.getElementById('music-toggle-settings-btn');
+const uiSwapSettingsBtn = document.getElementById('ui-swap-settings-btn');
+const groundEl = document.getElementById('ground');
 const resetRecordSettingsBtn = document.getElementById('reset-record-settings-btn');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 const windLabels = document.querySelectorAll('.wind-label');
@@ -179,6 +181,8 @@ Promise.all([
 
 let showWindLabels = false;
 let isMusicEnabled = (localStorage.getItem('balloon_music_enabled') !== 'false'); // Default true
+let isUiSwapped = (localStorage.getItem('balloon_ui_swapped') === 'true'); // Default false
+if (groundEl) groundEl.classList.toggle('swapped-ui', isUiSwapped);
 
 let storeOperationMode = null; // 'buy', 'sell' or null
 
@@ -297,6 +301,7 @@ function savePlayerData() {
     localStorage.setItem('balloon_lives', lives);
     localStorage.setItem('balloon_last_life_update', lastLifeUpdate);
     localStorage.setItem('balloon_music_enabled', isMusicEnabled);
+    localStorage.setItem('balloon_ui_swapped', isUiSwapped);
     localStorage.setItem('balloon_current_level', currentLevel);
     localStorage.setItem('balloon_last_event_credit_time', lastEventCreditTime);
 
@@ -742,6 +747,13 @@ const LEVEL_CONFIGS = {
         maxTime: 40,
         platformY: 6.0,
         skyColor: "linear-gradient(to bottom, #0c0c24, #19194d, #2d2d86)"
+    },
+    36: {
+        displayName: "EVENT 6",
+        winds: [0, 0, 0, 0, 0, 0, 0],
+        maxGas: 100,
+        maxTime: 40,
+        platformY: 6.0
     }
 };
 
@@ -1013,6 +1025,15 @@ function init() {
         });
     }
 
+    if (uiSwapSettingsBtn) {
+        uiSwapSettingsBtn.addEventListener('click', () => {
+            isUiSwapped = !isUiSwapped;
+            if (groundEl) groundEl.classList.toggle('swapped-ui', isUiSwapped);
+            savePlayerData();
+            updateSettingsUI();
+        });
+    }
+
     if (resetRecordSettingsBtn) {
         resetRecordSettingsBtn.addEventListener('click', () => {
             if (confirm("모든 기록(크레딧, 아이템, 진행 상황, 랭킹)을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
@@ -1024,6 +1045,7 @@ function init() {
                 localStorage.removeItem('balloon_lives');
                 localStorage.removeItem('balloon_last_life_update');
                 localStorage.removeItem('balloon_music_enabled');
+                localStorage.removeItem('balloon_ui_swapped');
                 localStorage.removeItem('balloon_level_best_scores');
                 localStorage.removeItem('balloon_leaderboard_profiles');
 
@@ -1035,6 +1057,8 @@ function init() {
                 currentLevel = 0;
                 lastLifeUpdate = Date.now();
                 isMusicEnabled = true;
+                isUiSwapped = false;
+                if (groundEl) groundEl.classList.remove('swapped-ui');
                 storeData = defaultStoreData;
                 myLevelBestScores = {};
 
@@ -2087,7 +2111,7 @@ function updateTargetLine() {
     const config = LEVEL_CONFIGS[currentLevel];
     if (!config) return;
 
-    if (currentLevel >= 0 && currentLevel <= 35) {
+    if (LEVEL_CONFIGS[currentLevel]) {
         targetLineX = 50;
         targetLineEl.style.left = `${targetLineX}%`;
 
@@ -2122,6 +2146,8 @@ function updateTargetLine() {
 }
 
 function handleMovement() {
+    const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+
     // Vertical logic (Burner + Gravity)
     let burnDuration = 0;
     if (isBurning) {
@@ -2134,7 +2160,11 @@ function handleMovement() {
         }
 
         let appliedForce = currentBurnerForce;
-        if (burnDuration > 500) {
+        if (currentDisplayName === "EVENT 6") {
+            // 우주 분사 가속: 가스 분사할 때마다 속도가 누적 가산 (기존의 1/5 수준: +0.0016/frame)
+            const burnTimeFactor = 1.0 + (burnDuration / 400) * 0.5;
+            appliedForce = 0.0016 * burnTimeFactor;
+        } else if (burnDuration > 500) {
             appliedForce *= 1.155; // 0.5초 이상 누를 시 상승 힘 5.5% 추가 증가 (총 15.5%)
         }
 
@@ -2146,21 +2176,28 @@ function handleMovement() {
         velY += appliedForce;
 
         // 가스 소모 (버너 사용 시 매 프레임 소모)
-        gas -= 0.45;
+        gas -= (currentDisplayName === "EVENT 6") ? 0.12 : 0.45;
     } else {
         continuousBurnStartTime = 0;
     }
 
     let gravityForce = GRAVITY * activeGravityMultiplier;
-    velY -= gravityForce;
-    velY *= FRICTION;
-
-    // Limit upward speed
-    let effectiveMaxUpwardVel = MAX_UPWARD_VELOCITY;
-    if (isBurning && burnDuration > 500) {
-        effectiveMaxUpwardVel *= 1.155; // 0.5초 이상 누를 시 최대 상승 속도 5.5% 추가 증가 (총 15.5%)
+    if (currentDisplayName === "EVENT 6") {
+        gravityForce = 0;
     }
-    if (velY > effectiveMaxUpwardVel) velY = effectiveMaxUpwardVel;
+    velY -= gravityForce;
+
+    let currentFriction = (currentDisplayName === "EVENT 6") ? 1.0 : FRICTION; // 완전 무중력 관성 보존 (마찰 0%, 누적 속도 100% 영구 유지)
+    velY *= currentFriction;
+
+    // Limit upward speed (EVENT 6는 상한선 없이 가스 분사할 때마다 무한 누적 가속)
+    if (currentDisplayName !== "EVENT 6") {
+        let effectiveMaxUpwardVel = MAX_UPWARD_VELOCITY;
+        if (isBurning && burnDuration > 500) {
+            effectiveMaxUpwardVel *= 1.155; // 0.5초 이상 누를 시 최대 상승 속도 5.5% 추가 증가 (총 15.5%)
+        }
+        if (velY > effectiveMaxUpwardVel) velY = effectiveMaxUpwardVel;
+    }
 
     // Horizontal logic (Wind triggered by the center marker dot) & Cloud logic
     const skyHeight = gameContainer.clientHeight * 0.9195;
@@ -2189,7 +2226,6 @@ function handleMovement() {
     const zoneIndex = Math.min(6, Math.max(0, Math.floor(markerY / zoneHeight)));
 
     let windForce = ZONE_WINDS[zoneIndex];
-    const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
     if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3" && currentDisplayName !== "EVENT 6") windForce *= level11WindMultiplier;
     windForce += tempWindBoosts[zoneIndex];
 
@@ -2397,17 +2433,29 @@ function getBasketOffset() {
 }
 
 function checkBoundaries() {
-    // Basket offset needed to allow the red dot to reach the ground
     const basketOffsetPercentage = getBasketOffset();
-
-    // Allow balloon to go slightly "below" 0 so the red dot can touch the ground line
-    if (balloonY < -basketOffsetPercentage) {
-        balloonY = -basketOffsetPercentage;
-        velY = 0;
-    }
-
     const config = LEVEL_CONFIGS[currentLevel];
     const isEventLevel = config && config.displayName.startsWith("EVENT");
+
+    if (config && config.displayName === "EVENT 6") {
+        if (balloonY < -basketOffsetPercentage) {
+            balloonY = -basketOffsetPercentage;
+            if (velY < 0) velY = -velY * 0.4; // 우주 무중력 하단 탄성 반사
+        }
+        if (balloonY > 100) {
+            balloonY = 100;
+            if (velY > 0) velY = -velY * 0.4; // 우주 무중력 상단 탄성 반사
+        }
+    } else {
+        if (balloonY < -basketOffsetPercentage) {
+            balloonY = -basketOffsetPercentage;
+            velY = 0;
+        }
+        if (balloonY > 105) {
+            balloonY = 105;
+            gameOver();
+        }
+    }
 
     if (balloonX < 5) {
         balloonX = 5;
@@ -2419,18 +2467,12 @@ function checkBoundaries() {
     }
 
     // EVENT 4: 낚싯대 자동 반전 (벽에 닿을 때)
-    if (config.displayName === "EVENT 4" && fishingGearEl) {
+    if (config && config.displayName === "EVENT 4" && fishingGearEl) {
         if (balloonX < 15) {
             fishingGearEl.classList.remove('flipped');
         } else if (balloonX > 85) {
             fishingGearEl.classList.add('flipped');
         }
-    }
-
-    // Top boundary check
-    if (balloonY > 105) { // Allow bottom to go slightly off screen before failing
-        balloonY = 105;
-        gameOver();
     }
 }
 
@@ -2986,6 +3028,19 @@ function resetGame() {
     activeEagles.forEach(eagle => eagle.el.classList.remove('shake-bird'));
     const config = LEVEL_CONFIGS[currentLevel];
     
+    const balloonImg = document.getElementById('balloon-img');
+    if (balloonImg) {
+        if (config.displayName === "EVENT 6") {
+            balloonImg.src = 'space ballon.png';
+            balloonImg.classList.add('space-balloon');
+            balloon.classList.add('space-mode');
+        } else {
+            balloonImg.src = 'balloon.png';
+            balloonImg.classList.remove('space-balloon');
+            balloon.classList.remove('space-mode');
+        }
+    }
+
     // Apply level-specific sky color if defined
     if (config.skyColor) {
         gameContainer.style.background = config.skyColor;
@@ -3502,8 +3557,8 @@ function updateRain() {
         if (gameState === 'PLAY' && isHit) {
             if (currentLevel === 31 || currentLevel === 32 || currentLevel === 33 || currentLevel === 34 || currentLevel === 35) {
                 showFloatingText("BURNER FAIL", "#ff4d4d");
-                // 빗물 페널티: 1.4초간 버너 작동 중지
-                rainPowerReductionEndTime = Date.now() + 1400;
+                // 빗물 페널티: 1초간 버너 작동 중지
+                rainPowerReductionEndTime = Date.now() + 1000;
             } else {
                 gas = Math.max(0, gas - 3);
                 showFloatingText("-3 GAS", "#ff4d4d");
@@ -5169,6 +5224,10 @@ function updateSettingsUI() {
     if (musicToggleSettingsBtn) {
         musicToggleSettingsBtn.classList.toggle('active', isMusicEnabled);
         musicToggleSettingsBtn.innerText = isMusicEnabled ? 'ON' : 'OFF';
+    }
+    if (uiSwapSettingsBtn) {
+        uiSwapSettingsBtn.classList.toggle('active', isUiSwapped);
+        uiSwapSettingsBtn.innerText = isUiSwapped ? 'ON' : 'OFF';
     }
 }
 
