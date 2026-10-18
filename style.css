@@ -869,6 +869,24 @@ body {
     box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.1);
 }
 
+#ground.space-ground {
+    background: transparent;
+    border-top: none;
+    overflow: visible;
+}
+
+#ground.space-ground::before {
+    display: block;
+    top: -18px;
+    left: 0;
+    width: 100%;
+    height: calc(100% + 18px);
+    background: url('지구본.png') no-repeat center bottom / 100% 100%;
+    box-shadow: none;
+    z-index: -1;
+    pointer-events: none;
+}
+
 .control-spacer {
     flex: 1;
     max-width: 117px;
@@ -1017,6 +1035,105 @@ body {
     box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4), inset 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
+#event6-joystick {
+    width: 48.3px;
+    height: 48.3px;
+    flex-shrink: 0;
+    background: radial-gradient(circle, #2ecc71 0%, #1e8449 100%);
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3), inset 0 2px 5px rgba(0, 0, 0, 0.2);
+    position: relative;
+    margin-top: 5px;
+    margin-left: 23px;
+    z-index: 110;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    -webkit-touch-callout: none;
+}
+
+#event6-joystick::after {
+    content: '';
+    position: absolute;
+    top: -60%;
+    left: -60%;
+    right: -60%;
+    bottom: -60%;
+    border-radius: 50%;
+}
+
+#event6-joystick .joy-dir {
+    position: absolute;
+    font-size: 0.42rem;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    line-height: 1;
+}
+
+#event6-joystick .joy-up {
+    top: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#event6-joystick .joy-down {
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#event6-joystick .joy-left {
+    left: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+#event6-joystick .joy-right {
+    right: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+#event6-joystick-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #e8f8f5, #58d68d 55%, #27ae60 100%);
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 0 6px rgba(46, 204, 113, 0.6);
+    transform: translate(calc(-50% + var(--joy-x, 0px)), calc(-50% + var(--joy-y, 0px)));
+    pointer-events: none;
+}
+
+#ground.space-ground.no-globe::before {
+    display: none;
+}
+
+#ground.space-ground #event6-joystick {
+    opacity: 0.5;
+}
+
+#ground.space-ground .progress-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.15);
+}
+
+#ground.space-ground .progress-fill {
+    opacity: 0.5;
+}
+
+#event6-joystick.active #event6-joystick-knob {
+    background: radial-gradient(circle at 35% 35%, #ffffff, #82e0aa 50%, #2ecc71 100%);
+    box-shadow: 0 0 12px rgba(46, 204, 113, 0.95), 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
 #balloon-img {
     width: 100%;
     height: 100%;
@@ -1030,7 +1147,7 @@ body {
 }
 
 #balloon-img.space-balloon {
-    transform: scale(0.3333);
+    transform: scale(0.4333);
     transform-origin: center;
 }
 
@@ -1069,6 +1186,104 @@ body {
     background: radial-gradient(circle, #ffffff 40%, #e0f7fa 75%, #80deea) !important;
     box-shadow: 0 0 12px #ffffff, 0 0 25px rgba(255, 255, 255, 0.9), 0 0 35px rgba(128, 222, 234, 0.8) !important;
     filter: blur(1px) !important;
+    display: none !important;
+}
+
+.space-flame {
+    display: none;
+    position: absolute;
+    background: radial-gradient(circle, #e0f7fa 15%, #00b0ff 55%, #0055ff 90%);
+    box-shadow: 0 0 10px #00e5ff, 0 0 22px rgba(0, 176, 255, 0.95), 0 0 34px rgba(0, 85, 255, 0.85);
+    filter: blur(1.5px);
+    opacity: 0;
+    pointer-events: none;
+    transition: width 0.08s, height 0.08s, opacity 0.08s;
+}
+
+#balloon.space-mode .space-flame {
+    display: block;
+}
+
+.space-flame-down {
+    top: calc(50% + 18px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 7px;
+    height: 0;
+    border-radius: 20% 20% 50% 50%;
+    transform-origin: top center;
+}
+
+.space-flame-up {
+    bottom: calc(50% + 18px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 7px;
+    height: 0;
+    border-radius: 50% 50% 20% 20%;
+    transform-origin: bottom center;
+}
+
+.space-flame-left {
+    right: calc(50% + 18px);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 7px;
+    border-radius: 50% 20% 20% 50%;
+    transform-origin: right center;
+}
+
+.space-flame-right {
+    left: calc(50% + 18px);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 7px;
+    border-radius: 20% 50% 50% 20%;
+    transform-origin: left center;
+}
+
+#balloon.space-mode .space-flame-down.active,
+#balloon.space-mode .space-flame-up.active {
+    height: 78px;
+    opacity: 1;
+    animation: spaceFlickerV 0.09s infinite alternate;
+}
+
+#balloon.space-mode .space-flame-left.active,
+#balloon.space-mode .space-flame-right.active {
+    width: 78px;
+    opacity: 1;
+    animation: spaceFlickerH 0.09s infinite alternate;
+}
+
+#balloon.space-mode.level31-mode .space-flame-down.active,
+#balloon.space-mode.level31-mode .space-flame-up.active {
+    height: 19.5px;
+}
+
+#balloon.space-mode.level31-mode .space-flame-left.active,
+#balloon.space-mode.level31-mode .space-flame-right.active {
+    width: 19.5px;
+}
+
+@keyframes spaceFlickerV {
+    from {
+        transform: translateX(-50%) scale(1);
+    }
+    to {
+        transform: translateX(-50%) scale(1.12);
+    }
+}
+
+@keyframes spaceFlickerH {
+    from {
+        transform: translateY(-50%) scale(1);
+    }
+    to {
+        transform: translateY(-50%) scale(1.12);
+    }
 }
 
 #balloon-marker {
@@ -3008,6 +3223,12 @@ button:hover {
     pointer-events: none;
 }
 
+#close-ad-event-btn {
+    max-width: 240px;
+    width: 100%;
+    margin-top: 8px;
+}
+
 /* Cloud boundary guidelines for Level 26 */
 .level26-cloud-guide {
     position: absolute;
@@ -3058,15 +3279,24 @@ button:hover {
 */
 
 
-. l i g h t n i n g - h i t b o x - v i s u a l   {  
-         p o s i t i o n :   a b s o l u t e ;  
-         w i d t h :   1 0 0 % ;  
-         h e i g h t :   1 0 0 % ;  
-         b o r d e r :   3 p x   d a s h e d   # f f e b 3 b ;   / *   T h i c k   y e l l o w   d a s h e d   b o r d e r   * /  
-         b o x - s i z i n g :   b o r d e r - b o x ;  
-         p o i n t e r - e v e n t s :   n o n e ;  
-         z - i n d e x :   1 0 0 0 ;  
- }  
+. l i g h t n i n g - h i t b o x - v i s u a l   { 
+ 
+         p o s i t i o n :   a b s o l u t e ; 
+ 
+         w i d t h :   1 0 0 % ; 
+ 
+         h e i g h t :   1 0 0 % ; 
+ 
+         b o r d e r :   3 p x   d a s h e d   # f f e b 3 b ;   / *   T h i c k   y e l l o w   d a s h e d   b o r d e r   * / 
+ 
+         b o x - s i z i n g :   b o r d e r - b o x ; 
+ 
+         p o i n t e r - e v e n t s :   n o n e ; 
+ 
+         z - i n d e x :   1 0 0 0 ; 
+ 
+ } 
+ 
  
 .lightning-bolt.active {
     animation: lightning-sparkle 0.1s infinite alternate !important;
@@ -3127,5 +3357,84 @@ button:hover {
     line-height: 1.5;
     text-shadow: 2px 2px 4px #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
+
+.meteor {
+    position: absolute;
+    pointer-events: none;
+    z-index: 15;
+    transform-origin: center center;
+    filter: drop-shadow(0 0 6px rgba(255, 120, 50, 0.55));
+}
+
+.meteor.blown {
+    filter: drop-shadow(0 0 12px #00e5ff) brightness(1.3);
+}
+
+.planet-orbit-track {
+    position: absolute;
+    transform: translate(-50%, 50%);
+    border: 1.5px dashed rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 6;
+}
+
+.orbiting-planet {
+    position: absolute;
+    pointer-events: none;
+    z-index: 14;
+    transform-origin: center center;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.35));
+    transition: filter 0.15s ease;
+}
+
+.orbiting-planet.gravity-pull {
+    filter: drop-shadow(0 0 16px rgba(130, 204, 255, 0.85)) drop-shadow(0 0 28px rgba(255, 255, 255, 0.45));
+}
+
+.target-line.wormhole {
+    overflow: visible;
+}
+
+/* 착륙패드 윗부분(녹색 잔디 층)을 웜홀 효과로 대체 */
+.target-line.wormhole::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 0;
+    right: 0;
+    height: 4.5px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, #020008 0%, #0d002b 42%, #6c5ce7 70%, #00e5ff 92%, transparent 100%);
+    border: 0.75px solid rgba(0, 229, 255, 0.85);
+    box-shadow: 0 0 4px #00e5ff, 0 0 8px #6c5ce7, inset 0 0 3px #000;
+    animation: wormholeTopPulse 1.2s ease-in-out infinite alternate;
+    z-index: 2;
+}
+
+.target-line.wormhole::after {
+    content: '';
+    position: absolute;
+    top: -11px;
+    left: -1px;
+    right: -1px;
+    height: 6.5px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(0, 229, 255, 0.9) 60deg, rgba(162, 155, 254, 0.95) 140deg, transparent 180deg, rgba(0, 229, 255, 0.9) 240deg, rgba(162, 155, 254, 0.95) 320deg, transparent 360deg);
+    filter: blur(0.5px);
+    animation: wormholeTopSpin 1.8s linear infinite;
+    z-index: 1;
+}
+
+@keyframes wormholeTopSpin {
+    from { transform: scaleY(0.38) rotate(0deg); }
+    to { transform: scaleY(0.38) rotate(360deg); }
+}
+
+@keyframes wormholeTopPulse {
+    from { transform: scaleX(0.96) scaleY(0.9); filter: brightness(0.95); }
+    to { transform: scaleX(1.06) scaleY(1.12); filter: brightness(1.25); }
+}
+
 
 

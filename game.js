@@ -22,6 +22,7 @@ const balloon = document.getElementById('balloon');
 const restartBtn = document.getElementById('restart-btn');
 const clearScreen = document.getElementById('clear-screen');
 const mainActionBtn = document.getElementById('main-action-btn');
+const event6Joystick = document.getElementById('event6-joystick');
 const gasValEl = document.getElementById('gas-val');
 const timeValEl = document.getElementById('time-val');
 const failScreen = document.getElementById('fail-screen');
@@ -119,8 +120,10 @@ const adEventRewardsEl = document.getElementById('ad-event-rewards');
 const eventSelectionOverlay = document.getElementById('event-selection-overlay');
 const eventButtonsContainer = document.getElementById('event-buttons-container');
 const closeEventSelectionBtn = document.getElementById('close-event-selection-btn');
+const closeAdEventBtn = document.getElementById('close-ad-event-btn');
 
 let isRewardedEventPlay = false; // 광고 시청 후 보상으로 하는 이벤트 플레이인지 여부
+let previousLevelBeforeRewardedEvent = null; // 이벤트 보너스 광고 시청 전 원래 플레이하던 레벨 저장
 
 let popcornGatheredScore = 0;
 let event4FishCaughtScore = 0;
@@ -751,11 +754,22 @@ const LEVEL_CONFIGS = {
     36: {
         displayName: "EVENT 6",
         winds: [0, 0, 0, 0, 0, 0, 0],
-        maxGas: 100,
+        maxGas: 400,
         maxTime: 40,
         platformY: 6.0
+    },
+    37: {
+        displayName: "31",
+        winds: [0, 0, 0, 0, 0, 0, 0],
+        maxGas: 200,
+        maxTime: 40,
+        platformY: 5.0
     }
 };
+
+function isSpaceEventLevel(displayName) {
+    return displayName === "EVENT 6" || displayName === "31";
+}
 
 if (!LEVEL_CONFIGS[currentLevel]) {
     currentLevel = 0;
@@ -777,6 +791,24 @@ if (changedBestScores) {
     localStorage.setItem('balloon_level_best_scores', JSON.stringify(myLevelBestScores));
 }
 
+// 기존 레벨 베스트 스코어 중 착륙/아이템 보너스가 미반영된 기록 보정 (19레벨 등 모든 일반 레벨)
+let updatedOldScores = false;
+for (let lvl in myLevelBestScores) {
+    const cfg = LEVEL_CONFIGS[lvl];
+    if (cfg && !cfg.displayName.includes('EVENT') && cfg.displayName !== "튜토리얼" && lvl !== "0") {
+        const dName = cfg.displayName;
+        const expectedItemBonus = (BONUS_G2_LEVELS.includes(dName) ? 400 : 200);
+        // 가스+시간만 기록되어 점수가 500 미만인 기존 기록에 보너스 합산 보정
+        if (myLevelBestScores[lvl] > 0 && myLevelBestScores[lvl] < 500) {
+            myLevelBestScores[lvl] += (expectedItemBonus + 50);
+            updatedOldScores = true;
+        }
+    }
+}
+if (updatedOldScores) {
+    localStorage.setItem('balloon_level_best_scores', JSON.stringify(myLevelBestScores));
+}
+
 // Game state
 let gameState = 'START';
 let balloonX = 50; // Percentage (50% is center)
@@ -784,6 +816,69 @@ let balloonY = 0;  // Starts at 0 relative to the play area (above ground)
 let velX = 0;
 let velY = 0;
 let isBurning = false;
+let isJoystickDragging = false;
+let joystickVecX = 0;
+let joystickVecY = 0;
+
+const spaceFlameUp = document.querySelector('.space-flame-up');
+const spaceFlameDown = document.querySelector('.space-flame-down');
+const spaceFlameLeft = document.querySelector('.space-flame-left');
+const spaceFlameRight = document.querySelector('.space-flame-right');
+
+function updateSpaceFlames(vecX, vecY) {
+    if (spaceFlameDown) spaceFlameDown.classList.toggle('active', vecY > 0.25);
+    if (spaceFlameUp) spaceFlameUp.classList.toggle('active', vecY < -0.25);
+    if (spaceFlameRight) spaceFlameRight.classList.toggle('active', vecX < -0.25);
+    if (spaceFlameLeft) spaceFlameLeft.classList.toggle('active', vecX > 0.25);
+}
+
+function updateJoystickFromPoint(clientX, clientY) {
+    if (!event6Joystick) return;
+    const rect = event6Joystick.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = clientX - centerX;
+    const dy = clientY - centerY;
+    const dist = Math.hypot(dx, dy);
+    const maxRadius = 14;
+    const clampedDist = Math.min(dist, maxRadius);
+    const angle = Math.atan2(dy, dx);
+    const knobX = Math.cos(angle) * clampedDist;
+    const knobY = Math.sin(angle) * clampedDist;
+
+    event6Joystick.style.setProperty('--joy-x', `${knobX.toFixed(1)}px`);
+    event6Joystick.style.setProperty('--joy-y', `${knobY.toFixed(1)}px`);
+
+    if (dist > 2) {
+        const strength = Math.max(0.5, clampedDist / maxRadius);
+        joystickVecX = Math.cos(angle) * strength;
+        joystickVecY = -Math.sin(angle) * strength;
+        isBurning = true;
+        updateSpaceFlames(joystickVecX, joystickVecY);
+        if (!soundMgr.activeSources['burner']) {
+            soundMgr.play('burner', true, 1.0);
+        }
+    } else {
+        joystickVecX = 0;
+        joystickVecY = 0;
+        isBurning = false;
+        updateSpaceFlames(0, 0);
+        soundMgr.stop('burner');
+        soundMgr.stop('burner_alt');
+    }
+}
+
+function resetJoystick() {
+    isJoystickDragging = false;
+    joystickVecX = 0;
+    joystickVecY = 0;
+    updateSpaceFlames(0, 0);
+    if (event6Joystick) {
+        event6Joystick.classList.remove('active');
+        event6Joystick.style.setProperty('--joy-x', '0px');
+        event6Joystick.style.setProperty('--joy-y', '0px');
+    }
+}
 let hasEnteredZone7 = false;
 let gas = 0; // 소모된 가스양
 let missionStartTime = 0;
@@ -808,9 +903,9 @@ let initialItemCount = 0; // 게임 시작 직전 보유한 아이템 총 갯수
 let isStunned = false; // 붉은새 충돌 시 상태
 let stunEndTime = 0; // 스턴 종료 시간
 
-// 보너스 점수 레벨 그룹 (표시 이름 기준)
-const BONUS_G1_LEVELS = ["6", "7", "14", "15", "23", "26"];
-const BONUS_G2_LEVELS = ["8", "9", "10", "16", "17", "18", "19", "20", "24", "25", "27", "28", "29", "30"];
+// 보너스 점수 레벨 그룹 (표시 이름 기준 - 모든 일반 레벨 1~31 포함)
+const BONUS_G1_LEVELS = ["1", "2", "3", "4", "5", "6", "7", "14", "15", "23", "26"];
+const BONUS_G2_LEVELS = ["8", "9", "10", "11", "12", "13", "16", "17", "18", "19", "20", "21", "22", "24", "25", "27", "28", "29", "30", "31"];
 const BONUS_G3_LEVELS = [];
 const BONUS_G4_LEVELS = [];
 
@@ -956,7 +1051,13 @@ function init() {
     if (eventCloseBtn) {
         eventCloseBtn.addEventListener('click', () => {
             eventClearScreen.classList.add('hidden');
+            if (previousLevelBeforeRewardedEvent !== null) {
+                currentLevel = previousLevelBeforeRewardedEvent;
+                previousLevelBeforeRewardedEvent = null;
+                isRewardedEventPlay = false;
+            }
             resetGame();
+            updateNextLevelButtonVisibility();
         });
     }
 
@@ -974,7 +1075,13 @@ function init() {
         eventCloseClearBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             eventClearScreen.classList.add('hidden');
+            if (previousLevelBeforeRewardedEvent !== null) {
+                currentLevel = previousLevelBeforeRewardedEvent;
+                previousLevelBeforeRewardedEvent = null;
+                isRewardedEventPlay = false;
+            }
             resetGame();
+            updateNextLevelButtonVisibility();
         });
     }
 
@@ -1167,12 +1274,74 @@ function init() {
         }
     }, { passive: false });
 
+    if (event6Joystick) {
+        const handleJoystickStart = (clientX, clientY) => {
+            if (!settingsScreen.classList.contains('hidden')) return;
+            if (!storeScreen.classList.contains('hidden')) return;
+            if (mainActionBtn && mainActionBtn.classList.contains('overheated')) return;
+
+            if (!isSoundPreloaded) startSoundSystem();
+            soundMgr.init();
+            soundMgr.resume();
+
+            if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER') {
+                if (lives <= 0) {
+                    const now = Date.now();
+                    const nextRegenTime = lastLifeUpdate + (5 * 60 * 1000);
+                    const waitMs = nextRegenTime - now;
+                    const waitMin = Math.ceil(waitMs / 60000);
+                    alert(`생명이 없습니다! 충전될 때까지 약 ${waitMin}분 더 기다려야 합니다.`);
+                    return;
+                }
+                resetGame();
+                startGame();
+            }
+
+            if (gameState === 'PLAY') {
+                isJoystickDragging = true;
+                event6Joystick.classList.add('active');
+                updateJoystickFromPoint(clientX, clientY);
+            }
+        };
+
+        event6Joystick.addEventListener('mousedown', (e) => {
+            handleJoystickStart(e.clientX, e.clientY);
+        });
+
+        event6Joystick.addEventListener('touchstart', (e) => {
+            if (e.cancelable) e.preventDefault();
+            if (e.touches && e.touches.length > 0) {
+                handleJoystickStart(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: false });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isJoystickDragging && gameState === 'PLAY') {
+                updateJoystickFromPoint(e.clientX, e.clientY);
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (isJoystickDragging && gameState === 'PLAY' && e.touches && e.touches.length > 0) {
+                updateJoystickFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: false });
+    }
+
     window.addEventListener('mouseup', () => {
+        resetJoystick();
         isBurning = false;
         soundMgr.stop('burner');
         soundMgr.stop('burner_alt');
     });
     window.addEventListener('touchend', () => {
+        resetJoystick();
+        isBurning = false;
+        soundMgr.stop('burner');
+        soundMgr.stop('burner_alt');
+    });
+    window.addEventListener('touchcancel', () => {
+        resetJoystick();
         isBurning = false;
         soundMgr.stop('burner');
         soundMgr.stop('burner_alt');
@@ -1338,11 +1507,11 @@ function init() {
 
 function startGame() {
     isRewardedEventPlay = false; // 기본적으로 광고 보상 플레이가 아님
-    balloonX = 50;
     const config = LEVEL_CONFIGS[currentLevel];
     const isSpecialStart = config.displayName === "EVENT 2" || config.displayName === "EVENT 4";
 
     if (isSpecialStart) {
+        balloonX = 50;
         // EVENT 2: Start on top of the landing pad
         const skyHeight = gameContainer.clientHeight * 0.9195;
         const platformY = config.platformY;
@@ -1351,7 +1520,10 @@ function startGame() {
         const platformHeightPercentage = (9 / skyHeight) * 100;
         const targetYTop = targetYBottom + platformHeightPercentage;
         balloonY = targetYTop - getBasketOffset() + 0.1; // Add 0.1 to avoid immediate touch
+    } else if (isSpaceEventLevel(config.displayName)) {
+        // 조이스틱 조작 시작 시 처음 위치한 현재 좌표(balloonX, balloonY) 그대로 출발
     } else {
+        balloonX = 50;
         balloonY = -getBasketOffset();
     }
 
@@ -1365,6 +1537,7 @@ function startGame() {
     mainActionBtn.classList.add('burner-mode');
     mainActionBtn.classList.remove('restart-mode');
     hasEnteredZone7 = false;
+    hasLiftedOffLevel31 = false;
     if (levelHintEl) levelHintEl.classList.add('hidden');
     // const config = LEVEL_CONFIGS[currentLevel]; // 이미 상단에서 선언됨
 
@@ -1380,6 +1553,7 @@ function startGame() {
     missionStartTime = Date.now();
     windCycleStartTime = missionStartTime;
     level26CloudX = 50; // 구름 위치 초기화
+    initLevel31Planets(); // 레벨31 행성 출발 위치 고정 초기화
     
     // 26, 27, 28, 29, 30레벨용 빗방울 시드 및 현장 비우기 (매 시작마다 동일 패턴 보장)
     if (currentLevel === 31 || currentLevel === 32 || currentLevel === 33 || currentLevel === 34 || currentLevel === 35) {
@@ -2019,6 +2193,8 @@ function update(timestamp) {
         updateEagles();
         updateCloudPosition();
         updateRain();
+        updateMeteors();
+        updateLevel31Planets();
         accumulator -= targetDelta;
     }
 
@@ -2125,6 +2301,8 @@ function updateTargetLine() {
         if (config.displayName === "19") pixelOffset = 2; // Lowered by 10px from 12
         targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + ${pixelOffset}px)`;
 
+        targetLineEl.classList.toggle('wormhole', config.displayName === "31");
+
         // EVENT 레벨들에서 착륙 패드 숨기기
         if (config.displayName.startsWith("EVENT")) {
             targetLineEl.classList.add('hidden');
@@ -2155,16 +2333,17 @@ function handleMovement() {
         if (continuousBurnStartTime === 0) continuousBurnStartTime = Date.now();
         burnDuration = Date.now() - continuousBurnStartTime;
 
-        if (burnDuration > 2000) {
+        if (burnDuration > 2000 && !isSpaceEventLevel(currentDisplayName)) {
             gameOver();
             return;
         }
 
         let appliedForce = currentBurnerForce;
-        if (currentDisplayName === "EVENT 6") {
+        if (isSpaceEventLevel(currentDisplayName)) {
             // 우주 분사 가속: 가스 분사할 때마다 속도가 누적 가산 (기존의 1/5 수준: +0.0016/frame)
-            const burnTimeFactor = 1.0 + (burnDuration / 400) * 0.5;
-            appliedForce = 0.0016 * burnTimeFactor;
+            const effectiveBurnDuration = Math.min(burnDuration, 2000);
+            const burnTimeFactor = 1.0 + (effectiveBurnDuration / 400) * 0.5;
+            appliedForce = 0.00264 * burnTimeFactor;
         } else if (burnDuration > 500) {
             appliedForce *= 1.155; // 0.5초 이상 누를 시 상승 힘 5.5% 추가 증가 (총 15.5%)
         }
@@ -2174,25 +2353,38 @@ function handleMovement() {
             appliedForce = 0;
             if (velY > 0) velY = 0; // 상승 속도 즉시 차단
         }
-        velY += appliedForce;
+
+        if (isSpaceEventLevel(currentDisplayName)) {
+            const skyHeight = gameContainer.clientHeight * 0.9195;
+            const aspectRatio = (gameContainer.clientWidth > 0) ? (skyHeight / gameContainer.clientWidth) : 1.75;
+            velY += appliedForce * joystickVecY;
+            velX += appliedForce * joystickVecX * 0.2 * aspectRatio;
+        } else {
+            velY += appliedForce;
+        }
 
         // 가스 소모 (버너 사용 시 매 프레임 소모)
-        gas -= (currentDisplayName === "EVENT 6") ? 0.12 : 0.45;
+        if (isSpaceEventLevel(currentDisplayName)) {
+            const activeThrusters = (Math.abs(joystickVecX) > 0.25 ? 1 : 0) + (Math.abs(joystickVecY) > 0.25 ? 1 : 0);
+            gas -= 0.12 * Math.max(1, activeThrusters);
+        } else {
+            gas -= 0.45;
+        }
     } else {
         continuousBurnStartTime = 0;
     }
 
     let gravityForce = GRAVITY * activeGravityMultiplier;
-    if (currentDisplayName === "EVENT 6") {
+    if (isSpaceEventLevel(currentDisplayName)) {
         gravityForce = 0;
     }
     velY -= gravityForce;
 
-    let currentFriction = (currentDisplayName === "EVENT 6") ? 1.0 : FRICTION; // 완전 무중력 관성 보존 (마찰 0%, 누적 속도 100% 영구 유지)
+    let currentFriction = isSpaceEventLevel(currentDisplayName) ? 1.0 : FRICTION; // 완전 무중력 관성 보존 (마찰 0%, 누적 속도 100% 영구 유지)
     velY *= currentFriction;
 
     // Limit upward speed (EVENT 6는 상한선 없이 가스 분사할 때마다 무한 누적 가속)
-    if (currentDisplayName !== "EVENT 6") {
+    if (!isSpaceEventLevel(currentDisplayName)) {
         let effectiveMaxUpwardVel = MAX_UPWARD_VELOCITY;
         if (isBurning && burnDuration > 500) {
             effectiveMaxUpwardVel *= 1.155; // 0.5초 이상 누를 시 최대 상승 속도 5.5% 추가 증가 (총 15.5%)
@@ -2227,11 +2419,11 @@ function handleMovement() {
     const zoneIndex = Math.min(6, Math.max(0, Math.floor(markerY / zoneHeight)));
 
     let windForce = ZONE_WINDS[zoneIndex];
-    if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3" && currentDisplayName !== "EVENT 6") windForce *= level11WindMultiplier;
+    if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3" && !isSpaceEventLevel(currentDisplayName)) windForce *= level11WindMultiplier;
     windForce += tempWindBoosts[zoneIndex];
 
     velX += windForce * 0.00165; 
-    velX *= FRICTION;
+    velX *= currentFriction;
 
     let finalVelX = velX;
     if (isStunned) finalVelX *= 0.5; // 가로 속도도 50% 감소
@@ -2278,12 +2470,15 @@ function handleMovement() {
 
         if (basketWithinH) {
             // Check for top-down landing on the Yellow line (platTop)
-            const isTouchingTop = basketY <= platTop + 0.3 && basketY >= platTop - 0.7;
+            const isLevel31 = config.displayName === "31";
+            const isTouchingTop = isLevel31
+                ? (basketY <= platTop + 1.2 && basketY >= platBottom)
+                : (basketY <= platTop + 0.3 && basketY >= platTop - 0.7);
 
             if (isTouchingTop) {
                 // 게임 시작 직후 바로 클리어 방지 (최소 2초 비행 필요)
                 const isFreshStart = (Date.now() - missionStartTime) < 2000;
-                if (velY < 0 && !isFreshStart) { // Moving Top -> Bottom
+                if ((velY < 0 || isLevel31) && !isFreshStart) { // Moving Top -> Bottom (or touching wormhole top in LV-31)
                     winGame();
                     return;
                 }
@@ -2433,6 +2628,8 @@ function getBasketOffset() {
     return (basketPixels / skyHeight) * 100;
 }
 
+let hasLiftedOffLevel31 = false;
+
 function checkBoundaries() {
     const basketOffsetPercentage = getBasketOffset();
     const config = LEVEL_CONFIGS[currentLevel];
@@ -2441,11 +2638,24 @@ function checkBoundaries() {
     if (config && config.displayName === "EVENT 6") {
         if (balloonY < -basketOffsetPercentage) {
             balloonY = -basketOffsetPercentage;
-            if (velY < 0) velY = -velY * 0.4; // 우주 무중력 하단 탄성 반사
+            if (velY < 0) velY = 0; // 최하단에서 반사 없이 정지
         }
         if (balloonY > 100) {
             balloonY = 100;
             if (velY > 0) velY = -velY * 0.4; // 우주 무중력 상단 탄성 반사
+        }
+    } else if (config && config.displayName === "31") {
+        if (balloonY < -basketOffsetPercentage) {
+            balloonY = -basketOffsetPercentage;
+            if (velY < 0) velY = 0; // 최하단에서는 폭발하지 않고 정지
+        }
+        const skyHeight = (gameContainer.clientHeight || 640) * 0.9195;
+        const maxLevel31Y = 100 - ((95 / skyHeight) * 100);
+        if (balloonY > maxLevel31Y) {
+            balloonY = maxLevel31Y;
+            velY = 0;
+            gameOver('CRASH');
+            return;
         }
     } else {
         if (balloonY < -basketOffsetPercentage) {
@@ -2460,11 +2670,19 @@ function checkBoundaries() {
 
     if (balloonX < 5) {
         balloonX = 5;
-        if (!isEventLevel) gameOver('CRASH');
+        if (config && config.displayName === "EVENT 6") {
+            if (velX < 0) velX = -velX * 0.4; // 우주 무중력 좌측 탄성 반사
+        } else if (!isEventLevel) {
+            gameOver('CRASH');
+        }
     }
     if (balloonX > 95) {
         balloonX = 95;
-        if (!isEventLevel) gameOver('CRASH');
+        if (config && config.displayName === "EVENT 6") {
+            if (velX > 0) velX = -velX * 0.4; // 우주 무중력 우측 탄성 반사
+        } else if (!isEventLevel) {
+            gameOver('CRASH');
+        }
     }
 
     // EVENT 4: 낚싯대 자동 반전 (벽에 닿을 때)
@@ -2489,6 +2707,10 @@ function clearDroppedItems() {
 function gameOver(msg = 'OVERHEAT') {
     if (gameState !== 'PLAY') return;
 
+    resetJoystick();
+    isBurning = false;
+    soundMgr.stop('burner');
+
     const config = LEVEL_CONFIGS[currentLevel];
     const isEventLevel = config && config.displayName.startsWith("EVENT");
 
@@ -2506,8 +2728,6 @@ function gameOver(msg = 'OVERHEAT') {
     }
 
     gameState = 'GAMEOVER';
-    isBurning = false;
-    soundMgr.stop('burner');
     attachedFish = null;
     isStunned = false;
     balloon.classList.remove('shake-balloon');
@@ -2594,14 +2814,13 @@ function gameOver(msg = 'OVERHEAT') {
     if (failReasonBubble) {
         failReasonBubble.innerText = msg;
         // 풍선 위치에 맞춰 말풍선 위치 조정 (ballonX, balloonY 사용)
-        // 화면 밖으로 나가지 않도록 Clamp 처리 (좌우 10% 여유)
-        let clampedX = Math.min(90, Math.max(10, balloonX));
+        // 화면 밖으로 나가지 않도록 Clamp 처리
+        let clampedX = Math.min(72, Math.max(28, balloonX));
         failReasonBubble.style.left = `${clampedX}%`;
 
-        // 상단 화면 밖으로 나가지 않도록 처리
-        // balloonY가 높을 경우 (약 60% 이상) 말풍선을 아래쪽으로 배치
+        // 상단 화면 밖으로 나가지 않도록 처리 (말풍선 높이 165px 고려)
         if (balloonY > 60) {
-            failReasonBubble.style.bottom = `calc(8.05% + ${balloonY * 0.9195}% - 50px)`; // 풍선 아래로
+            failReasonBubble.style.bottom = `min(calc(100% - 175px), calc(8.05% + ${balloonY * 0.9195}% - 50px))`;
         } else {
             failReasonBubble.style.bottom = `calc(8.05% + ${balloonY * 0.9195}% + 140px)`; // 기존처럼 풍선 위로
         }
@@ -2656,7 +2875,7 @@ function gameOver(msg = 'OVERHEAT') {
     let failScore = 0;
     if (isEvent2) {
         failScore = Math.floor(cookedPercentage * 2) * 10;
-    } else if (config && (config.displayName === "EVENT 1" || config.displayName === "EVENT 3" || config.displayName === "EVENT 6")) {
+    } else if (config && (config.displayName === "EVENT 1" || config.displayName === "EVENT 3" || isSpaceEventLevel(config.displayName))) {
         failScore = sessionEventCredits;
     } else if (config && config.displayName === "EVENT 4") {
         failScore = event4FishCaughtScore;
@@ -2669,13 +2888,16 @@ function winGame() {
     const isSteakEvent = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2";
 
     gameState = 'CLEAR';
+    resetJoystick();
+    isBurning = false;
+    soundMgr.stop('burner');
     attachedFish = null;
     isStunned = false;
     balloon.classList.remove('shake-balloon');
     
     // 11~20레벨 클리어 시 바람 방향을 처음 시작 방향(multiplier=1)으로 복구
     const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
-    if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3" && currentDisplayName !== "EVENT 6") {
+    if (currentLevel >= 13 && currentLevel <= 23 && currentDisplayName !== "EVENT 3" && !isSpaceEventLevel(currentDisplayName)) {
         level11WindMultiplier = 1;
         if (showWindLabels) updateWindLabels();
         if (windCountdownEl) windCountdownEl.classList.add('hidden');
@@ -2705,41 +2927,31 @@ function winGame() {
     else if (ratio <= 0.8) { landingBonus = 20; bonusText = "NICE"; }
     else { landingBonus = 10; bonusText = "LANDED"; }
 
+    // 모든 일반 레벨에서 착륙 성공 시 최소 20점 보장
+    if (!isSteakEvent && landingBonus < 20) {
+        landingBonus = 20;
+    }
+
     const score = Math.floor(gas) + Math.floor(timeLeft * 10) + landingBonus;
 
     let itemBonus = 0;
     const currentItemCount = getTotalItemsCount();
     const actualItemsDecreased = Math.max(0, initialItemCount - currentItemCount);
 
+    // 모든 일반 레벨에서 착륙 보너스와 아이템 보너스가 무조건 포함되도록 보장
     if (BONUS_G1_LEVELS.includes(currentDisplayName)) {
-        // Group 1: 0개 줄면 200점, 1개 이상 줄면 0점
-        if (actualItemsDecreased === 0) {
-            itemBonus = 200;
-        } else {
-            itemBonus = 0;
-        }
+        // Group 1 (1~7, 14, 15, 23, 26): 무조건 200점 포함
+        itemBonus = 200;
     } else if (BONUS_G2_LEVELS.includes(currentDisplayName)) {
-        // Group 2: 0개 줄면 400점, 1개 줄면 200점, 2개 이상 줄면 0점
-        if (actualItemsDecreased === 0) {
-            itemBonus = 400;
-        } else if (actualItemsDecreased === 1) {
-            itemBonus = 200;
-        } else {
-            itemBonus = 0;
-        }
+        // Group 2 (8~13, 16~22, 24, 25, 27~31): 무조건 400점 포함 (19레벨 포함)
+        itemBonus = 400;
     } else if (BONUS_G3_LEVELS.includes(currentDisplayName)) {
-        // Group 3 (Level 26): 0개 600점, 1개 400점, 2개 200점, 3개 이상 0점
-        if (actualItemsDecreased === 0) itemBonus = 600;
-        else if (actualItemsDecreased === 1) itemBonus = 400;
-        else if (actualItemsDecreased === 2) itemBonus = 200;
-        else itemBonus = 0;
+        itemBonus = 600;
     } else if (BONUS_G4_LEVELS.includes(currentDisplayName)) {
-        // Group 4 (Level 27): 0개 800점, 1개 600점, 2개 400점, 3개 200점, 4개 이상 0점
-        if (actualItemsDecreased === 0) itemBonus = 800;
-        else if (actualItemsDecreased === 1) itemBonus = 600;
-        else if (actualItemsDecreased === 2) itemBonus = 400;
-        else if (actualItemsDecreased === 3) itemBonus = 200;
-        else itemBonus = 0;
+        itemBonus = 800;
+    } else if (!isEventLevel && currentDisplayName !== "튜토리얼" && currentLevel !== 0) {
+        // 기타 모든 일반 레벨: 기본 200점 무조건 보장
+        itemBonus = 200;
     }
 
 
@@ -2808,7 +3020,7 @@ function winGame() {
     if (isEventLevel) {
         // Changed: Removed +200 clear bonus for rank
         const evtName = LEVEL_CONFIGS[currentLevel].displayName;
-        if(evtName === "EVENT 1" || evtName === "EVENT 3" || evtName === "EVENT 6") scoreForRank += sessionEventCredits;
+        if(evtName === "EVENT 1" || evtName === "EVENT 3" || isSpaceEventLevel(evtName)) scoreForRank += sessionEventCredits;
         if(evtName === "EVENT 4") scoreForRank += event4FishCaughtScore;
     }
     saveLevelBestScore(scoreForRank);
@@ -2846,6 +3058,28 @@ function winGame() {
             if (eventAccumulatedTotalEl) eventAccumulatedTotalEl.innerText = totalCredits;
             eventClearScreen.classList.add('hidden'); 
         }
+
+        // 광고 보너스 등으로 이벤트 게임 진입 후 종료 시: 직전에 플레이하던 레벨로 자동 복귀!
+        if (previousLevelBeforeRewardedEvent !== null || isRewardedEventPlay) {
+            const targetReturnLevel = (previousLevelBeforeRewardedEvent !== null) ? previousLevelBeforeRewardedEvent : 1;
+            const returnDisplayName = LEVEL_CONFIGS[targetReturnLevel]?.displayName || targetReturnLevel;
+
+            let earnedMsg = "";
+            if (currentDisplayName === "EVENT 1" || currentDisplayName === "EVENT 3" || currentDisplayName === "EVENT 6") {
+                earnedMsg = sessionEventCredits > 0 ? ` (+${sessionEventCredits}C 획득)` : "";
+            } else if (currentDisplayName === "EVENT 4") {
+                earnedMsg = event4FishCaughtScore > 0 ? ` (+${event4FishCaughtScore}C 획득)` : "";
+            }
+
+            setTimeout(() => {
+                alert(`이벤트 게임 종료!${earnedMsg}\n이전에 플레이하던 [LV-${returnDisplayName}] 레벨로 돌아갑니다.`);
+                currentLevel = targetReturnLevel;
+                previousLevelBeforeRewardedEvent = null;
+                isRewardedEventPlay = false;
+                resetGame();
+                updateNextLevelButtonVisibility();
+            }, 600);
+        }
     } else {
         if (eventClearScreen) eventClearScreen.classList.add('hidden');
         clearScreen.classList.remove('hidden'); // 일반 레벨만 점수판 노출
@@ -2865,6 +3099,9 @@ function winGame() {
 function triggerEvent6WinSequence() {
     if (gameState !== 'PLAY') return;
     gameState = 'CLEAR'; // 상태 중지
+    resetJoystick();
+    isBurning = false;
+    soundMgr.stop('burner');
     
     // 폭발 효과음 재생
     if (soundMgr.play) soundMgr.play('explosion');
@@ -3032,15 +3269,30 @@ function resetGame() {
     const config = LEVEL_CONFIGS[currentLevel];
     
     const balloonImg = document.getElementById('balloon-img');
+    const groundEl = document.getElementById('ground');
     if (balloonImg) {
-        if (config.displayName === "EVENT 6") {
+        if (isSpaceEventLevel(config.displayName)) {
             balloonImg.src = 'space ballon.png';
             balloonImg.classList.add('space-balloon');
             balloon.classList.add('space-mode');
+            balloon.classList.toggle('level31-mode', config.displayName === "31");
+            if (groundEl) {
+                groundEl.classList.add('space-ground');
+                groundEl.classList.toggle('no-globe', config.displayName === "31");
+            }
+            if (mainActionBtn) mainActionBtn.classList.add('hidden');
+            if (event6Joystick) event6Joystick.classList.remove('hidden');
+            resetJoystick();
         } else {
             balloonImg.src = 'balloon.png';
             balloonImg.classList.remove('space-balloon');
-            balloon.classList.remove('space-mode');
+            balloon.classList.remove('space-mode', 'level31-mode');
+            if (groundEl) {
+                groundEl.classList.remove('space-ground', 'no-globe');
+            }
+            if (mainActionBtn) mainActionBtn.classList.remove('hidden');
+            if (event6Joystick) event6Joystick.classList.add('hidden');
+            resetJoystick();
         }
     }
 
@@ -3080,6 +3332,8 @@ function resetGame() {
         const platformHeightPercentage = (9 / skyHeight) * 100;
         const targetYTop = targetYBottom + platformHeightPercentage;
         balloonY = targetYTop - getBasketOffset() + 0.1;
+    } else if (config.displayName === "EVENT 6") {
+        balloonY = -getBasketOffset() + (100 / 14);
     } else {
         balloonY = -getBasketOffset();
     }
@@ -3088,6 +3342,7 @@ function resetGame() {
     velY = 0;
     isBurning = false;
     hasEnteredZone7 = false;
+    hasLiftedOffLevel31 = false;
     // 아이템 효과는 이제 인벤토리에서 직접 사용할 때만 발동되므로
     // 시작 시에는 기본 설정값만 사용합니다.
     currentMaxGas = config.maxGas;
@@ -3220,8 +3475,28 @@ function resetGame() {
             if (event2CookedPctEl) event2CookedPctEl.innerText = "COOKED: 0%";
             if (event2CookedScoreEl) event2CookedScoreEl.innerText = "0";
         }
+    } else if (isSpaceEventLevel(config.displayName)) {
+        clearCoins();
+        clearMeteors();
+        initLevel31Planets();
+        sessionEventCredits = 0;
+        if (eventCreditsValEl) eventCreditsValEl.innerText = "0";
+        if (eventCounterEl) {
+            if (config.displayName === "EVENT 6") {
+                eventCounterEl.classList.remove('hidden');
+                const coinIcon = eventCounterEl.querySelector('img');
+                if (coinIcon) coinIcon.style.display = 'inline-block';
+            } else {
+                eventCounterEl.classList.add('hidden');
+            }
+        }
+        if (event2FloatingScore) event2FloatingScore.classList.add('hidden');
+        if (event3FloatingScore) event3FloatingScore.classList.add('hidden');
+        if (event4FloatingScore) event4FloatingScore.classList.add('hidden');
     } else {
         clearCoins();
+        clearMeteors();
+        clearLevel31Planets();
         if (eventCounterEl) eventCounterEl.classList.add('hidden');
         if (event2FloatingScore) event2FloatingScore.classList.add('hidden');
         if (event3FloatingScore) event3FloatingScore.classList.add('hidden');
@@ -3597,6 +3872,464 @@ function updateRain() {
         } else {
             drop.el.style.left = `${drop.x}%`;
             drop.el.style.bottom = `calc(8.05% + ${drop.y * 0.9195}%)`;
+        }
+    }
+}
+
+let activeMeteors = [];
+
+function clearMeteors() {
+    activeMeteors.forEach(m => {
+        if (m.el && m.el.parentNode) m.el.remove();
+    });
+    activeMeteors = [];
+}
+
+function spawnMeteor() {
+    const mEl = document.createElement('div');
+    mEl.className = 'meteor';
+    const size = 24 + Math.random() * 14;
+    mEl.style.width = `${size}px`;
+    mEl.style.height = `${size}px`;
+    mEl.innerHTML = `
+        <svg viewBox="0 0 60 60" width="100%" height="100%">
+            <defs>
+                <radialGradient id="rockGrad" cx="35%" cy="30%" r="70%">
+                    <stop offset="0%" stop-color="#a89f91"/>
+                    <stop offset="55%" stop-color="#6e655f"/>
+                    <stop offset="100%" stop-color="#3b3532"/>
+                </radialGradient>
+            </defs>
+            <polygon points="30,3 48,9 57,26 52,46 35,57 14,53 4,37 8,16" fill="url(#rockGrad)" stroke="#26211f" stroke-width="2"/>
+            <circle cx="22" cy="22" r="6" fill="#4a423e" opacity="0.7"/>
+            <circle cx="39" cy="34" r="8" fill="#4a423e" opacity="0.65"/>
+            <circle cx="24" cy="41" r="4.5" fill="#332d2a" opacity="0.7"/>
+            <circle cx="38" cy="18" r="3.5" fill="#544b46" opacity="0.6"/>
+        </svg>
+    `;
+
+    // 사방(상단, 좌측, 우측)에서 지구(하단)를 향해 낙하
+    const side = Math.random();
+    let startX, startY, targetX;
+    if (side < 0.5) {
+        startX = 5 + Math.random() * 90;
+        startY = 104;
+        targetX = 15 + Math.random() * 70;
+    } else if (side < 0.75) {
+        startX = -6;
+        startY = 45 + Math.random() * 55;
+        targetX = 25 + Math.random() * 65;
+    } else {
+        startX = 106;
+        startY = 45 + Math.random() * 55;
+        targetX = 10 + Math.random() * 65;
+    }
+
+    const speed = (0.22 + Math.random() * 0.22) / 3;
+    const dx = targetX - startX;
+    const dy = -5 - startY;
+    const len = Math.hypot(dx, dy) || 1;
+    const velX = (dx / len) * speed;
+    const velY = (dy / len) * speed;
+
+    const rotDir = Math.random() < 0.5 ? 1 : -1;
+    const rotSpeed = (0.4 + Math.random() * 0.9) * rotDir; // 천천히 자전
+
+    mEl.style.left = `${startX}%`;
+    mEl.style.bottom = `calc(8.05% + ${startY * 0.9195}%)`;
+    gameContainer.appendChild(mEl);
+
+    activeMeteors.push({
+        el: mEl,
+        x: startX,
+        y: startY,
+        velX,
+        velY,
+        angle: Math.random() * 360,
+        rotSpeed,
+        size,
+        blown: false
+    });
+}
+
+function updateMeteors() {
+    if (gameState !== 'PLAY' && gameState !== 'START') return;
+    const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+    if (currentDisplayName !== "EVENT 6") return;
+
+    if (activeMeteors.length < 6 && Math.random() < 0.014) {
+        spawnMeteor();
+    }
+
+    const activeFlameEls = [];
+    if (gameState === 'PLAY' && isBurning) {
+        if (spaceFlameUp && spaceFlameUp.classList.contains('active')) activeFlameEls.push({ el: spaceFlameUp, dir: 'up' });
+        if (spaceFlameDown && spaceFlameDown.classList.contains('active')) activeFlameEls.push({ el: spaceFlameDown, dir: 'down' });
+        if (spaceFlameLeft && spaceFlameLeft.classList.contains('active')) activeFlameEls.push({ el: spaceFlameLeft, dir: 'left' });
+        if (spaceFlameRight && spaceFlameRight.classList.contains('active')) activeFlameEls.push({ el: spaceFlameRight, dir: 'right' });
+    }
+
+    const flameRects = activeFlameEls.map(f => ({
+        dir: f.dir,
+        rect: f.el.getBoundingClientRect()
+    }));
+
+    for (let i = activeMeteors.length - 1; i >= 0; i--) {
+        const m = activeMeteors[i];
+        m.x += m.velX;
+        m.y += m.velY;
+        m.angle = (m.angle + m.rotSpeed) % 360;
+
+        if (!m.blown && flameRects.length > 0 && m.el) {
+            const mRect = m.el.getBoundingClientRect();
+            for (const f of flameRects) {
+                const hit = !(
+                    mRect.right < f.rect.left ||
+                    mRect.left > f.rect.right ||
+                    mRect.bottom < f.rect.top ||
+                    mRect.top > f.rect.bottom
+                );
+                if (hit) {
+                    m.blown = true;
+                    m.el.classList.add('blown');
+                    m.rotSpeed *= 6;
+                    if (f.dir === 'up') {
+                        m.velY = 2.4;
+                        m.velX += (Math.random() - 0.5) * 0.8;
+                    } else if (f.dir === 'down') {
+                        m.velY = -2.4;
+                        m.velX += (Math.random() - 0.5) * 0.8;
+                    } else if (f.dir === 'left') {
+                        m.velX = -2.4;
+                        m.velY += (Math.random() - 0.5) * 0.8;
+                    } else if (f.dir === 'right') {
+                        m.velX = 2.4;
+                        m.velY += (Math.random() - 0.5) * 0.8;
+                    }
+
+                    const val = 100;
+                    sessionEventCredits += val;
+                    if (eventCreditsValEl) eventCreditsValEl.innerText = sessionEventCredits;
+                    if (shouldAllowEventCredits()) {
+                        totalCredits += val;
+                        recordEventCreditGain();
+                        if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
+                        const groundCredits = document.getElementById('ground-credits-display');
+                        if (groundCredits) groundCredits.innerText = `${totalCredits}C`;
+                        savePlayerData();
+                    }
+                    playCoinSound();
+
+                    const plusText = document.createElement('div');
+                    plusText.className = 'popcorn-plus-text';
+                    plusText.innerText = `+${val}`;
+                    plusText.style.left = `${m.x}%`;
+                    plusText.style.bottom = `${8.05 + (m.y * 0.9195)}%`;
+                    plusText.style.zIndex = '500';
+                    gameContainer.appendChild(plusText);
+                    setTimeout(() => plusText.remove(), 800);
+                    break;
+                }
+            }
+        }
+
+        if (m.y < -8 || m.y > 115 || m.x < -15 || m.x > 115) {
+            if (m.el && m.el.parentNode) m.el.remove();
+            activeMeteors.splice(i, 1);
+        } else {
+            m.el.style.left = `${m.x}%`;
+            m.el.style.bottom = `calc(8.05% + ${m.y * 0.9195}%)`;
+            m.el.style.transform = `translate(-50%, 50%) rotate(${m.angle.toFixed(1)}deg)`;
+        }
+    }
+}
+
+let activeLevel31Planets = [];
+let activeLevel31Orbits = [];
+let level31GravitySvg = null;
+let level31GravityArrows = [];
+
+function clearLevel31Planets() {
+    activeLevel31Planets.forEach(p => {
+        if (p.el && p.el.parentNode) p.el.remove();
+    });
+    activeLevel31Planets = [];
+    activeLevel31Orbits.forEach(el => {
+        if (el && el.parentNode) el.remove();
+    });
+    activeLevel31Orbits = [];
+    if (level31GravitySvg && level31GravitySvg.parentNode) {
+        level31GravitySvg.remove();
+    }
+    level31GravitySvg = null;
+    level31GravityArrows = [];
+}
+
+function initLevel31Planets() {
+    clearLevel31Planets();
+    const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+    if (currentDisplayName !== "31") return;
+
+    const orbitConfigs = [
+        {
+            // 2, 3구역 (경계 중심: 195/7 %)
+            cx: 50,
+            cy: 195 / 7,
+            rx: 50,
+            ry: 65 / 7,
+            angle: Math.PI,
+            speed: 0.0063, // 기존 0.009 대비 30% 감소
+            size: 59.8,
+            orbitColor: 'rgba(255, 190, 100, 0.28)',
+            svg: `
+                <svg viewBox="0 0 80 56" width="100%" height="100%">
+                    <defs>
+                        <radialGradient id="planetGrad1" cx="35%" cy="30%" r="65%">
+                            <stop offset="0%" stop-color="#ffeaa7"/>
+                            <stop offset="45%" stop-color="#f39c12"/>
+                            <stop offset="85%" stop-color="#ba4a00"/>
+                            <stop offset="100%" stop-color="#6e2c00"/>
+                        </radialGradient>
+                    </defs>
+                    <ellipse cx="40" cy="28" rx="36" ry="10" fill="none" stroke="rgba(253, 203, 110, 0.55)" stroke-width="3.5" transform="rotate(-14 40 28)"/>
+                    <circle cx="40" cy="28" r="17" fill="url(#planetGrad1)"/>
+                    <path d="M 24 24 Q 40 28 56 24" fill="none" stroke="rgba(186, 74, 0, 0.45)" stroke-width="2.5"/>
+                    <path d="M 25 32 Q 40 36 55 31" fill="none" stroke="rgba(255, 234, 167, 0.4)" stroke-width="2"/>
+                    <path d="M 4 28 A 36 10 0 0 0 76 28" fill="none" stroke="rgba(255, 234, 167, 0.85)" stroke-width="3.5" transform="rotate(-14 40 28)"/>
+                </svg>
+            `
+        },
+        {
+            // 4 ~ 6구역 (중심: 460/7 %, 반경: 120/7 %)
+            cx: 50,
+            cy: 460 / 7,
+            rx: 50,
+            ry: 120 / 7,
+            angle: Math.PI / 2,
+            speed: -0.00525, // 기존 -0.0075 대비 30% 감소
+            size: 57.2,
+            orbitColor: 'rgba(116, 185, 255, 0.28)',
+            svg: `
+                <svg viewBox="0 0 80 56" width="100%" height="100%">
+                    <defs>
+                        <radialGradient id="planetGrad2" cx="35%" cy="30%" r="65%">
+                            <stop offset="0%" stop-color="#a8e6cf"/>
+                            <stop offset="45%" stop-color="#00cec9"/>
+                            <stop offset="85%" stop-color="#0984e3"/>
+                            <stop offset="100%" stop-color="#1b1464"/>
+                        </radialGradient>
+                    </defs>
+                    <ellipse cx="40" cy="28" rx="34" ry="9" fill="none" stroke="rgba(129, 236, 236, 0.5)" stroke-width="3" transform="rotate(12 40 28)"/>
+                    <circle cx="40" cy="28" r="16.5" fill="url(#planetGrad2)"/>
+                    <path d="M 24 25 Q 40 21 56 25" fill="none" stroke="rgba(255, 255, 255, 0.35)" stroke-width="2"/>
+                    <path d="M 25 32 Q 40 29 55 32" fill="none" stroke="rgba(9, 132, 227, 0.5)" stroke-width="2.5"/>
+                    <path d="M 6 28 A 34 9 0 0 0 74 28" fill="none" stroke="rgba(168, 230, 207, 0.85)" stroke-width="3" transform="rotate(12 40 28)"/>
+                </svg>
+            `
+        }
+    ];
+
+    orbitConfigs.forEach(cfg => {
+        const pEl = document.createElement('div');
+        pEl.className = 'orbiting-planet';
+        pEl.style.width = `${cfg.size}px`;
+        pEl.style.height = `${cfg.size * 0.7}px`;
+        pEl.innerHTML = cfg.svg;
+        gameContainer.appendChild(pEl);
+
+        const pObj = {
+            el: pEl,
+            cx: cfg.cx,
+            cy: cfg.cy,
+            rx: cfg.rx,
+            ry: cfg.ry,
+            angle: cfg.angle,
+            speed: cfg.speed,
+            x: cfg.cx + cfg.rx * Math.cos(cfg.angle),
+            y: cfg.cy + cfg.ry * Math.sin(cfg.angle)
+        };
+        activeLevel31Planets.push(pObj);
+    });
+
+    // 중력 벡터 실시간 화살표 SVG 오버레이 생성
+    const svgNS = "http://www.w3.org/2000/svg";
+    level31GravitySvg = document.createElementNS(svgNS, "svg");
+    level31GravitySvg.id = "level31-gravity-svg";
+    level31GravitySvg.setAttribute("width", "100%");
+    level31GravitySvg.setAttribute("height", "100%");
+    level31GravitySvg.style.position = "absolute";
+    level31GravitySvg.style.top = "0";
+    level31GravitySvg.style.left = "0";
+    level31GravitySvg.style.width = "100%";
+    level31GravitySvg.style.height = "100%";
+    level31GravitySvg.style.pointerEvents = "none";
+    level31GravitySvg.style.zIndex = "15";
+
+    level31GravitySvg.innerHTML = `
+        <defs>
+            <linearGradient id="gravityArrowGrad0" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffeaa7"/>
+                <stop offset="60%" stop-color="#f39c12"/>
+                <stop offset="100%" stop-color="#e17055"/>
+            </linearGradient>
+            <linearGradient id="gravityArrowGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#e0f7fa"/>
+                <stop offset="50%" stop-color="#00cec9"/>
+                <stop offset="100%" stop-color="#0984e3"/>
+            </linearGradient>
+            <filter id="gravityArrowGlow0" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#f39c12" flood-opacity="0.9"/>
+            </filter>
+            <filter id="gravityArrowGlow1" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#00cec9" flood-opacity="0.9"/>
+            </filter>
+        </defs>
+    `;
+
+    level31GravityArrows = [];
+    for (let i = 0; i < orbitConfigs.length; i++) {
+        const pathEl = document.createElementNS(svgNS, "path");
+        pathEl.setAttribute("fill", `url(#gravityArrowGrad${i})`);
+        pathEl.setAttribute("stroke", i === 0 ? "rgba(255, 234, 167, 0.95)" : "rgba(224, 255, 255, 0.95)");
+        pathEl.setAttribute("stroke-width", "1");
+        pathEl.setAttribute("stroke-linejoin", "round");
+        pathEl.setAttribute("filter", `url(#gravityArrowGlow${i})`);
+        pathEl.style.opacity = "0";
+        pathEl.style.pointerEvents = "none";
+        level31GravitySvg.appendChild(pathEl);
+        level31GravityArrows.push(pathEl);
+    }
+
+    gameContainer.appendChild(level31GravitySvg);
+
+    updateLevel31Planets();
+}
+
+function updateLevel31Planets() {
+    if (gameState !== 'PLAY' && gameState !== 'START') {
+        if (level31GravityArrows && level31GravityArrows.length) {
+            level31GravityArrows.forEach(arrow => { if (arrow) arrow.style.opacity = "0"; });
+        }
+        return;
+    }
+    const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
+    if (currentDisplayName !== "31") {
+        clearLevel31Planets();
+        return;
+    }
+
+    const skyWidth = gameContainer.clientWidth || 360;
+    const containerHeight = gameContainer.clientHeight || 640;
+    const skyHeight = containerHeight * 0.9195;
+    const groundOffsetPx = containerHeight * 0.0805;
+    const aspectRatio = skyHeight / skyWidth;
+
+    const shipXPx = (balloonX / 100) * skyWidth;
+    const shipYPx = (balloonY / 100) * skyHeight + 70;
+
+    // SVG 스크린 상 풍선 중심점 (top: 0 기준)
+    const shipScreenX = shipXPx;
+    const shipScreenY = containerHeight - (groundOffsetPx + shipYPx);
+
+    for (let i = 0; i < activeLevel31Planets.length; i++) {
+        const p = activeLevel31Planets[i];
+        if (gameState === 'PLAY') {
+            p.angle += p.speed;
+        }
+        p.x = p.cx + p.rx * Math.cos(p.angle);
+        p.y = p.cy + p.ry * Math.sin(p.angle);
+        const depthScale = 1.255 - 0.865 * Math.sin(p.angle);
+
+        p.el.style.left = `${p.x}%`;
+        p.el.style.bottom = `calc(8.05% + ${p.y * 0.9195}%)`;
+        p.el.style.transform = `translate(-50%, 50%) scale(${depthScale.toFixed(3)})`;
+
+        const planetXPx = (p.x / 100) * skyWidth;
+        const planetYPx = (p.y / 100) * skyHeight;
+        const dxPx = planetXPx - shipXPx;
+        const dyPx = planetYPx - shipYPx;
+        const distPx = Math.hypot(dxPx, dyPx);
+        const gravityRadiusPx = 110 + 35 * depthScale;
+
+        const arrowEl = level31GravityArrows ? level31GravityArrows[i] : null;
+
+        if (gameState === 'PLAY' && distPx < gravityRadiusPx && distPx > 1) {
+            const proximity = 1 - (distPx / gravityRadiusPx);
+            const pullForce = 0.017 * Math.pow(proximity, 1.25) * (0.55 + 0.45 * depthScale);
+            const dirX = dxPx / distPx;
+            const dirY = dyPx / distPx;
+
+            velY += dirY * pullForce;
+            velX += dirX * pullForce * 0.2 * aspectRatio;
+
+            if (distPx < 28) {
+                velX *= 0.95;
+                velY *= 0.95;
+            }
+            p.el.classList.add('gravity-pull');
+
+            // --- 행성이 실시간으로 끌어당기는 힘을 화살표의 두께와 방향으로 실시간 표현 ---
+            if (arrowEl) {
+                const planetScreenX = planetXPx;
+                const planetScreenY = containerHeight - (groundOffsetPx + planetYPx);
+
+                const screenVx = planetScreenX - shipScreenX;
+                const screenVy = planetScreenY - shipScreenY;
+                const screenDist = Math.hypot(screenVx, screenVy) || 1;
+
+                // 풍선 -> 행성 방향 단위 벡터
+                const ux = screenVx / screenDist;
+                const uy = screenVy / screenDist;
+                // 수직 법선 단위 벡터
+                const nx = -uy;
+                const ny = ux;
+
+                // 시작점: 풍선 중심에서 바깥쪽으로 시작
+                const startDist = 18;
+                const startX = shipScreenX + ux * startDist;
+                const startY = shipScreenY + uy * startDist;
+
+                // 끌어당기는 힘의 세기(proximity)에 비례하는 화살표 몸통 두께
+                const shaftHalfWidth = 1.8 + proximity * 5.2; // 두께 3.6px ~ 14px
+                const headHalfWidth = shaftHalfWidth * 2.8;     // 화살촉 날개 폭
+
+                // 화살표 길이 및 머리 길이 계산
+                const maxAllowedLen = Math.max(20, screenDist - startDist - 16);
+                const targetLen = 32 + proximity * 48; // 길이 32px ~ 80px
+                const arrowLen = Math.min(targetLen, maxAllowedLen);
+                const headLen = Math.min(arrowLen * 0.45, 12 + proximity * 10);
+
+                const tipX = startX + ux * arrowLen;
+                const tipY = startY + uy * arrowLen;
+
+                const baseHeadX = tipX - ux * headLen;
+                const baseHeadY = tipY - uy * headLen;
+
+                // 화살표 7개 꼭짓점 다각형 패스
+                const p1x = (startX + nx * shaftHalfWidth).toFixed(1);
+                const p1y = (startY + ny * shaftHalfWidth).toFixed(1);
+                const p2x = (baseHeadX + nx * shaftHalfWidth).toFixed(1);
+                const p2y = (baseHeadY + ny * shaftHalfWidth).toFixed(1);
+                const p3x = (baseHeadX + nx * headHalfWidth).toFixed(1);
+                const p3y = (baseHeadY + ny * headHalfWidth).toFixed(1);
+                const p4x = tipX.toFixed(1);
+                const p4y = tipY.toFixed(1);
+                const p5x = (baseHeadX - nx * headHalfWidth).toFixed(1);
+                const p5y = (baseHeadY - ny * headHalfWidth).toFixed(1);
+                const p6x = (baseHeadX - nx * shaftHalfWidth).toFixed(1);
+                const p6y = (baseHeadY - ny * shaftHalfWidth).toFixed(1);
+                const p7x = (startX - nx * shaftHalfWidth).toFixed(1);
+                const p7y = (startY - ny * shaftHalfWidth).toFixed(1);
+
+                const d = `M ${p1x} ${p1y} L ${p2x} ${p2y} L ${p3x} ${p3y} L ${p4x} ${p4y} L ${p5x} ${p5y} L ${p6x} ${p6y} L ${p7x} ${p7y} Z`;
+                arrowEl.setAttribute("d", d);
+                arrowEl.style.opacity = Math.min(1, 0.4 + proximity * 0.6).toFixed(2);
+            }
+        } else {
+            p.el.classList.remove('gravity-pull');
+            if (arrowEl) {
+                arrowEl.style.opacity = "0";
+            }
         }
     }
 }
@@ -5153,7 +5886,7 @@ function checkEagleCollisions() {
 }
 
 function updateNextLevelButtonVisibility() {
-    const isEventLevel = LEVEL_CONFIGS[currentLevel]?.displayName?.startsWith("EVENT");
+    const isEventLevel = LEVEL_CONFIGS[currentLevel]?.displayName?.startsWith("EVENT") || isSpaceEventLevel(LEVEL_CONFIGS[currentLevel]?.displayName);
     if (gameState === 'PLAY' && !isEventLevel) {
         if (nextLevelBtn) nextLevelBtn.classList.add('hidden');
         if (prevLevelBtn) prevLevelBtn.classList.add('hidden');
@@ -5470,9 +6203,31 @@ if (adEventRewardsEl) {
 
             if (eventLevelIdx) {
                 if (adOverlay) adOverlay.classList.add('hidden');
+                if (adEventRewardsEl) adEventRewardsEl.classList.add('hidden');
                 startRewardedEvent(parseInt(eventLevelIdx));
             }
         });
+    });
+}
+
+if (closeAdEventBtn) {
+    closeAdEventBtn.addEventListener('click', () => {
+        if (adOverlay) adOverlay.classList.add('hidden');
+        if (adEventRewardsEl) adEventRewardsEl.classList.add('hidden');
+        const timerEl = adOverlay ? adOverlay.querySelector('.ad-timer') : null;
+        if (timerEl) {
+            timerEl.classList.remove('hidden');
+            timerEl.innerText = "20";
+        }
+        if (lives > 0 && balloon && balloon.style.opacity === "0") {
+            balloon.style.opacity = "1";
+            balloon.classList.remove('explosion');
+            balloon.style.transform = "translateX(-50%) scale(1)";
+            balloonY = -getBasketOffset();
+            balloonX = 50;
+            balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
+            balloon.style.left = `${balloonX}%`;
+        }
     });
 }
 
@@ -5512,6 +6267,12 @@ if (closeEventSelectionBtn) {
 }
 
 function startRewardedEvent(levelIndex) {
+    // 이벤트 게임 진입 직전 플레이하던 일반 레벨을 기억
+    const currentCfg = LEVEL_CONFIGS[currentLevel];
+    if (currentCfg && !currentCfg.displayName.startsWith("EVENT") && !isSpaceEventLevel(currentCfg.displayName)) {
+        previousLevelBeforeRewardedEvent = currentLevel;
+    }
+
     currentLevel = levelIndex;
     resetGame();
     startGame();
