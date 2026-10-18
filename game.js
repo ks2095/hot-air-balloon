@@ -887,29 +887,11 @@ let initialItemCount = 0; // 게임 시작 직전 보유한 아이템 총 갯수
 let isStunned = false; // 붉은새 충돌 시 상태
 let stunEndTime = 0; // 스턴 종료 시간
 
-// 보너스 점수 레벨 그룹 (표시 이름 기준 - 모든 일반 레벨 1~31 포함)
-const BONUS_G1_LEVELS = ["1", "2", "3", "4", "5", "6", "7", "14", "15", "23", "26"];
-const BONUS_G2_LEVELS = ["8", "9", "10", "11", "12", "13", "16", "17", "18", "19", "20", "21", "22", "24", "25", "27", "28", "29", "30", "31"];
+// 보너스 점수 레벨 그룹 (표시 이름 기준)
+const BONUS_G1_LEVELS = ["6", "7", "14", "15", "23", "26"];
+const BONUS_G2_LEVELS = ["8", "9", "10", "16", "17", "18", "19", "20", "24", "25", "27", "28", "29", "30"];
 const BONUS_G3_LEVELS = [];
 const BONUS_G4_LEVELS = [];
-
-// 기존 레벨 베스트 스코어 중 착륙/아이템 보너스가 미반영된 기록 보정 (19레벨 등 모든 일반 레벨)
-let updatedOldScores = false;
-for (let lvl in myLevelBestScores) {
-    const cfg = LEVEL_CONFIGS[lvl];
-    if (cfg && !cfg.displayName.includes('EVENT') && cfg.displayName !== "튜토리얼" && lvl !== "0") {
-        const dName = cfg.displayName;
-        const expectedItemBonus = (BONUS_G2_LEVELS.includes(dName) ? 400 : 200);
-        // 가스+시간만 기록되어 점수가 500 미만인 기존 기록에 보너스 합산 보정
-        if (myLevelBestScores[lvl] > 0 && myLevelBestScores[lvl] < 500) {
-            myLevelBestScores[lvl] += (expectedItemBonus + 50);
-            updatedOldScores = true;
-        }
-    }
-}
-if (updatedOldScores) {
-    localStorage.setItem('balloon_level_best_scores', JSON.stringify(myLevelBestScores));
-}
 
 
 function getTotalItemsCount() {
@@ -2940,20 +2922,37 @@ function winGame() {
     const currentItemCount = getTotalItemsCount();
     const actualItemsDecreased = Math.max(0, initialItemCount - currentItemCount);
 
-    // 모든 일반 레벨에서 착륙 보너스와 아이템 보너스가 무조건 포함되도록 보장
+    // 아이템을 사용하는 레벨에만 아이템 보너스 부여, 아이템 미사용 레벨은 0점
     if (BONUS_G1_LEVELS.includes(currentDisplayName)) {
-        // Group 1 (1~7, 14, 15, 23, 26): 무조건 200점 포함
-        itemBonus = 200;
+        // Group 1: 0개 줄면 200점, 1개 이상 줄면 0점
+        if (actualItemsDecreased === 0) {
+            itemBonus = 200;
+        } else {
+            itemBonus = 0;
+        }
     } else if (BONUS_G2_LEVELS.includes(currentDisplayName)) {
-        // Group 2 (8~13, 16~22, 24, 25, 27~31): 무조건 400점 포함 (19레벨 포함)
-        itemBonus = 400;
+        // Group 2 (19레벨 등): 0개 줄면 400점, 1개 줄면 200점, 2개 이상 줄면 0점
+        if (actualItemsDecreased === 0) {
+            itemBonus = 400;
+        } else if (actualItemsDecreased === 1) {
+            itemBonus = 200;
+        } else {
+            itemBonus = 0;
+        }
     } else if (BONUS_G3_LEVELS.includes(currentDisplayName)) {
-        itemBonus = 600;
+        if (actualItemsDecreased === 0) itemBonus = 600;
+        else if (actualItemsDecreased === 1) itemBonus = 400;
+        else if (actualItemsDecreased === 2) itemBonus = 200;
+        else itemBonus = 0;
     } else if (BONUS_G4_LEVELS.includes(currentDisplayName)) {
-        itemBonus = 800;
-    } else if (!isEventLevel && currentDisplayName !== "튜토리얼" && currentLevel !== 0) {
-        // 기타 모든 일반 레벨: 기본 200점 무조건 보장
-        itemBonus = 200;
+        if (actualItemsDecreased === 0) itemBonus = 800;
+        else if (actualItemsDecreased === 1) itemBonus = 600;
+        else if (actualItemsDecreased === 2) itemBonus = 400;
+        else if (actualItemsDecreased === 3) itemBonus = 200;
+        else itemBonus = 0;
+    } else {
+        // 아이템을 사용하지 않는 레벨은 아이템 보너스 미합산
+        itemBonus = 0;
     }
 
 
