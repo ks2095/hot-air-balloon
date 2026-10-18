@@ -17,6 +17,30 @@ try {
 const db = firebase.firestore();
 // =============================================== //
 
+// 모바일 브라우저(아이폰, 갤럭시) 상/하단 바 고려한 동적 뷰포트 높이 계산 (--app-height)
+function setAppHeight() {
+    const vh = window.innerHeight;
+    document.documentElement.style.setProperty('--app-height', `${vh}px`);
+}
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', () => {
+    setTimeout(setAppHeight, 150);
+});
+if (screen && screen.orientation) {
+    screen.orientation.addEventListener('change', () => {
+        setTimeout(setAppHeight, 150);
+    });
+}
+document.addEventListener('fullscreenchange', () => {
+    setAppHeight();
+    if (typeof updateSettingsUI === 'function') updateSettingsUI();
+});
+document.addEventListener('webkitfullscreenchange', () => {
+    setAppHeight();
+    if (typeof updateSettingsUI === 'function') updateSettingsUI();
+});
+setAppHeight();
+
 const gameContainer = document.getElementById('game-container');
 const balloon = document.getElementById('balloon');
 const restartBtn = document.getElementById('restart-btn');
@@ -74,6 +98,7 @@ const settingsScreen = document.getElementById('settings-screen');
 const windToggleSettingsBtn = document.getElementById('wind-toggle-settings-btn');
 const musicToggleSettingsBtn = document.getElementById('music-toggle-settings-btn');
 const uiSwapSettingsBtn = document.getElementById('ui-swap-settings-btn');
+const fullscreenToggleSettingsBtn = document.getElementById('fullscreen-toggle-settings-btn');
 const groundEl = document.getElementById('ground');
 const resetRecordSettingsBtn = document.getElementById('reset-record-settings-btn');
 const devNextLevelBtn = document.getElementById('dev-next-level-btn'); // [DEV ONLY]
@@ -1130,6 +1155,34 @@ function init() {
             if (groundEl) groundEl.classList.toggle('swapped-ui', isUiSwapped);
             savePlayerData();
             updateSettingsUI();
+        });
+    }
+
+    if (fullscreenToggleSettingsBtn) {
+        fullscreenToggleSettingsBtn.addEventListener('click', () => {
+            const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+            if (!isFullscreen) {
+                const el = document.documentElement;
+                if (el.requestFullscreen) {
+                    el.requestFullscreen().catch(err => {
+                        console.log("Fullscreen request error", err);
+                    });
+                } else if (el.webkitRequestFullscreen) {
+                    el.webkitRequestFullscreen();
+                } else {
+                    alert("아이폰(iOS) 브라우저 정책상 버튼 전체화면이 제한되어 있습니다.\n\n[팁] 사파리나 크롬 하단 '공유' → '홈 화면에 추가'를 하시면 주소창과 메뉴바가 완전히 사라진 100% 전체화면 앱으로 플레이할 수 있습니다!");
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            }
+            setTimeout(() => {
+                setAppHeight();
+                updateSettingsUI();
+            }, 100);
         });
     }
 
@@ -6014,6 +6067,11 @@ function updateSettingsUI() {
     if (uiSwapSettingsBtn) {
         uiSwapSettingsBtn.classList.toggle('active', isUiSwapped);
         uiSwapSettingsBtn.innerText = isUiSwapped ? 'ON' : 'OFF';
+    }
+    if (fullscreenToggleSettingsBtn) {
+        const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        fullscreenToggleSettingsBtn.classList.toggle('active', isFullscreen);
+        fullscreenToggleSettingsBtn.innerText = isFullscreen ? 'ON' : 'GO ⛶';
     }
 }
 
