@@ -76,6 +76,7 @@ const musicToggleSettingsBtn = document.getElementById('music-toggle-settings-bt
 const uiSwapSettingsBtn = document.getElementById('ui-swap-settings-btn');
 const groundEl = document.getElementById('ground');
 const resetRecordSettingsBtn = document.getElementById('reset-record-settings-btn');
+const devNextLevelBtn = document.getElementById('dev-next-level-btn'); // [DEV ONLY]
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 const windLabels = document.querySelectorAll('.wind-label');
 const steakContainer = document.getElementById('steak-cooking-container');
@@ -762,13 +763,20 @@ const LEVEL_CONFIGS = {
         displayName: "31",
         winds: [0, 0, 0, 0, 0, 0, 0],
         maxGas: 200,
-        maxTime: 40,
+        maxTime: 20,
+        platformY: 5.0
+    },
+    38: {
+        displayName: "32",
+        winds: [0, 0, 0, 0, 0, 0, 0],
+        maxGas: 200,
+        maxTime: 20,
         platformY: 5.0
     }
 };
 
 function isSpaceEventLevel(displayName) {
-    return displayName === "EVENT 6" || displayName === "31";
+    return displayName === "EVENT 6" || displayName === "31" || displayName === "32";
 }
 
 if (!LEVEL_CONFIGS[currentLevel]) {
@@ -1166,6 +1174,27 @@ function init() {
 
                 alert("기록이 성공적으로 초기화되었습니다.");
                 location.reload(); // Reload to ensure everything is fresh
+            }
+        });
+    }
+
+    // [DEV ONLY] 설정창 내 다음 레벨 건너뛰기 버튼 (Ctrl + L 과 동일한 기능) - 나중에 삭제 예정
+    if (devNextLevelBtn) {
+        devNextLevelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const maxLevel = Object.keys(LEVEL_CONFIGS).length - 1;
+            if (currentLevel < maxLevel) {
+                currentLevel++;
+                resetGame();
+                if (typeof updateNextLevelButtonVisibility === 'function') {
+                    updateNextLevelButtonVisibility();
+                }
+                if (settingsScreen) {
+                    settingsScreen.classList.add('hidden');
+                }
+                console.log(`[DEV ONLY] Switched to Level ${currentLevel} via settings button`);
+            } else {
+                alert("현재 마지막 레벨입니다.");
             }
         });
     }
@@ -2285,7 +2314,7 @@ function updateTargetLine() {
         if (config.displayName === "19") pixelOffset = 2; // Lowered by 10px from 12
         targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + ${pixelOffset}px)`;
 
-        targetLineEl.classList.toggle('wormhole', config.displayName === "31");
+        targetLineEl.classList.toggle('wormhole', config.displayName === "31" || config.displayName === "32");
 
         // EVENT 레벨들에서 착륙 패드 숨기기
         if (config.displayName.startsWith("EVENT")) {
@@ -2454,7 +2483,7 @@ function handleMovement() {
 
         if (basketWithinH) {
             // Check for top-down landing on the Yellow line (platTop)
-            const isLevel31 = config.displayName === "31";
+            const isLevel31 = config.displayName === "31" || config.displayName === "32";
             const isTouchingTop = isLevel31
                 ? (basketY <= platTop + 1.2 && basketY >= platBottom)
                 : (basketY <= platTop + 0.3 && basketY >= platTop - 0.7);
@@ -2628,7 +2657,7 @@ function checkBoundaries() {
             balloonY = 100;
             if (velY > 0) velY = -velY * 0.4; // 우주 무중력 상단 탄성 반사
         }
-    } else if (config && config.displayName === "31") {
+    } else if (config && (config.displayName === "31" || config.displayName === "32")) {
         if (balloonY < -basketOffsetPercentage) {
             balloonY = -basketOffsetPercentage;
             if (velY < 0) velY = 0; // 최하단에서는 폭발하지 않고 정지
@@ -3276,10 +3305,10 @@ function resetGame() {
             balloonImg.src = 'space ballon.png';
             balloonImg.classList.add('space-balloon');
             balloon.classList.add('space-mode');
-            balloon.classList.toggle('level31-mode', config.displayName === "31");
+            balloon.classList.toggle('level31-mode', config.displayName === "31" || config.displayName === "32");
             if (groundEl) {
                 groundEl.classList.add('space-ground');
-                groundEl.classList.toggle('no-globe', config.displayName === "31");
+                groundEl.classList.toggle('no-globe', config.displayName === "31" || config.displayName === "32");
             }
             if (mainActionBtn) mainActionBtn.classList.add('hidden');
             if (event6Joystick) event6Joystick.classList.remove('hidden');
@@ -4069,7 +4098,7 @@ function clearLevel31Planets() {
 function initLevel31Planets() {
     clearLevel31Planets();
     const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
-    if (currentDisplayName !== "31") return;
+    if (currentDisplayName !== "31" && currentDisplayName !== "32") return;
 
     const orbitConfigs = [
         {
@@ -4214,7 +4243,7 @@ function updateLevel31Planets() {
         return;
     }
     const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
-    if (currentDisplayName !== "31") {
+    if (currentDisplayName !== "31" && currentDisplayName !== "32") {
         clearLevel31Planets();
         return;
     }
