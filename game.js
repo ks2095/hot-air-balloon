@@ -791,23 +791,7 @@ if (changedBestScores) {
     localStorage.setItem('balloon_level_best_scores', JSON.stringify(myLevelBestScores));
 }
 
-// 기존 레벨 베스트 스코어 중 착륙/아이템 보너스가 미반영된 기록 보정 (19레벨 등 모든 일반 레벨)
-let updatedOldScores = false;
-for (let lvl in myLevelBestScores) {
-    const cfg = LEVEL_CONFIGS[lvl];
-    if (cfg && !cfg.displayName.includes('EVENT') && cfg.displayName !== "튜토리얼" && lvl !== "0") {
-        const dName = cfg.displayName;
-        const expectedItemBonus = (BONUS_G2_LEVELS.includes(dName) ? 400 : 200);
-        // 가스+시간만 기록되어 점수가 500 미만인 기존 기록에 보너스 합산 보정
-        if (myLevelBestScores[lvl] > 0 && myLevelBestScores[lvl] < 500) {
-            myLevelBestScores[lvl] += (expectedItemBonus + 50);
-            updatedOldScores = true;
-        }
-    }
-}
-if (updatedOldScores) {
-    localStorage.setItem('balloon_level_best_scores', JSON.stringify(myLevelBestScores));
-}
+
 
 // Game state
 let gameState = 'START';
@@ -908,6 +892,24 @@ const BONUS_G1_LEVELS = ["1", "2", "3", "4", "5", "6", "7", "14", "15", "23", "2
 const BONUS_G2_LEVELS = ["8", "9", "10", "11", "12", "13", "16", "17", "18", "19", "20", "21", "22", "24", "25", "27", "28", "29", "30", "31"];
 const BONUS_G3_LEVELS = [];
 const BONUS_G4_LEVELS = [];
+
+// 기존 레벨 베스트 스코어 중 착륙/아이템 보너스가 미반영된 기록 보정 (19레벨 등 모든 일반 레벨)
+let updatedOldScores = false;
+for (let lvl in myLevelBestScores) {
+    const cfg = LEVEL_CONFIGS[lvl];
+    if (cfg && !cfg.displayName.includes('EVENT') && cfg.displayName !== "튜토리얼" && lvl !== "0") {
+        const dName = cfg.displayName;
+        const expectedItemBonus = (BONUS_G2_LEVELS.includes(dName) ? 400 : 200);
+        // 가스+시간만 기록되어 점수가 500 미만인 기존 기록에 보너스 합산 보정
+        if (myLevelBestScores[lvl] > 0 && myLevelBestScores[lvl] < 500) {
+            myLevelBestScores[lvl] += (expectedItemBonus + 50);
+            updatedOldScores = true;
+        }
+    }
+}
+if (updatedOldScores) {
+    localStorage.setItem('balloon_level_best_scores', JSON.stringify(myLevelBestScores));
+}
 
 
 function getTotalItemsCount() {
