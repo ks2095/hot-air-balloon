@@ -2864,22 +2864,21 @@ button:hover {
     }
 }
 
-/* Settings Screen Transparency (100% transparent background) */
+/* Settings Screen Transparency (50% transparent background) */
 #settings-screen.overlay {
-    background: transparent !important;
-    background-color: transparent !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
     opacity: 1 !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
 }
 
 #settings-screen .settings-container {
-    background: transparent !important;
-    background-color: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
     padding: 2rem;
 }
 
@@ -3478,4 +3477,89 @@ button:hover {
 }
 
 
+/* Tutorial Button Tooltip Speech Bubbles */
+.tutorial-bubble-tooltip {
+    position: absolute;
+    background: rgba(22, 27, 34, 0.95);
+    color: #ffffff;
+    border: 2px solid #2ecc71;
+    border-radius: 12px;
+    padding: 8px 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7), 0 0 10px rgba(46, 204, 113, 0.4);
+    pointer-events: none;
+    z-index: 1200;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    text-align: center;
+    white-space: pre-line;
+    animation: bubblePopIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
 
+.tutorial-bubble-tooltip .bubble-title {
+    display: block;
+    font-weight: 800;
+    color: #ffd32a;
+    font-size: 0.82rem;
+    margin-bottom: 3px;
+    letter-spacing: 0.5px;
+}
+
+.tutorial-bubble-tooltip .bubble-desc {
+    color: #ecf0f1;
+    font-weight: 500;
+}
+
+.tutorial-bubble-tooltip .bubble-sub {
+    display: block;
+    font-size: 0.68rem;
+    color: #2ecc71;
+    margin-top: 4px;
+    opacity: 0.9;
+}
+
+/* Arrow styling */
+.tutorial-bubble-tooltip::after {
+    content: '';
+    position: absolute;
+    border-width: 7px;
+    border-style: solid;
+}
+
+.tutorial-bubble-tooltip.arrow-bottom::after {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-color: #2ecc71 transparent transparent transparent;
+}
+
+.tutorial-bubble-tooltip.arrow-top::after {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-color: transparent transparent #2ecc71 transparent;
+}
+
+.tutorial-bubble-tooltip.arrow-left::after {
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-color: transparent #2ecc71 transparent transparent;
+}
+
+.tutorial-bubble-tooltip.arrow-right::after {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-color: transparent transparent transparent #2ecc71;
+}
+
+@keyframes bubblePopIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
