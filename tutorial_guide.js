@@ -8,43 +8,67 @@
 
     const TUTORIAL_BUTTON_EXPLANATIONS = {
         'main-action-btn': {
-            title: 'START / BURNER',
-            desc: '열기구를 출발시키고,<br>누르고 있으면 버너로 상승합니다.',
+            title: { kor: 'START / BURNER', eng: 'START / BURNER' },
+            desc: {
+                kor: '열기구를 출발시키고,<br>누르고 있으면 버너로 상승합니다.',
+                eng: 'Starts balloon, and hold to<br>activate burner to ascend.'
+            },
             placement: 'top'
         },
         'store-label-btn': {
-            title: 'STORE (상점)',
-            desc: '코인(C)으로 유용한 아이템을<br>구매하거나 판매할 수 있습니다.',
+            title: { kor: 'STORE (상점)', eng: 'STORE' },
+            desc: {
+                kor: '코인(C)으로 유용한 아이템을<br>구매하거나 판매할 수 있습니다.',
+                eng: 'Buy or sell useful items<br>with coins (C).'
+            },
             placement: 'top'
         },
         'item-label-btn': {
-            title: 'ITEM (인벤토리)',
-            desc: '보유 중인 아이템을 장착하거나<br>게임 화면에 배치할 수 있습니다.',
+            title: { kor: 'ITEM (인벤토리)', eng: 'ITEM' },
+            desc: {
+                kor: '보유 중인 아이템을 장착하거나<br>게임 화면에 배치할 수 있습니다.',
+                eng: 'Equip or place items onto<br>the sky playfield.'
+            },
             placement: 'top'
         },
         'rank-btn': {
-            title: 'RANK (순위)',
-            desc: '레벨별 클리어 점수와 전체<br>랭킹 순위를 확인하고 등록합니다.',
+            title: { kor: 'RANK (순위)', eng: 'RANK' },
+            desc: {
+                kor: '레벨별 클리어 점수와 전체<br>랭킹 순위를 확인하고 등록합니다.',
+                eng: 'Check and submit level scores<br>and overall leaderboard rank.'
+            },
             placement: 'bottom'
         },
         'ads-btn': {
-            title: 'Ads (보상 광고)',
-            desc: '광고를 시청하고 생명 충전<br>또는 이벤트 게임을 즐길 수 있습니다.',
+            title: { kor: 'Ads (보상 광고)', eng: 'Ads' },
+            desc: {
+                kor: '광고를 시청하고 생명 충전<br>또는 이벤트 게임을 즐길 수 있습니다.',
+                eng: 'Watch ads to refill lives or<br>play special event games.'
+            },
             placement: 'bottom'
         },
         'settings-btn': {
-            title: 'Settings (환경설정)',
-            desc: '바람 정보 표시, 음악(BGM), UI 위치,<br>전체화면 등을 설정합니다.',
+            title: { kor: 'Settings (환경설정)', eng: 'Settings' },
+            desc: {
+                kor: '바람 정보 표시, 음악(BGM), UI 위치,<br>전체화면, 언어 등을 설정합니다.',
+                eng: 'Configure winds, music, UI swap,<br>fullscreen, and language.'
+            },
             placement: 'bottom'
         },
         'next-level-btn': {
-            title: '다음 레벨 (▶)',
-            desc: '다음 레벨 단계로 바로 이동합니다.',
+            title: { kor: '다음 레벨 (▶)', eng: 'Next Level (▶)' },
+            desc: {
+                kor: '다음 레벨 단계로 바로 이동합니다.',
+                eng: 'Jump directly to the next level.'
+            },
             placement: 'bottom'
         },
         'prev-level-btn': {
-            title: '이전 레벨 (◀)',
-            desc: '이전 레벨 단계로 되돌아갑니다.',
+            title: { kor: '이전 레벨 (◀)', eng: 'Prev Level (◀)' },
+            desc: {
+                kor: '이전 레벨 단계로 되돌아갑니다.',
+                eng: 'Return to previous level.'
+            },
             placement: 'bottom'
         }
     };
@@ -83,13 +107,18 @@
         const info = TUTORIAL_BUTTON_EXPLANATIONS[btnId];
         if (!info || !targetEl) return;
 
+        const lang = (typeof currentLanguage !== 'undefined' && currentLanguage === 'eng') ? 'eng' : 'kor';
+        const titleText = (typeof info.title === 'object') ? (info.title[lang] || info.title.kor) : info.title;
+        const descText = (typeof info.desc === 'object') ? (info.desc[lang] || info.desc.kor) : info.desc;
+        const subText = (lang === 'eng') ? 'Touch once more to activate' : '한 번 더 터치하면 실행됩니다';
+
         const container = document.getElementById('game-container') || document.body;
         const tooltip = document.createElement('div');
         tooltip.className = 'tutorial-bubble-tooltip';
         tooltip.id = 'tutorial-btn-tooltip';
-        tooltip.innerHTML = '<span class="bubble-title">' + info.title + '</span>' +
-                            '<span class="bubble-desc">' + info.desc + '</span>' +
-                            '<span class="bubble-sub">한 번 더 터치하면 실행됩니다</span>';
+        tooltip.innerHTML = '<span class="bubble-title">' + titleText + '</span>' +
+                            '<span class="bubble-desc">' + descText + '</span>' +
+                            '<span class="bubble-sub">' + subText + '</span>';
 
         container.appendChild(tooltip);
         activeTutorialTooltipEl = tooltip;

@@ -95,6 +95,7 @@ const eventCloseBtn = document.getElementById('event-close-btn');
 const eventAccumulatedTotalEl = document.getElementById('event-accumulated-total-credits');
 const settingsBtn = document.getElementById('settings-btn');
 const settingsScreen = document.getElementById('settings-screen');
+const langToggleSettingsBtn = document.getElementById('lang-toggle-settings-btn');
 const windToggleSettingsBtn = document.getElementById('wind-toggle-settings-btn');
 const musicToggleSettingsBtn = document.getElementById('music-toggle-settings-btn');
 const uiSwapSettingsBtn = document.getElementById('ui-swap-settings-btn');
@@ -211,6 +212,7 @@ Promise.all([
 let showWindLabels = false;
 let isMusicEnabled = (localStorage.getItem('balloon_music_enabled') !== 'false'); // Default true
 let isUiSwapped = (localStorage.getItem('balloon_ui_swapped') === 'true'); // Default false
+let currentLanguage = localStorage.getItem('balloon_language') || 'kor'; // 'kor' or 'eng'
 if (groundEl) groundEl.classList.toggle('swapped-ui', isUiSwapped);
 
 let storeOperationMode = null; // 'buy', 'sell' or null
@@ -331,6 +333,7 @@ function savePlayerData() {
     localStorage.setItem('balloon_last_life_update', lastLifeUpdate);
     localStorage.setItem('balloon_music_enabled', isMusicEnabled);
     localStorage.setItem('balloon_ui_swapped', isUiSwapped);
+    localStorage.setItem('balloon_language', currentLanguage);
     localStorage.setItem('balloon_current_level', currentLevel);
     localStorage.setItem('balloon_last_event_credit_time', lastEventCreditTime);
 
@@ -523,7 +526,7 @@ const LEVEL_CONFIGS = {
     },
     1: {
         displayName: "1",
-        winds: [1.5, -1.5, 1.5, -1.5, 1.5, -1.5, 1.5],
+        winds: [-1.5, 1.5, -1.5, 1.5, -1.5, 1.5, -1.5],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -1125,6 +1128,15 @@ function init() {
         });
     }
 
+    if (langToggleSettingsBtn) {
+        langToggleSettingsBtn.addEventListener('click', () => {
+            currentLanguage = (currentLanguage === 'kor') ? 'eng' : 'kor';
+            savePlayerData();
+            updateLanguageUI();
+            updateSettingsUI();
+        });
+    }
+
     if (windToggleSettingsBtn) {
         windToggleSettingsBtn.addEventListener('click', () => {
             showWindLabels = !showWindLabels;
@@ -1170,7 +1182,10 @@ function init() {
                 } else if (el.webkitRequestFullscreen) {
                     el.webkitRequestFullscreen();
                 } else {
-                    alert("아이폰(iOS) 브라우저 정책상 버튼 전체화면이 제한되어 있습니다.\n\n[팁] 사파리나 크롬 하단 '공유' → '홈 화면에 추가'를 하시면 주소창과 메뉴바가 완전히 사라진 100% 전체화면 앱으로 플레이할 수 있습니다!");
+                    const iosAlertMsg = (currentLanguage === 'kor')
+                        ? "아이폰(iOS) 브라우저 정책상 버튼 전체화면이 제한되어 있습니다.\n\n[팁] 사파리나 크롬 하단 '공유' → '홈 화면에 추가'를 하시면 주소창과 메뉴바가 완전히 사라진 100% 전체화면 앱으로 플레이할 수 있습니다!"
+                        : "Fullscreen via button is restricted by iOS browser policy.\n\n[Tip] Tap 'Share' at the bottom of Safari or Chrome → 'Add to Home Screen' to play in 100% fullscreen mode!";
+                    alert(iosAlertMsg);
                 }
             } else {
                 if (document.exitFullscreen) {
@@ -1188,7 +1203,10 @@ function init() {
 
     if (resetRecordSettingsBtn) {
         resetRecordSettingsBtn.addEventListener('click', () => {
-            if (confirm("모든 기록(크레딧, 아이템, 진행 상황, 랭킹)을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+            const confirmResetMsg = (currentLanguage === 'kor')
+                ? "모든 기록(크레딧, 아이템, 진행 상황, 랭킹)을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+                : "Are you sure you want to reset all records (credits, items, progress, rank)? This action cannot be undone.";
+            if (confirm(confirmResetMsg)) {
                 // Clear localStorage
                 localStorage.removeItem('balloon_credits');
                 localStorage.removeItem('balloon_upgrades');
@@ -1225,7 +1243,7 @@ function init() {
                 // Reset game state
                 resetGame();
 
-                alert("기록이 성공적으로 초기화되었습니다.");
+                alert(currentLanguage === 'kor' ? "기록이 성공적으로 초기화되었습니다." : "Records have been successfully reset.");
                 location.reload(); // Reload to ensure everything is fresh
             }
         });
@@ -1247,7 +1265,7 @@ function init() {
                 }
                 console.log(`[DEV ONLY] Switched to Level ${currentLevel} via settings button`);
             } else {
-                alert("현재 마지막 레벨입니다.");
+                alert(currentLanguage === 'kor' ? "현재 마지막 레벨입니다." : "This is the last level.");
             }
         });
     }
@@ -1287,6 +1305,12 @@ function init() {
         });
     }
 
+    function getNoLifeAlertMessage(waitMin) {
+        return (currentLanguage === 'kor') ?
+            `생명이 없습니다! 충전될 때까지 약 ${waitMin}분 더 기다려야 합니다.` :
+            `No lives remaining! Please wait ~${waitMin} min for recharge.`;
+    }
+
     // Controls
     mainActionBtn.addEventListener('mousedown', async (e) => {
         if (!isSoundPreloaded) await startSoundSystem();
@@ -1301,7 +1325,7 @@ function init() {
                 const nextRegenTime = lastLifeUpdate + (5 * 60 * 1000);
                 const waitMs = nextRegenTime - now;
                 const waitMin = Math.ceil(waitMs / 60000);
-                alert(`생명이 없습니다! 충전될 때까지 약 ${waitMin}분 더 기다려야 합니다.`);
+                alert(getNoLifeAlertMessage(waitMin));
                 return;
             }
             resetGame();
@@ -1327,7 +1351,7 @@ function init() {
                 const nextRegenTime = lastLifeUpdate + (5 * 60 * 1000);
                 const waitMs = nextRegenTime - now;
                 const waitMin = Math.ceil(waitMs / 60000);
-                alert(`생명이 없습니다! 충전될 때까지 약 ${waitMin}분 더 기다려야 합니다.`);
+                alert(getNoLifeAlertMessage(waitMin));
                 return;
             }
             resetGame();
@@ -1356,7 +1380,7 @@ function init() {
                     const nextRegenTime = lastLifeUpdate + (5 * 60 * 1000);
                     const waitMs = nextRegenTime - now;
                     const waitMin = Math.ceil(waitMs / 60000);
-                    alert(`생명이 없습니다! 충전될 때까지 약 ${waitMin}분 더 기다려야 합니다.`);
+                    alert(getNoLifeAlertMessage(waitMin));
                     return;
                 }
                 resetGame();
@@ -1498,14 +1522,18 @@ function init() {
         // 관리자 전용: 서버 랭킹 초기화 (Alt + Ctrl + M)
         if (e.altKey && e.ctrlKey && e.key.toLowerCase() === 'm') {
             e.preventDefault();
-            const pw = prompt("관리자 비밀번호를 입력하세요:");
+            const pwPrompt = (currentLanguage === 'kor') ? "관리자 비밀번호를 입력하세요:" : "Enter admin password:";
+            const pw = prompt(pwPrompt);
             if (pw === "ydp3200@@") {
-                if (confirm("정말로 서버의 모든 랭킹 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+                const confirmAdminMsg = (currentLanguage === 'kor')
+                    ? "정말로 서버의 모든 랭킹 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+                    : "Are you sure you want to delete all leaderboard records from the server? This cannot be undone.";
+                if (confirm(confirmAdminMsg)) {
                     const deleteServerRankings = async () => {
                         try {
                             const snapshot = await db.collection("leaderboard").get();
                             if (snapshot.empty) {
-                                alert("삭제할 기록이 없습니다.");
+                                alert(currentLanguage === 'kor' ? "삭제할 기록이 없습니다." : "No records to delete.");
                                 return;
                             }
                             const batch = db.batch();
@@ -1513,19 +1541,19 @@ function init() {
                                 batch.delete(doc.ref);
                             });
                             await batch.commit();
-                            alert("서버의 모든 랭킹 기록이 성공적으로 삭제되었습니다.");
+                            alert(currentLanguage === 'kor' ? "서버의 모든 랭킹 기록이 성공적으로 삭제되었습니다." : "All leaderboard records successfully deleted from server.");
                             if (rankScreen && !rankScreen.classList.contains('hidden')) {
                                 updateRankUI();
                             }
                         } catch (err) {
                             console.error("서버 랭킹 삭제 중 오류 발생:", err);
-                            alert("서버 기록 삭제 중 오류가 발생했습니다.");
+                            alert(currentLanguage === 'kor' ? "서버 기록 삭제 중 오류가 발생했습니다." : "Error deleting server records.");
                         }
                     };
                     deleteServerRankings();
                 }
             } else if (pw !== null) {
-                alert("비밀번호가 틀렸습니다.");
+                alert(currentLanguage === 'kor' ? "비밀번호가 틀렸습니다." : "Incorrect password.");
             }
         }
     });
@@ -1973,12 +2001,18 @@ function updateStoreUI(isInventoryMode = false) {
             itemDiv.className = `store-mini-item item-${key}`;
             if (isInventoryMode) {
                 const allItemLevels = [...BONUS_G1_LEVELS, ...BONUS_G2_LEVELS, ...BONUS_G3_LEVELS, ...BONUS_G4_LEVELS];
+                const isTutorial = (currentLevel === 0 || displayName === "튜토리얼");
 
                 let isItemDisabled = (count === 0);
 
-                // 아이템 미션이 없는 레벨이라면 비활성화
-                if (!allItemLevels.includes(displayName)) {
+                // 아이템 미션이 없는 레벨이라면 비활성화 (튜토리얼 레벨은 사용 가능)
+                if (!isTutorial && !allItemLevels.includes(displayName)) {
                     isItemDisabled = true;
+                } else if (isTutorial) {
+                    // 튜토리얼에서는 최대 4개까지 자유롭게 테스트 배치 가능
+                    if (droppedItems.length >= 4) {
+                        isItemDisabled = true;
+                    }
                 } else if (BONUS_G1_LEVELS.includes(displayName)) {
                     if (droppedItems.length >= 1) {
                         isItemDisabled = true;
@@ -2037,7 +2071,8 @@ function updateStoreUI(isInventoryMode = false) {
                                     updateLivesUI();
                                     updateStoreUI(false);
                                 } else {
-                                    alert("이미 최대 생명(7개)을 보유하고 있습니다.");
+                                    const isKor = (currentLanguage === 'kor');
+                                    alert(isKor ? "이미 최대 생명(7개)을 보유하고 있습니다." : "You already have maximum lives (7).");
                                 }
                             } else {
                                 totalCredits -= data.price;
@@ -2055,7 +2090,8 @@ function updateStoreUI(isInventoryMode = false) {
                                 updateLivesUI();
                                 updateStoreUI(false);
                             } else {
-                                alert("최소 1개의 생명은 남겨두어야 합니다.");
+                                const isKor = (currentLanguage === 'kor');
+                                alert(isKor ? "최소 1개의 생명은 남겨두어야 합니다." : "You must keep at least 1 life.");
                             }
                         } else if (upgrades[key] > 0) {
                             totalCredits += data.price; // Selling for full price as no other specified
@@ -2070,8 +2106,11 @@ function updateStoreUI(isInventoryMode = false) {
                 // 인벤토리 모드: 누른 채로 이동하여 마우스를 놓을 때 한 개 배치
                 itemDiv.addEventListener('mousedown', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
+                    const isTutorial = (currentLevel === 0 || displayName === "튜토리얼");
 
-                    if (BONUS_G1_LEVELS.includes(displayName)) {
+                    if (isTutorial) {
+                        if (droppedItems.length >= 4) return;
+                    } else if (BONUS_G1_LEVELS.includes(displayName)) {
                         if (droppedItems.length >= 1) return;
                     } else if (BONUS_G2_LEVELS.includes(displayName)) {
                         if (droppedItems.length >= 2) return;
@@ -2091,8 +2130,11 @@ function updateStoreUI(isInventoryMode = false) {
                 });
                 itemDiv.addEventListener('touchstart', (e) => {
                     const displayName = LEVEL_CONFIGS[currentLevel].displayName;
+                    const isTutorial = (currentLevel === 0 || displayName === "튜토리얼");
 
-                    if (BONUS_G1_LEVELS.includes(displayName)) {
+                    if (isTutorial) {
+                        if (droppedItems.length >= 4) return;
+                    } else if (BONUS_G1_LEVELS.includes(displayName)) {
                         if (droppedItems.length >= 1) return;
                     } else if (BONUS_G2_LEVELS.includes(displayName)) {
                         if (droppedItems.length >= 2) return;
@@ -2855,7 +2897,11 @@ function gameOver(msg = 'OVERHEAT') {
         const waitMs = nextRegenTime - now;
         const waitMin = Math.ceil(waitMs / 60000);
 
-        alert(`모든 생명을 잃었습니다! 1개가 충전될 때까지 약 ${waitMin}분 기다려야 합니다.`);
+        const isKor = (currentLanguage === 'kor');
+        const alertMsg = isKor ?
+            `모든 생명을 잃었습니다! 1개가 충전될 때까지 약 ${waitMin}분 기다려야 합니다.` :
+            `You lost all lives! Please wait ~${waitMin} min for 1 life to recharge.`;
+        alert(alertMsg);
 
         // 생명 0개 상태로 유지하고 게임 시작 방지 로직 필요시 추가
         lives = 0;
@@ -3053,7 +3099,8 @@ function winGame() {
     if (isSteakEvent) {
         if (resultScoreEl) resultScoreEl.innerText = finalScore;
         if (resultFormulaEl) {
-            resultFormulaEl.innerHTML = `COOKED: ${displayCookedPct}% * 10`;
+            const label = (currentLanguage === 'kor') ? '굽기' : 'COOKED';
+            resultFormulaEl.innerHTML = `${label}: ${displayCookedPct}% * 10`;
         }
     } else {
         if (resultScoreEl) resultScoreEl.innerText = isSteakEvent ? (displayCookedPct * 10) : (score + itemBonus);
@@ -3085,15 +3132,18 @@ function winGame() {
     } else {
         // 일반 레벨: 최고기록 경신 시에만 (새로운 점수 - 기존 최고기록) 만큼의 크레딧을 추가로 지급
         const oldBest = myLevelBestScores[currentLevel] || 0;
+        const isKor = (currentLanguage === 'kor');
         if (scoreForRank > oldBest) {
             finalScore = scoreForRank - oldBest;
             if (isAlreadyCleared && resultFormulaEl) {
-                resultFormulaEl.innerHTML += `<br><span style="color: #ffd32a; font-size: 0.8em;">(신기록 달성! +${finalScore}C 추가 획득)</span>`;
+                const newRecordText = isKor ? `(신기록 달성! +${finalScore}C 추가 획득)` : `(New Record! +${finalScore}C earned)`;
+                resultFormulaEl.innerHTML += `<br><span style="color: #ffd32a; font-size: 0.8em;">${newRecordText}</span>`;
             }
         } else {
             finalScore = 0;
             if (isAlreadyCleared && resultFormulaEl) {
-                resultFormulaEl.innerHTML += `<br><span style="color: #666; font-size: 0.7em;">(최고기록 미달성 - 기존: ${oldBest})</span>`;
+                const notBeatenText = isKor ? `(최고기록 미달성 - 기존: ${oldBest})` : `(Best record not beaten - Best: ${oldBest})`;
+                resultFormulaEl.innerHTML += `<br><span style="color: #666; font-size: 0.7em;">${notBeatenText}</span>`;
             }
         }
     }
@@ -3148,14 +3198,18 @@ function winGame() {
             const returnDisplayName = LEVEL_CONFIGS[targetReturnLevel]?.displayName || targetReturnLevel;
 
             let earnedMsg = "";
+            const isKor = (currentLanguage === 'kor');
             if (currentDisplayName === "EVENT 1" || currentDisplayName === "EVENT 3" || currentDisplayName === "EVENT 6") {
-                earnedMsg = sessionEventCredits > 0 ? ` (+${sessionEventCredits}C 획득)` : "";
+                earnedMsg = sessionEventCredits > 0 ? (isKor ? ` (+${sessionEventCredits}C 획득)` : ` (+${sessionEventCredits}C earned)`) : "";
             } else if (currentDisplayName === "EVENT 4") {
-                earnedMsg = event4FishCaughtScore > 0 ? ` (+${event4FishCaughtScore}C 획득)` : "";
+                earnedMsg = event4FishCaughtScore > 0 ? (isKor ? ` (+${event4FishCaughtScore}C 획득)` : ` (+${event4FishCaughtScore}C earned)`) : "";
             }
 
             setTimeout(() => {
-                alert(`이벤트 게임 종료!${earnedMsg}\n이전에 플레이하던 [LV-${returnDisplayName}] 레벨로 돌아갑니다.`);
+                const returnAlertMsg = isKor ?
+                    `이벤트 게임 종료!${earnedMsg}\n이전에 플레이하던 [LV-${returnDisplayName}] 레벨로 돌아갑니다.` :
+                    `Event game finished!${earnedMsg}\nReturning to previous [LV-${returnDisplayName}].`;
+                alert(returnAlertMsg);
                 currentLevel = targetReturnLevel;
                 previousLevelBeforeRewardedEvent = null;
                 isRewardedEventPlay = false;
@@ -3555,7 +3609,8 @@ function resetGame() {
         if (eventCounterEl) eventCounterEl.classList.add('hidden');
         if (event2FloatingScore) {
             event2FloatingScore.classList.remove('hidden');
-            if (event2CookedPctEl) event2CookedPctEl.innerText = "COOKED: 0%";
+            const label = (currentLanguage === 'kor') ? '굽기' : 'COOKED';
+            if (event2CookedPctEl) event2CookedPctEl.innerText = `${label}: 0%`;
             if (event2CookedScoreEl) event2CookedScoreEl.innerText = "0";
         }
     } else if (isSpaceEventLevel(config.displayName)) {
@@ -3640,19 +3695,21 @@ function resetGame() {
         const displayName = config.displayName;
         const isTutorial = (currentLevel === 0 || displayName === "튜토리얼");
         if (isTutorial) {
-            levelHintEl.innerHTML = `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">START 와 BURNER를 터치하여<br>상단 녹색 패드에 착륙 하세요!</div>`;
+            levelHintEl.innerHTML = (currentLanguage === 'kor') ?
+                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">START 와 BURNER를 터치하여<br>상단 녹색 패드에 착륙 하세요!</div>` :
+                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">Touch START and BURNER<br>to land on the green pad!</div>`;
             levelHintEl.classList.remove('hidden');
         } else if (BONUS_G1_LEVELS.includes(displayName)) {
-            levelHintEl.innerHTML = `Use 1 item or less`;
+            levelHintEl.innerHTML = (currentLanguage === 'kor') ? `아이템 1개 이하 사용` : `Use 1 item or less`;
             levelHintEl.classList.remove('hidden');
         } else if (BONUS_G2_LEVELS.includes(displayName)) {
-            levelHintEl.innerHTML = `Use 2 items or less`;
+            levelHintEl.innerHTML = (currentLanguage === 'kor') ? `아이템 2개 이하 사용` : `Use 2 items or less`;
             levelHintEl.classList.remove('hidden');
         } else if (BONUS_G3_LEVELS.includes(displayName)) {
-            levelHintEl.innerHTML = `Use 3 items or less`;
+            levelHintEl.innerHTML = (currentLanguage === 'kor') ? `아이템 3개 이하 사용` : `Use 3 items or less`;
             levelHintEl.classList.remove('hidden');
         } else if (BONUS_G4_LEVELS.includes(displayName)) {
-            levelHintEl.innerHTML = `Use 4 items or less`;
+            levelHintEl.innerHTML = (currentLanguage === 'kor') ? `아이템 4개 이하 사용` : `Use 4 items or less`;
             levelHintEl.classList.remove('hidden');
         } else {
             levelHintEl.classList.add('hidden');
@@ -4794,7 +4851,8 @@ function calculateCookedPercentage() {
         const displayPct = Math.floor(cookedPercentage * 2);
 
         // 새로운 플로팅 점수판 업데이트
-        if (event2CookedPctEl) event2CookedPctEl.innerText = `COOKED: ${displayPct}%`;
+        const label = (currentLanguage === 'kor') ? '굽기' : 'COOKED';
+        if (event2CookedPctEl) event2CookedPctEl.innerText = `${label}: ${displayPct}%`;
         if (event2CookedScoreEl) event2CookedScoreEl.innerText = displayPct * 10;
     }
 }
@@ -6050,12 +6108,18 @@ setInterval(checkLifeRegen, 60000);
 // Set initial state
 resetGame();
 init();
+updateLanguageUI();
+updateSettingsUI();
 updateLivesUI();
 savePlayerData(); // Initial ground credits UI update
 
 
 // --- Settings Management ---
 function updateSettingsUI() {
+    if (langToggleSettingsBtn) {
+        langToggleSettingsBtn.classList.toggle('active', currentLanguage === 'kor');
+        langToggleSettingsBtn.innerText = currentLanguage === 'kor' ? 'KOR' : 'ENG';
+    }
     if (windToggleSettingsBtn) {
         windToggleSettingsBtn.classList.toggle('active', showWindLabels);
         windToggleSettingsBtn.innerText = showWindLabels ? 'ON' : 'OFF';
@@ -6072,6 +6136,175 @@ function updateSettingsUI() {
         const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
         fullscreenToggleSettingsBtn.classList.toggle('active', isFullscreen);
         fullscreenToggleSettingsBtn.innerText = isFullscreen ? 'ON' : 'GO ⛶';
+    }
+}
+
+function updateLanguageUI() {
+    const isKor = (currentLanguage === 'kor');
+
+    // 1. 이벤트 2 (스테이크)
+    const cookedPctEl = document.getElementById('event2-cooked-pct');
+    if (cookedPctEl) {
+        const currentText = cookedPctEl.innerText;
+        const numMatch = currentText.match(/\d+%/);
+        const pctStr = numMatch ? numMatch[0] : '0%';
+        cookedPctEl.innerText = isKor ? `굽기: ${pctStr}` : `COOKED: ${pctStr}`;
+    }
+
+    // 2. 이벤트 3 (팝콘)
+    const popcornLabelEl = document.getElementById('event3-popcorn-label');
+    if (popcornLabelEl) {
+        popcornLabelEl.innerText = isKor ? '팝콘먹기' : 'POPCORN GATHERED';
+    }
+
+    // 3. 이벤트 4 (낚시)
+    const fishLabelEl = document.getElementById('event4-fish-label');
+    if (fishLabelEl) {
+        fishLabelEl.innerText = isKor ? '낚은 물고기' : 'FISH CAUGHT';
+    }
+
+    // 4. 광고 선택 창 (ad-selection-overlay)
+    const adSelectTitle = document.querySelector('#ad-selection-overlay .selection-title');
+    if (adSelectTitle) adSelectTitle.innerText = isKor ? '광고 보상 선택' : 'SELECT AD REWARD';
+
+    const adSelectLifeBtnTitle = document.querySelector('#ad-select-life-btn .btn-title');
+    if (adSelectLifeBtnTitle) adSelectLifeBtnTitle.innerText = isKor ? '생명 충전' : 'Refill Life';
+
+    const adSelectLifeBtnDesc = document.querySelector('#ad-select-life-btn .btn-desc');
+    if (adSelectLifeBtnDesc) adSelectLifeBtnDesc.innerHTML = isKor ? '20초 광고 시청 후<br>생명 2개 획득' : 'Watch 20s Ad to<br>gain 2 Lives';
+
+    const adSelectEventBtnTitle = document.querySelector('#ad-select-event-btn .btn-title');
+    if (adSelectEventBtnTitle) adSelectEventBtnTitle.innerText = isKor ? '이벤트 게임' : 'Event Game';
+
+    const adSelectEventBtnDesc = document.querySelector('#ad-select-event-btn .btn-desc');
+    if (adSelectEventBtnDesc) adSelectEventBtnDesc.innerHTML = isKor ? '30초 광고 시청 후<br>생명 1개 & 이벤트 게임' : 'Watch 30s Ad to gain<br>1 Life & Event Game';
+
+    const closeAdSelectBtn = document.getElementById('close-ad-selection-btn');
+    if (closeAdSelectBtn) closeAdSelectBtn.innerText = isKor ? '닫기' : 'CLOSE';
+
+    // 5. 광고 시청 및 보상 선택 화면 (ad-overlay)
+    const adTitle = document.getElementById('ad-reward-title');
+    if (adTitle) {
+        if (adTitle.dataset.adType === 'life') {
+            adTitle.innerText = isKor ? '생명 충전 광고' : 'Life Refill Ad';
+        } else if (adTitle.dataset.adType === 'event') {
+            adTitle.innerText = isKor ? '이벤트 보너스 광고' : 'Event Bonus Ad';
+        } else {
+            adTitle.innerText = isKor ? '광고시간' : 'AD TIME';
+        }
+    }
+
+    const adMsg = document.querySelector('#ad-overlay .ad-message');
+    if (adMsg) adMsg.innerText = isKor ? '열기구게임 많이 사랑해주세요!!!🎈🎈🎈' : 'Enjoy Hot Air Balloon Adventure!🎈🎈🎈';
+
+    const getLifeAdBtnEl = document.getElementById('get-life-ad-btn');
+    if (getLifeAdBtnEl) getLifeAdBtnEl.innerText = isKor ? '생명받기' : 'GET LIFE';
+
+    const rewardHint = document.querySelector('#ad-event-rewards .reward-hint');
+    if (rewardHint) rewardHint.innerText = isKor ? '원하는 이벤트 번호를 선택하세요!' : 'Select an event to play!';
+
+    const closeAdEventBtn = document.getElementById('close-ad-event-btn');
+    if (closeAdEventBtn) closeAdEventBtn.innerText = isKor ? '닫기' : 'CLOSE';
+
+    // 광고 보상 이벤트 버튼 라벨
+    const eventLabels = {
+        '1': { kor: '코인', eng: 'COIN' },
+        '2': { kor: '스테이크', eng: 'STEAK' },
+        '3': { kor: '팝콘', eng: 'POPCORN' },
+        '4': { kor: '낚시', eng: 'FISHING' },
+        '5': { kor: '피아노', eng: 'PIANO' },
+        '6': { kor: '운석', eng: 'METEOR' }
+    };
+    document.querySelectorAll('.event-reward-btn').forEach(btn => {
+        const num = btn.getAttribute('data-event');
+        const labelEl = btn.querySelector('.evt-label');
+        if (labelEl && eventLabels[num]) {
+            labelEl.innerText = isKor ? eventLabels[num].kor : eventLabels[num].eng;
+        }
+    });
+
+    // 6. 이벤트 선택 창 (event-selection-overlay)
+    const eventSelectTitle = document.querySelector('#event-selection-overlay .selection-title');
+    if (eventSelectTitle) eventSelectTitle.innerText = isKor ? '이벤트 게임 선택' : 'SELECT EVENT GAME';
+
+    const closeEventSelectBtn = document.getElementById('close-event-selection-btn');
+    if (closeEventSelectBtn) closeEventSelectBtn.innerText = isKor ? '닫기' : 'CLOSE';
+
+    // 7. 피아노 건반 음계 라벨
+    const noteMap = {
+        'do': { kor: '도', eng: 'C' },
+        're': { kor: '레', eng: 'D' },
+        'mi': { kor: '미', eng: 'E' },
+        'fa': { kor: '파', eng: 'F' },
+        'sol': { kor: '솔', eng: 'G' },
+        'la': { kor: '라', eng: 'A' },
+        'si': { kor: '시', eng: 'B' },
+        'do2': { kor: '도', eng: 'C' }
+    };
+    document.querySelectorAll('.piano-keys .key.white').forEach(k => {
+        const note = k.getAttribute('data-note');
+        if (note && noteMap[note]) {
+            const blackKey = k.querySelector('.key.black');
+            k.childNodes[0].nodeValue = (isKor ? noteMap[note].kor : noteMap[note].eng) + ' ';
+        }
+    });
+
+    // 8. 게임 오버 / 미션 실패 화면 (fail-screen)
+    const failScreenTitle = document.querySelector('#fail-screen h1');
+    if (failScreenTitle) failScreenTitle.innerText = isKor ? '미션 실패!' : 'MISSION FAILED!';
+
+    const failScreenDesc = document.querySelector('#fail-screen p');
+    if (failScreenDesc) failScreenDesc.innerText = isKor ? '벽에 충돌하여 열기구가 터졌습니다.' : 'The balloon popped after crashing into a wall.';
+
+    // 9. 미션 힌트 (level-hint)
+    if (levelHintEl && !levelHintEl.classList.contains('hidden')) {
+        const config = LEVEL_CONFIGS[currentLevel];
+        const displayName = config ? config.displayName : '';
+        const isTutorial = (currentLevel === 0 || displayName === "튜토리얼");
+        if (isTutorial) {
+            levelHintEl.innerHTML = isKor ?
+                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">START 와 BURNER를 터치하여<br>상단 녹색 패드에 착륙 하세요!</div>` :
+                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">Touch START and BURNER<br>to land on the green pad!</div>`;
+        } else if (BONUS_G1_LEVELS.includes(displayName)) {
+            levelHintEl.innerHTML = isKor ? `아이템 1개 이하 사용` : `Use 1 item or less`;
+        } else if (BONUS_G2_LEVELS.includes(displayName)) {
+            levelHintEl.innerHTML = isKor ? `아이템 2개 이하 사용` : `Use 2 items or less`;
+        } else if (BONUS_G3_LEVELS.includes(displayName)) {
+            levelHintEl.innerHTML = isKor ? `아이템 3개 이하 사용` : `Use 3 items or less`;
+        } else if (BONUS_G4_LEVELS.includes(displayName)) {
+            levelHintEl.innerHTML = isKor ? `아이템 4개 이하 사용` : `Use 4 items or less`;
+        }
+    }
+
+    // 10. 상점 화면 아이템명 번역
+    if (typeof storeData !== 'undefined' && storeData.items) {
+        if (isKor) {
+            if (storeData.items.life) storeData.items.life.name = "생명";
+            if (storeData.items.fan_left) storeData.items.fan_left.name = "선풍기좌측";
+            if (storeData.items.fan_right) storeData.items.fan_right.name = "선풍기우측";
+            if (storeData.items.gas_item) storeData.items.gas_item.name = "가스통";
+            if (storeData.items.clock) storeData.items.clock.name = "자명종시계";
+            if (storeData.items.weight) storeData.items.weight.name = "무게추";
+        } else {
+            if (storeData.items.life) storeData.items.life.name = "Life";
+            if (storeData.items.fan_left) storeData.items.fan_left.name = "Fan Left";
+            if (storeData.items.fan_right) storeData.items.fan_right.name = "Fan Right";
+            if (storeData.items.gas_item) storeData.items.gas_item.name = "Gas Tank";
+            if (storeData.items.clock) storeData.items.clock.name = "Alarm Clock";
+            if (storeData.items.weight) storeData.items.weight.name = "Weight";
+        }
+        if (typeof updateStoreUI === 'function') {
+            const isStoreOpen = storeScreen && !storeScreen.classList.contains('hidden');
+            if (isStoreOpen) {
+                const isInventory = document.querySelector('.store-container')?.classList.contains('inventory-mode');
+                updateStoreUI(isInventory);
+            }
+        }
+    }
+
+    // 11. 튜토리얼 가이드 툴팁 시스템에도 언어 동기화 알림
+    if (window.updateTutorialGuideLanguage) {
+        window.updateTutorialGuideLanguage(currentLanguage);
     }
 }
 
@@ -6188,7 +6421,8 @@ if (adsBtn) {
 if (adSelectLifeBtn) {
     adSelectLifeBtn.addEventListener('click', () => {
         if (lives >= 7) {
-            alert("생명이 이미 가득 찼습니다! (최대 7개)");
+            const isKor = (currentLanguage === 'kor');
+            alert(isKor ? "생명이 이미 가득 찼습니다! (최대 7개)" : "Lives are already full! (Max 7)");
             return;
         }
         adSelectionOverlay.classList.add('hidden');
@@ -6205,7 +6439,10 @@ if (adSelectEventBtn) {
         });
 
         if (clearedEvents.length === 0) {
-            alert("아직 클리어한 이벤트 게임이 없습니다! 먼저 일반 게임을 진행하여 이벤트를 클리어하세요.");
+            const isKor = (currentLanguage === 'kor');
+            alert(isKor ?
+                "아직 클리어한 이벤트 게임이 없습니다! 먼저 일반 게임을 진행하여 이벤트를 클리어하세요." :
+                "No cleared event games yet! Clear event games during normal gameplay first.");
             return;
         }
 
@@ -6225,7 +6462,13 @@ function showAd(type, duration) {
         adOverlay.classList.remove('hidden');
         
         if (adRewardTitle) {
-            adRewardTitle.innerText = type === 'life' ? "생명 충전 광고" : "이벤트 보너스 광고";
+            adRewardTitle.dataset.adType = type;
+            const isKor = (currentLanguage === 'kor');
+            if (type === 'life') {
+                adRewardTitle.innerText = isKor ? "생명 충전 광고" : "Life Refill Ad";
+            } else {
+                adRewardTitle.innerText = isKor ? "이벤트 보너스 광고" : "Event Bonus Ad";
+            }
         }
 
         const timerEl = adOverlay.querySelector('.ad-timer');
@@ -6334,9 +6577,10 @@ function showEventSelection() {
         const config = LEVEL_CONFIGS[lv];
         const btn = document.createElement('button');
         btn.className = 'selection-btn';
+        const isKor = (currentLanguage === 'kor');
         btn.innerHTML = `
             <span class="btn-title">${config.displayName}</span>
-            <span class="btn-desc">이 게임을 플레이하여 크레딧 획득</span>
+            <span class="btn-desc">${isKor ? '이 게임을 플레이하여 크레딧 획득' : 'Play this game to earn credits'}</span>
         `;
         btn.addEventListener('click', () => {
             eventSelectionOverlay.classList.add('hidden');
@@ -6366,7 +6610,11 @@ function startRewardedEvent(levelIndex) {
     startGame();
     isRewardedEventPlay = true; // startGame() 이후에 TRUE로 설정하여 덮어쓰지지 않도록 함
     
-    alert(`${LEVEL_CONFIGS[levelIndex].displayName} 시작! 이번 판은 크레딧을 획득할 수 있습니다.`);
+    const isKor = (currentLanguage === 'kor');
+    const msg = isKor ?
+        `${LEVEL_CONFIGS[levelIndex].displayName} 시작! 이번 판은 크레딧을 획득할 수 있습니다.` :
+        `${LEVEL_CONFIGS[levelIndex].displayName} Start! You can earn credits in this round.`;
+    alert(msg);
 }
 
 // winGame이나 gameOver에서 isRewardedEventPlay가 초기화될 필요는 없음
@@ -6406,6 +6654,7 @@ async function updateRankUI() {
     const rankScoreLabelEl = document.getElementById('rank-score-label');
     const tabLevelBtn = document.getElementById('tab-level');
     const tabOverallBtn = document.getElementById('tab-overall');
+    const isKor = (currentLanguage === 'kor');
 
     let myDisplayScore = 0;
     
@@ -6413,10 +6662,12 @@ async function updateRankUI() {
         const config = LEVEL_CONFIGS[currentLevel];
         const dispName = config ? config.displayName : currentLevel;
         if (dispName.toString().includes('EVENT') || dispName === "튜토리얼" || currentLevel === 0) {
-            if(rankScoreLabelEl) rankScoreLabelEl.innerText = `[LV-${dispName}] 랭킹 제외 레벨`;
+            if(rankScoreLabelEl) rankScoreLabelEl.innerText = isKor ? `[LV-${dispName}] 랭킹 제외 레벨` : `[LV-${dispName}] Unranked Level`;
             if(myRankScoreEl) myRankScoreEl.innerText = '-';
             if(myRankPosEl) myRankPosEl.innerText = '-';
-            if(rankListEl) rankListEl.innerHTML = '<div style="text-align:center; padding:20px; color:#ccc;">튜토리얼 및 이벤트 레벨은 랭킹이 제공되지 않습니다.</div>';
+            if(rankListEl) rankListEl.innerHTML = isKor ?
+                '<div style="text-align:center; padding:20px; color:#ccc;">튜토리얼 및 이벤트 레벨은 랭킹이 제공되지 않습니다.</div>' :
+                '<div style="text-align:center; padding:20px; color:#ccc;">Leaderboard is not available for Tutorial and Event levels.</div>';
             if (tabLevelBtn) { tabLevelBtn.style.background = '#2ecc71'; tabLevelBtn.style.color = '#000'; }
             if (tabOverallBtn) { tabOverallBtn.style.background = 'transparent'; tabOverallBtn.style.color = '#fff'; }
             return;
@@ -6457,9 +6708,9 @@ async function updateRankUI() {
         if (myDisplayScore === 0) {
              myRankPosEl.innerText = `-`;
         } else if(myRank <= 3) {
-            myRankPosEl.innerHTML = `<span style="color:#f1c40f;">${myRank}위</span>`;
+            myRankPosEl.innerHTML = `<span style="color:#f1c40f;">${myRank}${isKor ? '위' : ''}</span>`;
         } else {
-            myRankPosEl.innerText = `${myRank}위`;
+            myRankPosEl.innerText = `${myRank}${isKor ? '위' : ''}`;
         }
     }
 
@@ -6467,7 +6718,9 @@ async function updateRankUI() {
     if(rankListEl) {
         rankListEl.innerHTML = '';
         if (board.length === 0) {
-            rankListEl.innerHTML = '<div style="text-align:center; padding:20px; color:#ccc;">등록된 랭킹이 없습니다.</div>';
+            rankListEl.innerHTML = isKor ?
+                '<div style="text-align:center; padding:20px; color:#ccc;">등록된 랭킹이 없습니다.</div>' :
+                '<div style="text-align:center; padding:20px; color:#ccc;">No scores submitted yet.</div>';
             return;
         }
         const top5 = board.slice(0, 5);
@@ -6546,8 +6799,9 @@ if (closeRankBtn) {
 if (submitRankBtn) {
     submitRankBtn.addEventListener('click', async () => {
         const nickname = rankNicknameInput ? rankNicknameInput.value.trim() : "";
+        const isKor = (currentLanguage === 'kor');
         if (!nickname) {
-            alert("닉네임을 입력하세요!");
+            alert(isKor ? "닉네임을 입력하세요!" : "Please enter a nickname!");
             return;
         }
 
@@ -6559,13 +6813,13 @@ if (submitRankBtn) {
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
-            alert("기록이 성공적으로 서버에 갱신되었습니다!");
+            alert(isKor ? "기록이 성공적으로 서버에 갱신되었습니다!" : "Record successfully submitted to leaderboard!");
             if(rankNicknameInput) rankNicknameInput.value = "";
             
             updateRankUI(); 
         } catch (error) {
             console.error("랭킹 서버 저장 중 오류 발생: ", error);
-            alert("서버 연결에 실패했습니다.");
+            alert(isKor ? "서버 연결에 실패했습니다." : "Failed to connect to leaderboard server.");
         }
     });
 }

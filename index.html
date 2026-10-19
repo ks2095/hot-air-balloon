@@ -94,7 +94,7 @@
                 <div class="selection-options">
                     <button id="ad-select-life-btn" class="selection-btn">
                         <span class="btn-title">생명 충전</span>
-                        <span class="btn-desc">30초 광고 시청 후<br>생명 2개 획득</span>
+                        <span class="btn-desc">20초 광고 시청 후<br>생명 2개 획득</span>
                     </button>
                     <button id="ad-select-event-btn" class="selection-btn">
                         <span class="btn-title">이벤트 게임</span>
@@ -136,7 +136,7 @@
                         </button>
                         <button class="event-reward-btn" data-event="6">
                             <span class="evt-num">6</span>
-                            <span class="evt-label">무풍</span>
+                            <span class="evt-label">운석</span>
                         </button>
                     </div>
                     <button id="close-ad-event-btn" class="close-btn-main">닫기</button>
@@ -190,6 +190,10 @@
                 <h2 class="settings-title">Settings</h2>
                 <div class="settings-options">
                     <div class="setting-item">
+                        <span class="setting-label">Language</span>
+                        <button id="lang-toggle-settings-btn" class="toggle-btn">KOR</button>
+                    </div>
+                    <div class="setting-item">
                         <span class="setting-label">Wind info</span>
                         <button id="wind-toggle-settings-btn" class="toggle-btn">OFF</button>
                     </div>
@@ -223,19 +227,19 @@
             <span id="event-credits-val">0</span>
         </div>
         <div id="event2-floating-score" class="hidden">
-            <div id="event2-cooked-pct">COOKED: 0%</div>
+            <div id="event2-cooked-pct">굽기: 0%</div>
             <div id="event2-cooked-score-container">
                 <span id="event2-cooked-score">0</span><span class="unit-c">C</span>
             </div>
         </div>
         <div id="event3-floating-score" class="hidden">
-            <div id="event3-popcorn-label">POPCORN GATHERED</div>
+            <div id="event3-popcorn-label">팝콘먹기</div>
             <div id="event3-popcorn-score-container">
                 <span id="event3-popcorn-score">0</span><span class="unit-c">C</span>
             </div>
         </div>
         <div id="event4-floating-score" class="hidden">
-            <div id="event4-fish-label">FISH CAUGHT</div>
+            <div id="event4-fish-label">낚은 물고기</div>
             <div id="event4-fish-score-container">
                 <span id="event4-fish-score">0</span><span class="unit-c">C</span>
             </div>
