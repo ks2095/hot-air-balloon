@@ -6262,7 +6262,7 @@ setInterval(checkLifeRegen, 60000);
 const NOTICES = {
     kor: [
         {
-            title: "📱 안내",
+            title: "📱 디바이스 (Device)",
             desc: "이 열기구 게임은 스마트폰 전용 웹게임입니다."
         },
         {
@@ -6288,7 +6288,7 @@ const NOTICES = {
     ],
     eng: [
         {
-            title: "📱 Notice",
+            title: "📱 Device",
             desc: "This hot air balloon game is a smartphone-dedicated web game."
         },
         {
@@ -6848,6 +6848,44 @@ function startRewardedEvent(levelIndex) {
 // winGame이나 gameOver에서 isRewardedEventPlay가 초기화될 필요는 없음
 // startGame()에서 다음 판을 시작할 때마다 초기화되기 때문
 
+function getDeviceType() {
+    const ua = navigator.userAgent || '';
+    const isMobile = /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    const isTablet = /iPad|Tablet|PlayBook|Silk/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    if (isMobile || isTablet) {
+        return 'Mobile';
+    }
+    if (window.innerWidth <= 600 && (window.matchMedia && window.matchMedia("(pointer: coarse)").matches)) {
+        return 'Mobile';
+    }
+    return 'PC';
+}
+
+function getDeviceDetail() {
+    const ua = navigator.userAgent || '';
+    if (/iPhone/i.test(ua)) return 'Mobile (iPhone)';
+    if (/Android/i.test(ua)) return 'Mobile (Android)';
+    if (/iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'Tablet (iPad)';
+    if (/Windows/i.test(ua)) return 'PC (Windows)';
+    if (/Macintosh|Mac OS X/i.test(ua)) return 'PC (Mac)';
+    if (/Linux/i.test(ua)) return 'PC (Linux)';
+    return getDeviceType();
+}
+
+function getDeviceUid() {
+    let uid = localStorage.getItem('balloon_device_uid');
+    if (!uid) {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            uid = crypto.randomUUID();
+        } else {
+            uid = 'uid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+        localStorage.setItem('balloon_device_uid', uid);
+    }
+    return uid;
+}
+
 function getDummyLeaderboard() {
     return [];
 }
@@ -6920,7 +6958,13 @@ async function updateRankUI() {
         if (tabOverallBtn) { tabOverallBtn.style.background = '#2ecc71'; tabOverallBtn.style.color = '#000'; }
     }
 
-    if(myRankScoreEl) myRankScoreEl.innerText = myDisplayScore;
+    const myDevType = getDeviceType();
+    const myDevLabel = (myDevType === 'PC') ? 'PC' : (isKor ? '폰' : 'Phone');
+    const myDevIcon = (myDevType === 'PC') ? '💻' : '📱';
+
+    if(myRankScoreEl) {
+        myRankScoreEl.innerHTML = `${myDisplayScore} <span style="font-size:0.75rem; color:#aaa; margin-left:3px;">(${myDevLabel} ${myDevIcon})</span>`;
+    }
 
     // Calculate my rank
     let myRank = 1;
@@ -6955,12 +6999,17 @@ async function updateRankUI() {
         const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
         for (let i = 0; i < top5.length; i++) {
             const scoreToDisplay = currentRankMode === 'level' ? (top5[i].levelScores[currentLevel] || 0) : (top5[i].overallScore || 0);
+            const userDev = (top5[i].device === 'PC') ? 'PC' : 'Mobile';
+            const userDevIcon = (userDev === 'PC') ? '💻' : '📱';
+            const userDevText = (userDev === 'PC') ? 'PC' : (isKor ? '폰' : 'Phone');
+            const userDevTitle = top5[i].deviceDetail || userDev;
             const item = document.createElement('div');
             item.style.display = 'flex';
             item.style.justifyContent = 'space-between';
+            item.style.alignItems = 'center';
             item.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
             item.style.padding = '5px 0';
-            item.innerHTML = `<span>${medals[i]} &nbsp; ${top5[i].nickname}</span> <span style="color: #ffd32a; font-weight: normal;">${scoreToDisplay}</span>`;
+            item.innerHTML = `<span>${medals[i]} &nbsp; <span title="${userDevTitle}">${userDevIcon}</span> ${top5[i].nickname}</span> <span style="color: #ffd32a; font-weight: normal;">${scoreToDisplay} <span style="font-size:0.7rem; color:#aaa; margin-left:3px;" title="${userDevTitle}">(${userDevText})</span></span>`;
             rankListEl.appendChild(item);
         }
     }
@@ -7005,6 +7054,10 @@ if (rankBtn) {
 
         if (rankScreen) {
             rankScreen.classList.remove('hidden');
+            const savedNick = localStorage.getItem('balloon_registered_nickname');
+            if (rankNicknameInput && !rankNicknameInput.value && savedNick) {
+                rankNicknameInput.value = savedNick;
+            }
             updateRankUI();
         }
     });
@@ -7033,16 +7086,50 @@ if (submitRankBtn) {
             return;
         }
 
+        const deviceUid = getDeviceUid();
+        const myRegisteredNickname = localStorage.getItem('balloon_registered_nickname');
+
+        // 규칙 1: 이 기기에서 이미 등록된 다른 닉네임이 있는 경우
+        if (myRegisteredNickname && myRegisteredNickname !== nickname) {
+            const conflictMsg = isKor ?
+                `한 기기에서는 하나의 닉네임만 사용할 수 있습니다.\n기존 닉네임 [${myRegisteredNickname}]을 사용해주세요.` :
+                `Only one nickname is allowed per device.\nPlease use your registered nickname [${myRegisteredNickname}].`;
+            alert(conflictMsg);
+            if (rankNicknameInput) rankNicknameInput.value = myRegisteredNickname;
+            return;
+        }
+
         try {
-            await db.collection("leaderboard").doc(nickname).set({
+            // 규칙 2: 다른 기기가 같은 닉네임을 쓰고 있는지 Firebase 확인
+            const docRef = db.collection("leaderboard").doc(nickname);
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
+                const data = docSnap.data();
+                if (data && data.uid && data.uid !== deviceUid) {
+                    const dupMsg = isKor ?
+                        "중복된 이름입니다. 이미 다른 기기에서 사용 중인 닉네임입니다." :
+                        "This nickname is already in use by another device. Please choose another nickname.";
+                    alert(dupMsg);
+                    return;
+                }
+            }
+
+            const devType = getDeviceType(); // 'Mobile' or 'PC'
+            const devDetail = getDeviceDetail(); // e.g. 'Mobile (iPhone)', 'Mobile (Android)', 'PC (Windows)'
+
+            await docRef.set({
                 nickname: nickname,
+                uid: deviceUid,
                 levelScores: Object.assign({}, myLevelBestScores),
                 overallScore: calculateMyOverallScore(),
+                device: devType,
+                deviceDetail: devDetail,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
+            localStorage.setItem('balloon_registered_nickname', nickname);
+
             alert(isKor ? "기록이 성공적으로 서버에 갱신되었습니다!" : "Record successfully submitted to leaderboard!");
-            if(rankNicknameInput) rankNicknameInput.value = "";
             
             updateRankUI(); 
         } catch (error) {
