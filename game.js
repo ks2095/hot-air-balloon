@@ -1289,11 +1289,31 @@ function init() {
     }
 
     if (resetRecordSettingsBtn) {
-        resetRecordSettingsBtn.addEventListener('click', () => {
+        resetRecordSettingsBtn.addEventListener('click', async () => {
             const confirmResetMsg = (currentLanguage === 'kor')
                 ? "모든 기록(크레딧, 아이템, 진행 상황, 랭킹)을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다."
                 : "Are you sure you want to reset all records (credits, items, progress, rank)? This action cannot be undone.";
             if (confirm(confirmResetMsg)) {
+                // Firebase 서버의 랭킹 기록 삭제
+                try {
+                    const registeredNick = localStorage.getItem('balloon_registered_nickname');
+                    const deviceUid = localStorage.getItem('balloon_device_uid');
+
+                    if (registeredNick) {
+                        await db.collection("leaderboard").doc(registeredNick).delete();
+                    }
+                    if (deviceUid) {
+                        const snap = await db.collection("leaderboard").where("uid", "==", deviceUid).get();
+                        if (!snap.empty) {
+                            const batch = db.batch();
+                            snap.forEach(doc => batch.delete(doc.ref));
+                            await batch.commit();
+                        }
+                    }
+                } catch (err) {
+                    console.error("서버 랭킹 기록 삭제 중 오류:", err);
+                }
+
                 // Clear localStorage
                 localStorage.removeItem('balloon_credits');
                 localStorage.removeItem('balloon_upgrades');
@@ -1307,6 +1327,9 @@ function init() {
                 localStorage.removeItem('balloon_ui_swapped');
                 localStorage.removeItem('balloon_level_best_scores');
                 localStorage.removeItem('balloon_leaderboard_profiles');
+                localStorage.removeItem('balloon_registered_nickname');
+
+                if (rankNicknameInput) rankNicknameInput.value = "";
 
                 // Reset variables
                 realCredits = 0;
@@ -1334,7 +1357,7 @@ function init() {
                 // Reset game state
                 resetGame();
 
-                alert(currentLanguage === 'kor' ? "기록이 성공적으로 초기화되었습니다." : "Records have been successfully reset.");
+                alert(currentLanguage === 'kor' ? "기록과 서버 랭킹이 성공적으로 초기화되었습니다." : "Records and leaderboard rankings have been successfully reset.");
                 location.reload(); // Reload to ensure everything is fresh
             }
         });
