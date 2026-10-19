@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>열기구 모험 - Hot Air Balloon Adventure</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20261019_arrow1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
@@ -190,6 +190,10 @@
                 <h2 class="settings-title">Settings</h2>
                 <div class="settings-options">
                     <div class="setting-item">
+                        <span class="setting-label" id="setting-notice-label">Notice</span>
+                        <button id="notice-settings-btn" class="toggle-btn" style="color: #2ecc71 !important; font-weight: bold; cursor: pointer;">OPEN 📢</button>
+                    </div>
+                    <div class="setting-item">
                         <span class="setting-label">Language</span>
                         <button id="lang-toggle-settings-btn" class="toggle-btn">KOR</button>
                     </div>
@@ -220,6 +224,16 @@
                     </div>
                 </div>
                 <button id="close-settings-btn" class="close-btn-main">Close</button>
+            </div>
+        </div>
+
+        <div id="notice-screen" class="overlay hidden">
+            <div class="notice-container">
+                <h2 id="notice-title" class="notice-title">📢 공지사항</h2>
+                <div class="notice-content" id="notice-content">
+                    <!-- 공지 내용 JS 주입 -->
+                </div>
+                <button id="close-notice-btn" class="close-btn-main">CLOSE</button>
             </div>
         </div>
         <div id="event-credit-counter" class="hidden">
@@ -435,16 +449,20 @@
             <h1>MISSION FAILED!</h1>
             <p>벽에 충돌하여 열기구가 터졌습니다.</p>
         </div>
-        <!-- Firebase SDK 불러오기 -->
+    </div> <!-- #game-container -->
+    <!-- Firebase SDK 불러오기 -->
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-        <script src="game.js"></script>
-        <script src="tutorial_guide.js"></script>
+        <script src="game.js?v=20261019_sync2"></script>
+        <script src="tutorial_guide.js?v=20261019_notice2"></script>
         <script>
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('./sw.js')
-                        .then(reg => console.log('Service Worker Registered!', reg))
+                        .then(reg => {
+                            console.log('Service Worker Registered!', reg);
+                            reg.update();
+                        })
                         .catch(err => console.log('Service Worker Registration Failed!', err));
                 });
             }

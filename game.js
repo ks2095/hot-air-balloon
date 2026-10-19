@@ -104,6 +104,12 @@ const groundEl = document.getElementById('ground');
 const resetRecordSettingsBtn = document.getElementById('reset-record-settings-btn');
 const devNextLevelBtn = document.getElementById('dev-next-level-btn'); // [DEV ONLY]
 const closeSettingsBtn = document.getElementById('close-settings-btn');
+const noticeSettingsBtn = document.getElementById('notice-settings-btn');
+const noticeScreen = document.getElementById('notice-screen');
+const closeNoticeBtn = document.getElementById('close-notice-btn');
+const noticeContentEl = document.getElementById('notice-content');
+const noticeTitleEl = document.getElementById('notice-title');
+const settingNoticeLabelEl = document.getElementById('setting-notice-label');
 const windLabels = document.querySelectorAll('.wind-label');
 const steakContainer = document.getElementById('steak-cooking-container');
 const steakCanvas = document.getElementById('steak-canvas');
@@ -217,20 +223,67 @@ if (groundEl) groundEl.classList.toggle('swapped-ui', isUiSwapped);
 
 let storeOperationMode = null; // 'buy', 'sell' or null
 
-let totalCredits = parseInt(localStorage.getItem('balloon_credits')) || 0;
-let upgrades = JSON.parse(localStorage.getItem('balloon_upgrades')) || {
-    clock: 0,
-    fan_left: 0,
-    fan_right: 0,
-    gas_item: 0,
-    weight: 0
-};
+let currentLevel = parseInt(localStorage.getItem('balloon_current_level')) || 0;
+let lastKnownLevel = currentLevel;
+
+function isTutorialLevel(lvl = currentLevel) {
+    const num = Number(lvl);
+    if (num === 0) return true;
+    try {
+        return !!(LEVEL_CONFIGS && LEVEL_CONFIGS[num] && LEVEL_CONFIGS[num].displayName === "튜토리얼");
+    } catch (e) {
+        return false;
+    }
+}
+
+// 실제 게임(튜토리얼 외 레벨)에서 획득한 크레딧 및 아이템 보존용
+let realCredits = (localStorage.getItem('balloon_real_credits') !== null)
+    ? (parseInt(localStorage.getItem('balloon_real_credits')) || 0)
+    : (isTutorialLevel(currentLevel) ? 0 : (parseInt(localStorage.getItem('balloon_credits')) || 0));
+
+let realUpgrades = null;
+try {
+    realUpgrades = JSON.parse(localStorage.getItem('balloon_real_upgrades'));
+} catch (e) {
+    realUpgrades = null;
+}
+if (!realUpgrades && !isTutorialLevel(currentLevel)) {
+    try {
+        realUpgrades = JSON.parse(localStorage.getItem('balloon_upgrades'));
+    } catch (e) {
+        realUpgrades = null;
+    }
+}
+if (!realUpgrades) {
+    realUpgrades = {
+        clock: 0,
+        fan_left: 0,
+        fan_right: 0,
+        gas_item: 0,
+        weight: 0
+    };
+} else {
+    realUpgrades = {
+        clock: realUpgrades.clock || 0,
+        fan_left: realUpgrades.fan_left || 0,
+        fan_right: realUpgrades.fan_right || 0,
+        gas_item: realUpgrades.gas_item || 0,
+        weight: realUpgrades.weight || 0
+    };
+}
+
+let totalCredits = isTutorialLevel(currentLevel) ? 500 : realCredits;
+let upgrades = isTutorialLevel(currentLevel)
+    ? { clock: 0, fan_left: 0, fan_right: 0, gas_item: 0, weight: 0 }
+    : JSON.parse(JSON.stringify(realUpgrades));
+
 let lives = parseInt(localStorage.getItem('balloon_lives')) || 7;
 if (lives > 7) lives = 7; // Cap at 7
 let lastLifeUpdate = parseInt(localStorage.getItem('balloon_last_life_update')) || Date.now();
 let clearedLevels = JSON.parse(localStorage.getItem('balloon_cleared_levels')) || [];
 let myLevelBestScores = JSON.parse(localStorage.getItem('balloon_level_best_scores')) || {};
-let currentLevel = parseInt(localStorage.getItem('balloon_current_level')) || 0;
+
+
 let lastEventCreditTime = parseInt(localStorage.getItem('balloon_last_event_credit_time')) || 0;
 
 function shouldAllowEventCredits() {
@@ -325,8 +378,14 @@ if (!storeData.items.life) {
 
 
 function savePlayerData() {
-    localStorage.setItem('balloon_credits', totalCredits);
-    localStorage.setItem('balloon_upgrades', JSON.stringify(upgrades));
+    if (!isTutorialLevel(currentLevel)) {
+        realCredits = totalCredits;
+        realUpgrades = JSON.parse(JSON.stringify(upgrades));
+        localStorage.setItem('balloon_real_credits', realCredits);
+        localStorage.setItem('balloon_real_upgrades', JSON.stringify(realUpgrades));
+        localStorage.setItem('balloon_credits', totalCredits);
+        localStorage.setItem('balloon_upgrades', JSON.stringify(upgrades));
+    }
     localStorage.setItem('balloon_store_data', JSON.stringify(storeData));
     localStorage.setItem('balloon_cleared_levels', JSON.stringify(clearedLevels));
     localStorage.setItem('balloon_lives', lives);
@@ -337,9 +396,14 @@ function savePlayerData() {
     localStorage.setItem('balloon_current_level', currentLevel);
     localStorage.setItem('balloon_last_event_credit_time', lastEventCreditTime);
 
-    // Update ground credit display
+    // Update ground credit display & store credit display
     const groundCredits = document.getElementById('ground-credits-display');
     if (groundCredits) groundCredits.innerText = `${totalCredits}C`;
+    if (totalCreditsEl) totalCreditsEl.innerText = totalCredits;
+    const totalEl = document.getElementById('accumulated-total-credits');
+    if (totalEl) totalEl.innerText = totalCredits;
+    const eventTotalEl = document.getElementById('event-accumulated-total-credits');
+    if (eventTotalEl) eventTotalEl.innerText = totalCredits;
 }
 
 // --- Sound Management (Optimized for performance/iOS) ---
@@ -1128,6 +1192,29 @@ function init() {
         });
     }
 
+    if (noticeSettingsBtn) {
+        noticeSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (noticeScreen) {
+                updateNoticeUI();
+                noticeScreen.classList.remove('hidden');
+            }
+        });
+    }
+
+    if (closeNoticeBtn) {
+        closeNoticeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (noticeScreen) noticeScreen.classList.add('hidden');
+        });
+    }
+
+    if (noticeScreen) {
+        noticeScreen.addEventListener('click', (e) => {
+            if (e.target === noticeScreen) noticeScreen.classList.add('hidden');
+        });
+    }
+
     if (langToggleSettingsBtn) {
         langToggleSettingsBtn.addEventListener('click', () => {
             currentLanguage = (currentLanguage === 'kor') ? 'eng' : 'kor';
@@ -1210,6 +1297,8 @@ function init() {
                 // Clear localStorage
                 localStorage.removeItem('balloon_credits');
                 localStorage.removeItem('balloon_upgrades');
+                localStorage.removeItem('balloon_real_credits');
+                localStorage.removeItem('balloon_real_upgrades');
                 localStorage.removeItem('balloon_store_data');
                 localStorage.removeItem('balloon_cleared_levels');
                 localStorage.removeItem('balloon_lives');
@@ -1220,7 +1309,9 @@ function init() {
                 localStorage.removeItem('balloon_leaderboard_profiles');
 
                 // Reset variables
-                totalCredits = 0;
+                realCredits = 0;
+                realUpgrades = { clock: 0, fan_left: 0, fan_right: 0, gas_item: 0, weight: 0 };
+                totalCredits = 500; // Resetting puts player back to level 0 (tutorial)
                 upgrades = { clock: 0, fan_left: 0, fan_right: 0, gas_item: 0, weight: 0 };
                 lives = 7;
                 clearedLevels = [];
@@ -3397,7 +3488,60 @@ function createStars() {
     }
 }
 
+function handleLevelTransition() {
+    const isNowTutorial = isTutorialLevel(currentLevel);
+    const wasTutorial = (lastKnownLevel !== null) && isTutorialLevel(lastKnownLevel);
+
+    if (lastKnownLevel !== null && lastKnownLevel !== currentLevel) {
+        if (wasTutorial && !isNowTutorial) {
+            // 튜토리얼 레벨에서 레벨 1 또는 다른 레벨로 넘어갈 때:
+            // 튜토리얼 체험용 크레딧/아이템은 버리고, 원래 다른 레벨에서 획득했던 실제 크레딧과 아이템을 복구!
+            totalCredits = realCredits;
+            upgrades = JSON.parse(JSON.stringify(realUpgrades));
+            clearDroppedItems();
+            savePlayerData();
+            if (typeof updateStoreUI === 'function') updateStoreUI(false);
+            console.log(`[Level Transition] Left Tutorial -> Restored real credits (${realCredits}) and real items (Level ${lastKnownLevel} -> ${currentLevel})`);
+        } else if (!wasTutorial && isNowTutorial) {
+            // 다른 레벨에서 튜토리얼 레벨로 이동할 때:
+            // 현재까지 다른 레벨에서 획득한 실제 크레딧과 아이템을 영구 보존
+            realCredits = totalCredits;
+            realUpgrades = JSON.parse(JSON.stringify(upgrades));
+            localStorage.setItem('balloon_real_credits', realCredits);
+            localStorage.setItem('balloon_real_upgrades', JSON.stringify(realUpgrades));
+            localStorage.setItem('balloon_credits', totalCredits);
+            localStorage.setItem('balloon_upgrades', JSON.stringify(upgrades));
+
+            // 튜토리얼 전용 500 크레딧 부여 및 체험용 아이템 0으로 세팅
+            totalCredits = 500;
+            upgrades = {
+                clock: 0,
+                fan_left: 0,
+                fan_right: 0,
+                gas_item: 0,
+                weight: 0
+            };
+            clearDroppedItems();
+            savePlayerData();
+            if (typeof updateStoreUI === 'function') updateStoreUI(false);
+            console.log(`[Level Transition] Entered Tutorial -> Saved real credits (${realCredits}), granted 500 tutorial credits (Level ${lastKnownLevel} -> ${currentLevel})`);
+        }
+    } else if (isNowTutorial) {
+        // 튜토리얼 레벨에 머무르는 도중:
+        // 만약 크레딧이 0이고 보유/배치된 아이템도 전혀 없다면 500 크레딧 재충전 (체험 유지용)
+        const totalItemsCount = (upgrades.clock || 0) + (upgrades.fan_left || 0) + (upgrades.fan_right || 0) + (upgrades.gas_item || 0) + (upgrades.weight || 0) + (typeof droppedItems !== 'undefined' ? droppedItems.length : 0);
+        if (totalCredits === 0 && totalItemsCount === 0) {
+            totalCredits = 500;
+            savePlayerData();
+            if (typeof updateStoreUI === 'function') updateStoreUI(false);
+        }
+    }
+
+    lastKnownLevel = currentLevel;
+}
+
 function resetGame() {
+    handleLevelTransition();
     gameState = 'START';
     isStunned = false; 
     balloon.classList.remove('shake-balloon');
@@ -6028,8 +6172,12 @@ function checkEagleCollisions() {
 
 function updateNextLevelButtonVisibility() {
     const isEventLevel = LEVEL_CONFIGS[currentLevel]?.displayName?.startsWith("EVENT") || isSpaceEventLevel(LEVEL_CONFIGS[currentLevel]?.displayName);
+    const isTutorial = isTutorialLevel(currentLevel);
     if (gameState === 'PLAY' && !isEventLevel) {
-        if (nextLevelBtn) nextLevelBtn.classList.add('hidden');
+        if (nextLevelBtn) {
+            nextLevelBtn.classList.add('hidden');
+            nextLevelBtn.classList.remove('tutorial-blink');
+        }
         if (prevLevelBtn) prevLevelBtn.classList.add('hidden');
         return;
     }
@@ -6041,12 +6189,17 @@ function updateNextLevelButtonVisibility() {
         const isNextCleared = clearedLevels.includes(nextLv);
 
         // 표시 조건: 다음 레벨이 존재하고 (현재가 튜토리얼 레벨 OR 현재 레벨 클리어 OR 다음 레벨이 이미 클리어된 상태 OR 방금 클리어 OR 현재 또는 다음이 이벤트 레벨)
-        const isTutorialLevel = currentLevel === 0 || LEVEL_CONFIGS[currentLevel]?.displayName === "튜토리얼";
         const isNextEventLevel = LEVEL_CONFIGS[nextLv]?.displayName?.startsWith("EVENT");
-        if (isNextExists && (isTutorialLevel || isCurrentCleared || isNextCleared || gameState === 'CLEAR' || isEventLevel || isNextEventLevel)) {
+        if (isNextExists && (isTutorial || isCurrentCleared || isNextCleared || gameState === 'CLEAR' || isEventLevel || isNextEventLevel)) {
             nextLevelBtn.classList.remove('hidden');
+            if (isTutorial) {
+                nextLevelBtn.classList.add('tutorial-blink');
+            } else {
+                nextLevelBtn.classList.remove('tutorial-blink');
+            }
         } else {
             nextLevelBtn.classList.add('hidden');
+            nextLevelBtn.classList.remove('tutorial-blink');
         }
     }
 
@@ -6105,17 +6258,83 @@ function checkLifeRegen() {
 // 1분마다 생명 회복 체크
 setInterval(checkLifeRegen, 60000);
 
-// Set initial state
-resetGame();
-init();
-updateLanguageUI();
-updateSettingsUI();
-updateLivesUI();
-savePlayerData(); // Initial ground credits UI update
+// --- Notice Management ---
+const NOTICES = {
+    kor: [
+        {
+            title: "📱 안내",
+            desc: "이 열기구 게임은 스마트폰 전용 웹게임입니다."
+        },
+        {
+            title: "🔄 레벨 이동 버튼 안내",
+            desc: "레벨 이동버튼이 동작 안될때는 스마트폰 화면 회전기능을 활성화하거나 비활성화 해보세요."
+        },
+        {
+            title: "🔥 기본 비행 및 버너 조작",
+            desc: "START 버튼을 터치하여 비행을 시작하고, 길게 누르고 있으면 버너가 가동되어 상승합니다. 손을 떼면 서서히 하강합니다."
+        },
+        {
+            title: "💨 바람과 착륙 패드",
+            desc: "고도 구간마다 바람의 세기와 방향이 다릅니다. 바람을 타고 이동하여 상단의 녹색 패드에 부드럽게 착륙하세요."
+        },
+        {
+            title: "🛠️ 아이템 활용 팁",
+            desc: "상점(STORE)에서 구매한 선풍기, 시계, 가스통 등의 아이템을 인벤토리(ITEM)에서 하늘에 배치하여 바람과 시간을 조절해 보세요."
+        },
+        {
+            title: "🏆 순위 등록 시스템",
+            desc: "일반 레벨 착륙 점수 및 최고기록을 달성하여 글로벌 랭킹 순위표에 닉네임을 등록하고 실력을 뽐내보세요!"
+        }
+    ],
+    eng: [
+        {
+            title: "📱 Notice",
+            desc: "This hot air balloon game is a smartphone-dedicated web game."
+        },
+        {
+            title: "🔄 Level Button Tip",
+            desc: "If the level buttons are not responding, try enabling or disabling your smartphone's auto-rotate feature."
+        },
+        {
+            title: "🔥 Flight & Burner Controls",
+            desc: "Tap START to launch. Hold the button to fire the burner and ascend. Release the button to slowly descend."
+        },
+        {
+            title: "💨 Wind Zones & Landing Pad",
+            desc: "Each altitude zone has different wind directions and speeds. Navigate through the winds to land safely on the green pad."
+        },
+        {
+            title: "🛠️ Using Sky Items",
+            desc: "Purchase items (Fans, Clocks, Gas tanks) in the STORE and deploy them from ITEM inventory onto the sky to conquer levels."
+        },
+        {
+            title: "🏆 Global Leaderboard",
+            desc: "Achieve top landing scores across all regular levels and submit your nickname to rank on the leaderboard!"
+        }
+    ]
+};
 
+function updateNoticeUI() {
+    const isKor = (currentLanguage === 'kor');
+    if (settingNoticeLabelEl) settingNoticeLabelEl.innerText = isKor ? '공지사항' : 'Notice';
+    if (noticeSettingsBtn) noticeSettingsBtn.innerText = isKor ? '보기 📢' : 'OPEN 📢';
+    if (noticeTitleEl) noticeTitleEl.innerText = isKor ? '📢 공지사항' : '📢 NOTICE';
+    if (closeNoticeBtn) closeNoticeBtn.innerText = isKor ? '닫기' : 'CLOSE';
+
+    if (noticeContentEl) {
+        const list = isKor ? NOTICES.kor : NOTICES.eng;
+        noticeContentEl.innerHTML = list.map(item => `
+            <div class="notice-item">
+                <div class="notice-item-title">${item.title}</div>
+                <div class="notice-item-desc">${item.desc}</div>
+            </div>
+        `).join('');
+    }
+}
 
 // --- Settings Management ---
 function updateSettingsUI() {
+    updateNoticeUI();
     if (langToggleSettingsBtn) {
         langToggleSettingsBtn.classList.toggle('active', currentLanguage === 'kor');
         langToggleSettingsBtn.innerText = currentLanguage === 'kor' ? 'KOR' : 'ENG';
@@ -6140,6 +6359,7 @@ function updateSettingsUI() {
 }
 
 function updateLanguageUI() {
+    updateNoticeUI();
     const isKor = (currentLanguage === 'kor');
 
     // 1. 이벤트 2 (스테이크)
@@ -6307,6 +6527,14 @@ function updateLanguageUI() {
         window.updateTutorialGuideLanguage(currentLanguage);
     }
 }
+
+// Set initial state (executed safely after all functions and constants are declared)
+resetGame();
+init();
+updateLanguageUI();
+updateSettingsUI();
+updateLivesUI();
+savePlayerData(); // Initial ground credits UI update
 
 // showEventBonusText function removed as requested
 
