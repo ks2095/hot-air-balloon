@@ -102,7 +102,6 @@ const uiSwapSettingsBtn = document.getElementById('ui-swap-settings-btn');
 const fullscreenToggleSettingsBtn = document.getElementById('fullscreen-toggle-settings-btn');
 const groundEl = document.getElementById('ground');
 const resetRecordSettingsBtn = document.getElementById('reset-record-settings-btn');
-const devNextLevelBtn = document.getElementById('dev-next-level-btn'); // [DEV ONLY]
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 const noticeSettingsBtn = document.getElementById('notice-settings-btn');
 const noticeScreen = document.getElementById('notice-screen');
@@ -110,6 +109,9 @@ const closeNoticeBtn = document.getElementById('close-notice-btn');
 const noticeContentEl = document.getElementById('notice-content');
 const noticeTitleEl = document.getElementById('notice-title');
 const settingNoticeLabelEl = document.getElementById('setting-notice-label');
+const noticeTabNewsBtn = document.getElementById('notice-tab-news');
+const noticeTabGuideBtn = document.getElementById('notice-tab-guide');
+let activeNoticeTab = 'news'; // 'news' or 'guide'
 const windLabels = document.querySelectorAll('.wind-label');
 const steakContainer = document.getElementById('steak-cooking-container');
 const steakCanvas = document.getElementById('steak-canvas');
@@ -200,9 +202,9 @@ const NOTE_POSITIONS = {
 };
 
 let steak1Img = new Image();
-steak1Img.src = '스테이크1.png';
+steak1Img.src = 'steak1.png';
 let steak2Img = new Image();
-steak2Img.src = '스테이크2.png';
+steak2Img.src = 'steak2.png';
 let steakMaskCanvas = document.createElement('canvas');
 let steakMaskCtx = steakMaskCanvas.getContext('2d');
 let isSteakLoaded = false;
@@ -337,11 +339,11 @@ let defaultStoreData = {
     themeColor: "#3498db",
     items: {
         life: { name: "생명", desc: "+1 Life", price: 100, icon: "balloon.png" },
-        fan_left: { name: "선풍기좌측", desc: "+3m/s for 5s left wind power", price: 100, icon: "선풍기좌측.png" },
-        fan_right: { name: "선풍기우측", desc: "+3m/s for 5s right wind power", price: 100, icon: "선풍기우측.png" },
-        gas_item: { name: "가스통", desc: "+100 extra gas", price: 100, icon: "가스통.png" },
-        clock: { name: "자명종시계", desc: "+10s time extention", price: 100, icon: "자명종시계.png" },
-        weight: { name: "무게추", desc: "x5 gravity control", price: 100, icon: "무게추.png" }
+        fan_left: { name: "선풍기좌측", desc: "+3m/s for 5s left wind power", price: 100, icon: "fan_left.png" },
+        fan_right: { name: "선풍기우측", desc: "+3m/s for 5s right wind power", price: 100, icon: "fan_right.png" },
+        gas_item: { name: "가스통", desc: "+100 extra gas", price: 100, icon: "gas_tank.png" },
+        clock: { name: "자명종시계", desc: "+10s time extention", price: 100, icon: "alarm_clock.png" },
+        weight: { name: "무게추", desc: "x5 gravity control", price: 100, icon: "weight.png" }
     }
 };
 
@@ -487,9 +489,9 @@ const soundMgr = new SoundManager();
 
 // BGM is long, keep it as Audio element for streaming
 const bgmFiles = [
-    '열기구음악1.mp3', '열기구음악2.mp3', '열기구음악3.mp3', '열기구음악4.mp3',
-    '열기구음악5.MP3', '열기구음악6.MP3', '열기구음악7.mp3', '열기구음악8.mp3',
-    '열기구음악9.mp3', '열기구음악10.mp3'
+    'bgm1.mp3', 'bgm2.mp3', 'bgm3.mp3', 'bgm4.mp3',
+    'bgm5.mp3', 'bgm6.mp3', 'bgm7.mp3', 'bgm8.mp3',
+    'bgm9.mp3', 'bgm10.mp3'
 ];
 
 let bgmAudio = new Audio();
@@ -514,17 +516,17 @@ async function startSoundSystem() {
 async function preloadSounds() {
     soundMgr.init();
     const effects = [
-        { name: 'burner', url: encodeURI('열기구소리.MP3') },
-        { name: 'burner_alt', url: encodeURI('열기구소리..MP3') },
-        { name: 'success', url: encodeURI('미션성공.MP3') },
-        { name: 'explosion', url: encodeURI('폭발.MP3') },
-        { name: 'coin', url: encodeURI('코인소리.mp3') },
-        { name: 'life', url: encodeURI('생명소리.MP3') },
-        { name: 'popcorn', url: encodeURI('팝콘소리.MP3') },
-        { name: 'hit', url: encodeURI('히트.MP3') },
-        { name: 'bird_hit', url: encodeURI('새충돌소리.MP3') },
-        { name: 'thunder', url: encodeURI('천둥소리.MP3') },
-        { name: 'eagle_fall', url: encodeURI('독수리추락.MP3') }
+        { name: 'burner', url: 'balloon_sound.mp3' },
+        { name: 'burner_alt', url: 'balloon_sound.mp3' },
+        { name: 'success', url: 'mission_success.mp3' },
+        { name: 'explosion', url: 'explosion.mp3' },
+        { name: 'coin', url: 'coin.mp3' },
+        { name: 'life', url: 'life_sound.mp3' },
+        { name: 'popcorn', url: 'popcorn_sound.mp3' },
+        { name: 'hit', url: 'hit.mp3' },
+        { name: 'bird_hit', url: 'bird_hit.mp3' },
+        { name: 'thunder', url: 'thunder.mp3' },
+        { name: 'eagle_fall', url: 'eagle_fall.mp3' }
     ];
     // Parallel decode-into-memory
     await Promise.all(effects.map(effect => soundMgr.loadSound(effect.name, effect.url)));
@@ -868,7 +870,10 @@ const LEVEL_CONFIGS = {
 };
 
 function isSpaceEventLevel(displayName) {
-    return displayName === "EVENT 6" || displayName === "31" || displayName === "32";
+    if (!displayName) return false;
+    if (displayName === "EVENT 6") return true;
+    const num = parseInt(displayName, 10);
+    return !isNaN(num) && num >= 31;
 }
 
 if (!LEVEL_CONFIGS[currentLevel]) {
@@ -963,6 +968,7 @@ function resetJoystick() {
         event6Joystick.style.setProperty('--joy-y', '0px');
     }
 }
+
 let hasEnteredZone7 = false;
 let gas = 0; // 소모된 가스양
 let missionStartTime = 0;
@@ -993,7 +999,6 @@ const BONUS_G2_LEVELS = ["8", "9", "10", "16", "17", "18", "19", "20", "24", "25
 const BONUS_G3_LEVELS = [];
 const BONUS_G4_LEVELS = [];
 
-
 function getTotalItemsCount() {
     let total = 0;
     for (let key in upgrades) {
@@ -1007,10 +1012,6 @@ function getTotalItemsCount() {
 
 // Initialize
 function init() {
-    // restartBtn.addEventListener('click', () => {
-    //     resetGame();
-    //     startGame();
-    // });
     createParticles();
     createStars();
 
@@ -1019,14 +1020,14 @@ function init() {
             e.stopPropagation();
             if (!isSoundPreloaded) await startSoundSystem();
             if (!settingsScreen.classList.contains('hidden')) return;
-            if (gameState === 'PLAY') return; // 게임 도중에는 클릭 안되게
+            if (gameState === 'PLAY') return;
 
             const container = document.querySelector('.store-container');
             const isVisible = !storeScreen.classList.contains('hidden');
             const isInventory = container ? container.classList.contains('inventory-mode') : false;
 
             if (isVisible && isInventory) {
-                resumeGame(); // 이미 인벤토리라면 닫기
+                resumeGame();
             } else {
                 if (gameState === 'PLAY') {
                     gameState = 'PAUSED';
@@ -1034,10 +1035,10 @@ function init() {
                     mainActionBtn.innerText = 'PAUSE';
                     mainActionBtn.classList.add('item-paused');
                 }
-                if (clearScreen) clearScreen.classList.add('hidden'); // Hide score window
-                if (levelHintEl) levelHintEl.classList.add('hidden'); // Hide mission hint
+                if (clearScreen) clearScreen.classList.add('hidden');
+                if (levelHintEl) levelHintEl.classList.add('hidden');
                 storeScreen.classList.remove('hidden');
-                updateStoreUI(true); // 인벤토리 모드로 열기/전환
+                updateStoreUI(true);
             }
         });
     }
@@ -1047,14 +1048,14 @@ function init() {
             e.stopPropagation();
             if (!isSoundPreloaded) await startSoundSystem();
             if (!settingsScreen.classList.contains('hidden')) return;
-            if (gameState === 'PLAY') return; // 게임 도중에는 클릭 안되게
+            if (gameState === 'PLAY') return;
 
             const container = document.querySelector('.store-container');
             const isVisible = !storeScreen.classList.contains('hidden');
             const isInventory = container ? container.classList.contains('inventory-mode') : false;
 
             if (isVisible && !isInventory) {
-                resumeGame(); // 이미 상점이라면 닫기
+                resumeGame();
             } else {
                 if (gameState === 'PLAY') {
                     gameState = 'PAUSED';
@@ -1062,11 +1063,11 @@ function init() {
                     mainActionBtn.innerText = 'PAUSE';
                     mainActionBtn.classList.add('item-paused');
                 }
-                if (clearScreen) clearScreen.classList.add('hidden'); // Hide score window
-                if (levelHintEl) levelHintEl.classList.add('hidden'); // Hide mission hint
+                if (clearScreen) clearScreen.classList.add('hidden');
+                if (levelHintEl) levelHintEl.classList.add('hidden');
                 storeScreen.classList.remove('hidden');
                 storeOperationMode = null;
-                updateStoreUI(false); // 상점 모드로 열기/전환
+                updateStoreUI(false);
             }
         });
     }
@@ -1095,6 +1096,7 @@ function init() {
             const nextLv = currentLevel + 1;
             if (LEVEL_CONFIGS[nextLv]) {
                 currentLevel = nextLv;
+                localStorage.setItem('balloon_current_level', currentLevel);
                 resetGame();
                 if (rankScreen && !rankScreen.classList.contains('hidden')) {
                     updateRankUI();
@@ -1109,6 +1111,7 @@ function init() {
             const prevLv = currentLevel - 1;
             if (LEVEL_CONFIGS[prevLv]) {
                 currentLevel = prevLv;
+                localStorage.setItem('balloon_current_level', currentLevel);
                 resetGame();
                 if (rankScreen && !rankScreen.classList.contains('hidden')) {
                     updateRankUI();
@@ -1121,8 +1124,8 @@ function init() {
         openStoreBtn.addEventListener('click', () => {
             storeScreen.classList.remove('hidden');
             clearScreen.classList.add('hidden');
-            storeOperationMode = null; // Reset mode
-            updateStoreUI(false); // Open in Shop Mode
+            storeOperationMode = null;
+            updateStoreUI(false);
         });
     }
 
@@ -1137,6 +1140,7 @@ function init() {
             eventClearScreen.classList.add('hidden');
             if (previousLevelBeforeRewardedEvent !== null) {
                 currentLevel = previousLevelBeforeRewardedEvent;
+                localStorage.setItem('balloon_current_level', currentLevel);
                 previousLevelBeforeRewardedEvent = null;
                 isRewardedEventPlay = false;
             }
@@ -1161,6 +1165,7 @@ function init() {
             eventClearScreen.classList.add('hidden');
             if (previousLevelBeforeRewardedEvent !== null) {
                 currentLevel = previousLevelBeforeRewardedEvent;
+                localStorage.setItem('balloon_current_level', currentLevel);
                 previousLevelBeforeRewardedEvent = null;
                 isRewardedEventPlay = false;
             }
@@ -1187,40 +1192,8 @@ function init() {
         closeSettingsBtn.addEventListener('click', () => {
             settingsScreen.classList.add('hidden');
             if (gameState === 'PAUSED' && !storeScreen.classList.contains('hidden') === false) {
-                resumeGame(); // Ensure it doesn't resume if store is still open
+                resumeGame();
             }
-        });
-    }
-
-    if (noticeSettingsBtn) {
-        noticeSettingsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (noticeScreen) {
-                updateNoticeUI();
-                noticeScreen.classList.remove('hidden');
-            }
-        });
-    }
-
-    if (closeNoticeBtn) {
-        closeNoticeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (noticeScreen) noticeScreen.classList.add('hidden');
-        });
-    }
-
-    if (noticeScreen) {
-        noticeScreen.addEventListener('click', (e) => {
-            if (e.target === noticeScreen) noticeScreen.classList.add('hidden');
-        });
-    }
-
-    if (langToggleSettingsBtn) {
-        langToggleSettingsBtn.addEventListener('click', () => {
-            currentLanguage = (currentLanguage === 'kor') ? 'eng' : 'kor';
-            savePlayerData();
-            updateLanguageUI();
-            updateSettingsUI();
         });
     }
 
@@ -1269,10 +1242,7 @@ function init() {
                 } else if (el.webkitRequestFullscreen) {
                     el.webkitRequestFullscreen();
                 } else {
-                    const iosAlertMsg = (currentLanguage === 'kor')
-                        ? "아이폰(iOS) 브라우저 정책상 버튼 전체화면이 제한되어 있습니다.\n\n[팁] 사파리나 크롬 하단 '공유' → '홈 화면에 추가'를 하시면 주소창과 메뉴바가 완전히 사라진 100% 전체화면 앱으로 플레이할 수 있습니다!"
-                        : "Fullscreen via button is restricted by iOS browser policy.\n\n[Tip] Tap 'Share' at the bottom of Safari or Chrome → 'Add to Home Screen' to play in 100% fullscreen mode!";
-                    alert(iosAlertMsg);
+                    alert("아이폰(iOS) 브라우저 정책상 버튼 전체화면이 제한되어 있습니다.\n\n[팁] 사파리나 크롬 하단 '공유' → '홈 화면에 추가'를 하시면 주소창과 메뉴바가 완전히 사라진 100% 전체화면 앱으로 플레이할 수 있습니다!");
                 }
             } else {
                 if (document.exitFullscreen) {
@@ -1289,36 +1259,10 @@ function init() {
     }
 
     if (resetRecordSettingsBtn) {
-        resetRecordSettingsBtn.addEventListener('click', async () => {
-            const confirmResetMsg = (currentLanguage === 'kor')
-                ? "모든 기록(크레딧, 아이템, 진행 상황, 랭킹)을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다."
-                : "Are you sure you want to reset all records (credits, items, progress, rank)? This action cannot be undone.";
-            if (confirm(confirmResetMsg)) {
-                // Firebase 서버의 랭킹 기록 삭제
-                try {
-                    const registeredNick = localStorage.getItem('balloon_registered_nickname');
-                    const deviceUid = localStorage.getItem('balloon_device_uid');
-
-                    if (registeredNick) {
-                        await db.collection("leaderboard").doc(registeredNick).delete();
-                    }
-                    if (deviceUid) {
-                        const snap = await db.collection("leaderboard").where("uid", "==", deviceUid).get();
-                        if (!snap.empty) {
-                            const batch = db.batch();
-                            snap.forEach(doc => batch.delete(doc.ref));
-                            await batch.commit();
-                        }
-                    }
-                } catch (err) {
-                    console.error("서버 랭킹 기록 삭제 중 오류:", err);
-                }
-
-                // Clear localStorage
+        resetRecordSettingsBtn.addEventListener('click', () => {
+            if (confirm("모든 기록(크레딧, 아이템, 진행 상황, 랭킹)을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
                 localStorage.removeItem('balloon_credits');
                 localStorage.removeItem('balloon_upgrades');
-                localStorage.removeItem('balloon_real_credits');
-                localStorage.removeItem('balloon_real_upgrades');
                 localStorage.removeItem('balloon_store_data');
                 localStorage.removeItem('balloon_cleared_levels');
                 localStorage.removeItem('balloon_lives');
@@ -1327,15 +1271,14 @@ function init() {
                 localStorage.removeItem('balloon_ui_swapped');
                 localStorage.removeItem('balloon_level_best_scores');
                 localStorage.removeItem('balloon_leaderboard_profiles');
-                localStorage.removeItem('balloon_registered_nickname');
+                localStorage.removeItem('balloon_real_credits');
+                localStorage.removeItem('balloon_real_upgrades');
+                localStorage.removeItem('balloon_current_level');
 
-                if (rankNicknameInput) rankNicknameInput.value = "";
-
-                // Reset variables
+                totalCredits = 0;
                 realCredits = 0;
-                realUpgrades = { clock: 0, fan_left: 0, fan_right: 0, gas_item: 0, weight: 0 };
-                totalCredits = 500; // Resetting puts player back to level 0 (tutorial)
                 upgrades = { clock: 0, fan_left: 0, fan_right: 0, gas_item: 0, weight: 0 };
+                realUpgrades = { clock: 0, fan_left: 0, fan_right: 0, gas_item: 0, weight: 0 };
                 lives = 7;
                 clearedLevels = [];
                 currentLevel = 0;
@@ -1346,44 +1289,54 @@ function init() {
                 storeData = defaultStoreData;
                 myLevelBestScores = {};
 
-                // Update UI and Save
                 savePlayerData();
                 updateLivesUI();
                 if (typeof updateCreditsUI === 'function') updateCreditsUI();
                 else if (groundCredits) groundCredits.innerText = "0C";
 
                 updateSettingsUI();
-
-                // Reset game state
                 resetGame();
 
-                alert(currentLanguage === 'kor' ? "기록과 서버 랭킹이 성공적으로 초기화되었습니다." : "Records and leaderboard rankings have been successfully reset.");
-                location.reload(); // Reload to ensure everything is fresh
+                alert("기록이 성공적으로 초기화되었습니다.");
+                location.reload();
             }
         });
     }
 
-    // [DEV ONLY] 설정창 내 다음 레벨 건너뛰기 버튼 (Ctrl + L 과 동일한 기능) - 나중에 삭제 예정
-    if (devNextLevelBtn) {
-        devNextLevelBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const maxLevel = Object.keys(LEVEL_CONFIGS).length - 1;
-            if (currentLevel < maxLevel) {
-                currentLevel++;
-                resetGame();
-                if (typeof updateNextLevelButtonVisibility === 'function') {
-                    updateNextLevelButtonVisibility();
-                }
-                if (settingsScreen) {
-                    settingsScreen.classList.add('hidden');
-                }
-                console.log(`[DEV ONLY] Switched to Level ${currentLevel} via settings button`);
-            } else {
-                alert(currentLanguage === 'kor' ? "현재 마지막 레벨입니다." : "This is the last level.");
-            }
+    if (langToggleSettingsBtn) {
+        langToggleSettingsBtn.addEventListener('click', () => {
+            currentLanguage = (currentLanguage === 'kor') ? 'eng' : 'kor';
+            localStorage.setItem('balloon_language', currentLanguage);
+            updateLanguageUI();
+            updateSettingsUI();
         });
     }
 
+    if (noticeSettingsBtn) {
+        noticeSettingsBtn.addEventListener('click', () => {
+            if (noticeScreen) {
+                noticeScreen.classList.remove('hidden');
+                updateNoticeUI();
+            }
+        });
+    }
+    if (closeNoticeBtn) {
+        closeNoticeBtn.addEventListener('click', () => {
+            if (noticeScreen) noticeScreen.classList.add('hidden');
+        });
+    }
+    if (noticeTabNewsBtn) {
+        noticeTabNewsBtn.addEventListener('click', () => {
+            activeNoticeTab = 'news';
+            updateNoticeUI();
+        });
+    }
+    if (noticeTabGuideBtn) {
+        noticeTabGuideBtn.addEventListener('click', () => {
+            activeNoticeTab = 'guide';
+            updateNoticeUI();
+        });
+    }
 
 
     if (saveDecoBtn) {
@@ -1391,7 +1344,6 @@ function init() {
             storeData.title = editStoreTitle.value;
             storeData.themeColor = editStoreColor.value;
 
-            // Update items
             Object.keys(storeData.items).forEach(key => {
                 const block = document.querySelector(`.item-editor-block[data-key="${key}"]`);
                 if (block) {
@@ -1413,18 +1365,6 @@ function init() {
         });
     }
 
-    if (closeDecoBtn) {
-        closeDecoBtn.addEventListener('click', () => {
-            storeDecorator.classList.add('hidden');
-        });
-    }
-
-    function getNoLifeAlertMessage(waitMin) {
-        return (currentLanguage === 'kor') ?
-            `생명이 없습니다! 충전될 때까지 약 ${waitMin}분 더 기다려야 합니다.` :
-            `No lives remaining! Please wait ~${waitMin} min for recharge.`;
-    }
-
     // Controls
     mainActionBtn.addEventListener('mousedown', async (e) => {
         if (!isSoundPreloaded) await startSoundSystem();
@@ -1432,14 +1372,14 @@ function init() {
         await soundMgr.resume();
 
         if (!settingsScreen.classList.contains('hidden')) return;
-        if (mainActionBtn.classList.contains('overheated')) return; // 대기 시간 동안 클릭 방지
+        if (mainActionBtn.classList.contains('overheated')) return;
         if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || mainActionBtn.classList.contains('restart-mode')) {
             if (lives <= 0) {
                 const now = Date.now();
                 const nextRegenTime = lastLifeUpdate + (5 * 60 * 1000);
                 const waitMs = nextRegenTime - now;
                 const waitMin = Math.ceil(waitMs / 60000);
-                alert(getNoLifeAlertMessage(waitMin));
+                alert(`생명이 없습니다! 충전될 때까지 약 ${waitMin}분 더 기다려야 합니다.`);
                 return;
             }
             resetGame();
@@ -1458,14 +1398,14 @@ function init() {
         soundMgr.init();
         await soundMgr.resume();
 
-        if (mainActionBtn.classList.contains('overheated')) return; // 대기 시간 동안 클릭 방지
+        if (mainActionBtn.classList.contains('overheated')) return;
         if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || mainActionBtn.classList.contains('restart-mode')) {
             if (lives <= 0) {
                 const now = Date.now();
                 const nextRegenTime = lastLifeUpdate + (5 * 60 * 1000);
                 const waitMs = nextRegenTime - now;
                 const waitMin = Math.ceil(waitMs / 60000);
-                alert(getNoLifeAlertMessage(waitMin));
+                alert(`생명이 없습니다! 충전될 때까지 약 ${waitMin}분 더 기다려야 합니다.`);
                 return;
             }
             resetGame();
@@ -1488,13 +1428,13 @@ function init() {
             soundMgr.init();
             soundMgr.resume();
 
-            if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER') {
+            if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || (mainActionBtn && mainActionBtn.classList.contains('restart-mode'))) {
                 if (lives <= 0) {
                     const now = Date.now();
                     const nextRegenTime = lastLifeUpdate + (5 * 60 * 1000);
                     const waitMs = nextRegenTime - now;
                     const waitMin = Math.ceil(waitMs / 60000);
-                    alert(getNoLifeAlertMessage(waitMin));
+                    alert(`생명이 없습니다! 충전될 때까지 약 ${waitMin}분 더 기다려야 합니다.`);
                     return;
                 }
                 resetGame();
@@ -1550,6 +1490,7 @@ function init() {
         soundMgr.stop('burner');
         soundMgr.stop('burner_alt');
     });
+
     // dev controls
     document.querySelectorAll('.wind-slider').forEach(slider => {
         // 초기 값 동기화
@@ -1572,105 +1513,167 @@ function init() {
 
 
 
-    // Toggle Dev Mode (Ctrl + A)
-    window.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.key.toLowerCase() === 'a') {
-            e.preventDefault(); // Prevent default browser "Select All"
-            document.body.classList.toggle('dev-mode-active');
-        }
-        if (e.ctrlKey && e.key.toLowerCase() === 's') {
-            e.preventDefault(); // 브라우저 저장 방지
-            document.body.classList.toggle('show-markers');
-        }
-        if (e.ctrlKey && e.key.toLowerCase() === 'd') {
-            e.preventDefault();
-            coordDebugger.classList.toggle('hidden');
-        }
-        if (e.ctrlKey && e.key.toLowerCase() === 'q') {
-            e.preventDefault();
-            storeScreen.classList.remove('hidden');
-            updateStoreUI();
-        }
-        // 개발자용 레벨 이동 (Ctrl + L: 다음, Ctrl + K: 이전)
-        // 개발자용 레벨 이동 (Ctrl + L: 다음, Ctrl + K: 이전)
-        if (e.ctrlKey && e.key.toLowerCase() === 'l') {
-            e.preventDefault();
-            const maxLevel = Object.keys(LEVEL_CONFIGS).length - 1;
-            if (currentLevel < maxLevel) {
-                currentLevel++;
-                resetGame();
-                console.log(`Switched to Level ${currentLevel}`);
+    // ==========================================
+    // PC 키보드 컨트롤 (스페이스바 및 방향키 지원)
+    // ==========================================
+    const activeKeyMap = {
+        Space: false,
+        ArrowUp: false,
+        ArrowDown: false,
+        ArrowLeft: false,
+        ArrowRight: false,
+        KeyW: false,
+        KeyS: false,
+        KeyA: false,
+        KeyD: false
+    };
+
+    function isSpaceModeActive() {
+        const currentCfg = LEVEL_CONFIGS[currentLevel];
+        return currentCfg && isSpaceEventLevel(currentCfg.displayName);
+    }
+
+    async function triggerGameActionStart() {
+        if (!isSoundPreloaded) await startSoundSystem();
+        soundMgr.init();
+        await soundMgr.resume();
+
+        if (!settingsScreen.classList.contains('hidden')) return;
+        if (storeScreen && !storeScreen.classList.contains('hidden')) return;
+        if (rankScreen && !rankScreen.classList.contains('hidden')) return;
+        if (mainActionBtn && mainActionBtn.classList.contains('overheated')) return;
+
+        if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || (mainActionBtn && mainActionBtn.classList.contains('restart-mode'))) {
+            if (lives <= 0) {
+                const now = Date.now();
+                const nextRegenTime = lastLifeUpdate + (5 * 60 * 1000);
+                const waitMs = nextRegenTime - now;
+                const waitMin = Math.ceil(waitMs / 60000);
+                alert(getNoLifeAlertMessage(waitMin));
+                return;
             }
+            resetGame();
+            startGame();
         }
-        if (e.ctrlKey && e.key.toLowerCase() === 'k') {
-            e.preventDefault();
-            if (currentLevel > 0) {
-                currentLevel--;
-                resetGame();
-                console.log(`Switched to Level ${currentLevel}`);
+    }
+
+    function updateKeyboardControls() {
+        if (gameState !== 'PLAY') return;
+        if (isJoystickDragging) return; // 터치/마우스 조이스틱 드래그 중 우선
+
+        const inSpaceMode = isSpaceModeActive();
+
+        if (inSpaceMode) {
+            // [이벤트 6, 레벨 31 이상] 방향키(또는 WASD) / 스페이스바로 가스 분출
+            let vx = 0;
+            let vy = 0;
+
+            if (activeKeyMap.ArrowUp || activeKeyMap.KeyW) vy += 1;
+            if (activeKeyMap.ArrowDown || activeKeyMap.KeyS) vy -= 1;
+            if (activeKeyMap.ArrowLeft || activeKeyMap.KeyA) vx -= 1;
+            if (activeKeyMap.ArrowRight || activeKeyMap.KeyD) vx += 1;
+
+            // 스페이스바 단독 입력 시 기본 상방향(+Y) 가스 분출
+            if (activeKeyMap.Space && vy === 0 && vx === 0) {
+                vy = 1;
             }
-        }
-        // 개발자용 데이터 초기화 (Alt + Z)
-        if (e.altKey && e.key.toLowerCase() === 'z') {
-            e.preventDefault();
-            totalCredits = 0;
-            clearedLevels = [];
-            lives = 7;
-            lastLifeUpdate = Date.now();
-            Object.keys(upgrades).forEach(key => upgrades[key] = 0);
-            savePlayerData();
-            updateStoreUI();
-            console.log("Developer: Data reset to 0 (Alt+Z)");
-        }
-        // 개발자용 아이템 추가 (Alt + X)
-        if (e.altKey && e.key.toLowerCase() === 'x') {
-            e.preventDefault();
-            Object.keys(upgrades).forEach(key => upgrades[key] = (upgrades[key] || 0) + 5);
-            lives = 7;
-            lastLifeUpdate = Date.now();
-            savePlayerData();
-            updateStoreUI();
-            updateLivesUI();
-            console.log("Developer: Added 5 of each item (Alt+X)");
-        }
-        // 관리자 전용: 서버 랭킹 초기화 (Alt + Ctrl + M)
-        if (e.altKey && e.ctrlKey && e.key.toLowerCase() === 'm') {
-            e.preventDefault();
-            const pwPrompt = (currentLanguage === 'kor') ? "관리자 비밀번호를 입력하세요:" : "Enter admin password:";
-            const pw = prompt(pwPrompt);
-            if (pw === "ydp3200@@") {
-                const confirmAdminMsg = (currentLanguage === 'kor')
-                    ? "정말로 서버의 모든 랭킹 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
-                    : "Are you sure you want to delete all leaderboard records from the server? This cannot be undone.";
-                if (confirm(confirmAdminMsg)) {
-                    const deleteServerRankings = async () => {
-                        try {
-                            const snapshot = await db.collection("leaderboard").get();
-                            if (snapshot.empty) {
-                                alert(currentLanguage === 'kor' ? "삭제할 기록이 없습니다." : "No records to delete.");
-                                return;
-                            }
-                            const batch = db.batch();
-                            snapshot.docs.forEach((doc) => {
-                                batch.delete(doc.ref);
-                            });
-                            await batch.commit();
-                            alert(currentLanguage === 'kor' ? "서버의 모든 랭킹 기록이 성공적으로 삭제되었습니다." : "All leaderboard records successfully deleted from server.");
-                            if (rankScreen && !rankScreen.classList.contains('hidden')) {
-                                updateRankUI();
-                            }
-                        } catch (err) {
-                            console.error("서버 랭킹 삭제 중 오류 발생:", err);
-                            alert(currentLanguage === 'kor' ? "서버 기록 삭제 중 오류가 발생했습니다." : "Error deleting server records.");
-                        }
-                    };
-                    deleteServerRankings();
+
+            const len = Math.hypot(vx, vy);
+            if (len > 0) {
+                joystickVecX = vx / len;
+                joystickVecY = vy / len;
+                isBurning = true;
+                updateSpaceFlames(joystickVecX, joystickVecY);
+                if (event6Joystick) {
+                    event6Joystick.classList.add('active');
+                    event6Joystick.style.setProperty('--joy-x', `${(joystickVecX * 14).toFixed(1)}px`);
+                    event6Joystick.style.setProperty('--joy-y', `${(-joystickVecY * 14).toFixed(1)}px`);
                 }
-            } else if (pw !== null) {
-                alert(currentLanguage === 'kor' ? "비밀번호가 틀렸습니다." : "Incorrect password.");
+                if (!soundMgr.activeSources['burner']) {
+                    soundMgr.play('burner', true, 1.0);
+                }
+            } else {
+                resetJoystick(); if (typeof resetDpad === 'function') resetDpad();
+                isBurning = false;
+                soundMgr.stop('burner');
+                soundMgr.stop('burner_alt');
+            }
+        } else {
+            // [일반 레벨] 스페이스바(또는 ArrowUp / KeyW)로 버너 점화
+            if (activeKeyMap.Space || activeKeyMap.ArrowUp || activeKeyMap.KeyW) {
+                isBurning = true;
+                if (mainActionBtn) mainActionBtn.classList.add('keyboard-active');
+                if (!soundMgr.activeSources['burner']) {
+                    soundMgr.play('burner', true, 1.0);
+                }
+            } else {
+                isBurning = false;
+                if (mainActionBtn) mainActionBtn.classList.remove('keyboard-active');
+                soundMgr.stop('burner');
+                soundMgr.stop('burner_alt');
+            }
+        }
+    }
+
+    window.addEventListener('keydown', (e) => {
+        // 텍스트 입력 중일 때는 게임 키 바인딩 무시
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+            return;
+        }
+
+        const code = e.code;
+        const isGameControlKey = code === 'Space' ||
+                                 code === 'ArrowUp' || code === 'ArrowDown' ||
+                                 code === 'ArrowLeft' || code === 'ArrowRight' ||
+                                 code === 'KeyW' || code === 'KeyS' ||
+                                 code === 'KeyA' || code === 'KeyD';
+
+        if (isGameControlKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            e.preventDefault(); // 스크롤 등 브라우저 기본 동작 방지
+        }
+
+        if (code in activeKeyMap) {
+            if (!activeKeyMap[code]) {
+                activeKeyMap[code] = true;
+
+                // 시작 / 재시작 상태에서 Space, Enter, ArrowUp 누르면 게임 시작
+                if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || (mainActionBtn && mainActionBtn.classList.contains('restart-mode'))) {
+                    if (code === 'Space' || code === 'ArrowUp' || code === 'KeyW' || code === 'Enter') {
+                        triggerGameActionStart();
+                        return;
+                    }
+                }
+
+                updateKeyboardControls();
             }
         }
     });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+            return;
+        }
+
+        const code = e.code;
+        if (code in activeKeyMap) {
+            activeKeyMap[code] = false;
+            updateKeyboardControls();
+        }
+    });
+
+    window.addEventListener('blur', () => {
+        for (const k in activeKeyMap) {
+            activeKeyMap[k] = false;
+        }
+        if (gameState === 'PLAY') {
+            resetJoystick(); if (typeof resetDpad === 'function') resetDpad();
+            isBurning = false;
+            if (mainActionBtn) mainActionBtn.classList.remove('keyboard-active');
+            soundMgr.stop('burner');
+            soundMgr.stop('burner_alt');
+        }
+    });
+
 
     // Coordinate tracking
     gameContainer.addEventListener('mousemove', (e) => {
@@ -2929,7 +2932,7 @@ function clearDroppedItems() {
 function gameOver(msg = 'OVERHEAT') {
     if (gameState !== 'PLAY') return;
 
-    resetJoystick();
+    resetJoystick(); if (typeof resetDpad === 'function') resetDpad();
     isBurning = false;
     soundMgr.stop('burner');
 
@@ -3114,7 +3117,7 @@ function winGame() {
     const isSteakEvent = LEVEL_CONFIGS[currentLevel] && LEVEL_CONFIGS[currentLevel].displayName === "EVENT 2";
 
     gameState = 'CLEAR';
-    resetJoystick();
+    resetJoystick(); if (typeof resetDpad === 'function') resetDpad();
     isBurning = false;
     soundMgr.stop('burner');
     attachedFish = null;
@@ -3350,7 +3353,7 @@ function winGame() {
 function triggerEvent6WinSequence() {
     if (gameState !== 'PLAY') return;
     gameState = 'CLEAR'; // 상태 중지
-    resetJoystick();
+    resetJoystick(); if (typeof resetDpad === 'function') resetDpad();
     isBurning = false;
     soundMgr.stop('burner');
     
@@ -3576,7 +3579,7 @@ function resetGame() {
     const groundEl = document.getElementById('ground');
     if (balloonImg) {
         if (isSpaceEventLevel(config.displayName)) {
-            balloonImg.src = 'space ballon.png';
+            balloonImg.src = 'space_balloon.png';
             balloonImg.classList.add('space-balloon');
             balloon.classList.add('space-mode');
             balloon.classList.toggle('level31-mode', config.displayName === "31" || config.displayName === "32");
@@ -3959,7 +3962,7 @@ function addLevel26Cloud() {
     // 점선 크기와 동일하게 백분율(%)로 크기 및 위치 조정
     if (skyBg) {
         const cloud = document.createElement('img');
-        cloud.src = '구름1.png';
+        cloud.src = 'cloud1.png';
         cloud.className = 'level26-cloud';
         if (currentLevel === 33 || currentLevel === 34 || currentLevel === 35) cloud.classList.add('storm-cloud');
         cloud.style.position = 'absolute';
@@ -5061,7 +5064,7 @@ function updateCornPopping() {
 
 function spawnPopcorn(x, y) {
     const p = document.createElement('img');
-    p.src = '팝콘.png';
+    p.src = 'popcorn.png';
     p.className = 'popcorn-particle';
 
     // Convert clientX/Y to gameContainer relative
@@ -5261,7 +5264,7 @@ function createFish() {
 
         for (let i = 0; i < count; i++) {
             const fishEl = document.createElement('img');
-            fishEl.src = `물고기${type}.png`;
+            fishEl.src = `fish${type}.png`;
             fishEl.className = 'fish';
             // 초기 위치 및 스타일 설정
             fishEl.style.position = 'absolute';
@@ -5966,7 +5969,7 @@ function createEagles() {
         eagleWrap.style.zIndex = '12';
         
         const eagleImg = document.createElement('img');
-        eagleImg.src = '독수리.png';
+        eagleImg.src = 'eagle.png';
         eagleImg.style.width = '100%';
         eagleImg.style.height = 'auto';
         eagleWrap.appendChild(eagleImg);
@@ -6282,7 +6285,14 @@ function checkLifeRegen() {
 setInterval(checkLifeRegen, 60000);
 
 // --- Notice Management ---
-const NOTICES = {
+// 1. NEWS 데이터 (나중에 업데이트할 소식이 있을 때 아래 배열에 { title: "...", desc: "..." } 형태로 추가)
+const NOTICE_NEWS_DATA = {
+    kor: [],
+    eng: []
+};
+
+// 2. 게임설명서 데이터 (기존 6개 설명서)
+const NOTICE_GUIDE_DATA = {
     kor: [
         {
             title: "📱 디바이스 (Device)",
@@ -6344,14 +6354,34 @@ function updateNoticeUI() {
     if (noticeTitleEl) noticeTitleEl.innerText = isKor ? '📢 공지사항' : '📢 NOTICE';
     if (closeNoticeBtn) closeNoticeBtn.innerText = isKor ? '닫기' : 'CLOSE';
 
+    // 탭 버튼 텍스트 및 활성화 상태 갱신
+    if (noticeTabNewsBtn) {
+        noticeTabNewsBtn.innerText = "NEWS";
+        noticeTabNewsBtn.classList.toggle('active', activeNoticeTab === 'news');
+    }
+    if (noticeTabGuideBtn) {
+        noticeTabGuideBtn.innerText = isKor ? "게임설명서" : "GUIDE";
+        noticeTabGuideBtn.classList.toggle('active', activeNoticeTab === 'guide');
+    }
+
+    // 선택된 탭(NEWS / 게임설명서)에 따른 내용 렌더링
     if (noticeContentEl) {
-        const list = isKor ? NOTICES.kor : NOTICES.eng;
-        noticeContentEl.innerHTML = list.map(item => `
-            <div class="notice-item">
-                <div class="notice-item-title">${item.title}</div>
-                <div class="notice-item-desc">${item.desc}</div>
-            </div>
-        `).join('');
+        const currentData = (activeNoticeTab === 'news') ? NOTICE_NEWS_DATA : NOTICE_GUIDE_DATA;
+        const list = isKor ? currentData.kor : currentData.eng;
+        if (!list || list.length === 0) {
+            noticeContentEl.innerHTML = `
+                <div style="text-align: center; padding: 40px 10px; color: #888; font-size: 0.82rem;">
+                    ${isKor ? "등록된 새로운 소식이 없습니다." : "No news available yet."}
+                </div>
+            `;
+        } else {
+            noticeContentEl.innerHTML = list.map(item => `
+                <div class="notice-item">
+                    <div class="notice-item-title">${item.title}</div>
+                    <div class="notice-item-desc">${item.desc}</div>
+                </div>
+            `).join('');
+        }
     }
 }
 
@@ -7162,17 +7192,7 @@ if (submitRankBtn) {
     });
 }
 
-window.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) {
-        e.preventDefault();
-        showCloudGuides = !showCloudGuides;
-        const guides = document.querySelectorAll('.level26-cloud-guide-svg');
-        guides.forEach(g => {
-            g.style.display = showCloudGuides ? 'block' : 'none';
-        });
-        console.log(`[Cloud Guide] ${showCloudGuides ? 'VISIBLE' : 'HIDDEN'}`);
-    }
-});
+
 
 
 

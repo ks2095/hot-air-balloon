@@ -1,4 +1,4 @@
-const CACHE_NAME = 'balloon-game-v15';
+const CACHE_NAME = 'balloon-game-v22';
 const ASSETS = [
     './',
     './index.html',

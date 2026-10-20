@@ -5,13 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>열기구 모험 - Hot Air Balloon Adventure</title>
-    <link rel="stylesheet" href="style.css?v=20261019_arrow1">
+    <link rel="stylesheet" href="style.css?v=20261021_optimized1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="balloon.png">
     <link rel="apple-touch-icon" href="balloon.png">
     <link rel="manifest" href="manifest.json?v=5">
+    <!-- CrazyGames SDK v3 -->
+    <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0a1128">
@@ -217,11 +219,6 @@
                         <span class="setting-label">Reset Record</span>
                         <button id="reset-record-settings-btn" class="toggle-btn">RESET</button>
                     </div>
-                    <!-- [DEV ONLY] Next Level Button (Ctrl+L) - 나중에 삭제 예정 -->
-                    <div class="setting-item dev-only-setting">
-                        <span class="setting-label" style="color: #ff9f43;">Next Level (DEV)</span>
-                        <button id="dev-next-level-btn" class="toggle-btn" style="color: #ff9f43 !important; font-weight: bold; cursor: pointer;">SKIP ▶</button>
-                    </div>
                 </div>
                 <button id="close-settings-btn" class="close-btn-main">Close</button>
             </div>
@@ -230,6 +227,10 @@
         <div id="notice-screen" class="overlay hidden">
             <div class="notice-container">
                 <h2 id="notice-title" class="notice-title">📢 공지사항</h2>
+                <div class="notice-tabs">
+                    <button id="notice-tab-news" class="notice-tab-btn active">NEWS</button>
+                    <button id="notice-tab-guide" class="notice-tab-btn">게임설명서</button>
+                </div>
                 <div class="notice-content" id="notice-content">
                     <!-- 공지 내용 JS 주입 -->
                 </div>
@@ -237,7 +238,7 @@
             </div>
         </div>
         <div id="event-credit-counter" class="hidden">
-            <img src="이벤트코인.png" alt="Coin">
+            <img src="event_coin.png" alt="Coin">
             <span id="event-credits-val">0</span>
         </div>
         <div id="event2-floating-score" class="hidden">
@@ -312,7 +313,7 @@
             <div id="fishing-gear" class="hidden">
                 <div class="fishing-rod"></div>
                 <div class="fishing-line">
-                    <img src="낚시미끼.png" class="fishing-bait">
+                    <img src="bait.png" class="fishing-bait">
                 </div>
             </div>
         </div>
@@ -322,7 +323,7 @@
         </div>
 
         <div id="corn-container" class="hidden">
-            <img src="옥수수.png" id="corn-img">
+            <img src="corn.png" id="corn-img">
         </div>
         <div id="piano-container" class="hidden">
             <div class="piano-keys">
@@ -389,7 +390,7 @@
             <div class="event-clear-container">
                 <h1 class="event-title">EVENT CLEAR!</h1>
                 <div class="event-result-box">
-                    <img src="이벤트코인.png" alt="Coin" class="event-result-coin">
+                    <img src="event_coin.png" alt="Coin" class="event-result-coin">
                     <div class="event-earned-label">EARNED CREDITS</div>
                     <div id="event-result-score" class="event-earned-value">0</div>
                 </div>
@@ -453,7 +454,7 @@
     <!-- Firebase SDK 불러오기 -->
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-        <script src="game.js?v=20261019_resetrank1"></script>
+        <script src="game.js?v=20261021_optimized1"></script>
         <script src="tutorial_guide.js?v=20261019_notice2"></script>
         <script>
             if ('serviceWorker' in navigator) {

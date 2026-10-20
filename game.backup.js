@@ -193,9 +193,9 @@ const NOTE_POSITIONS = {
 };
 
 let steak1Img = new Image();
-steak1Img.src = '스테이크1.png';
+steak1Img.src = 'steak1.png';
 let steak2Img = new Image();
-steak2Img.src = '스테이크2.png';
+steak2Img.src = 'steak2.png';
 let steakMaskCanvas = document.createElement('canvas');
 let steakMaskCtx = steakMaskCanvas.getContext('2d');
 let isSteakLoaded = false;
@@ -282,11 +282,11 @@ let defaultStoreData = {
     themeColor: "#3498db",
     items: {
         life: { name: "생명", desc: "+1 Life", price: 100, icon: "balloon.png" },
-        fan_left: { name: "선풍기좌측", desc: "+3m/s for 5s left wind power", price: 100, icon: "선풍기좌측.png" },
-        fan_right: { name: "선풍기우측", desc: "+3m/s for 5s right wind power", price: 100, icon: "선풍기우측.png" },
-        gas_item: { name: "가스통", desc: "+100 extra gas", price: 100, icon: "가스통.png" },
-        clock: { name: "자명종시계", desc: "+10s time extention", price: 100, icon: "자명종시계.png" },
-        weight: { name: "무게추", desc: "x5 gravity control", price: 100, icon: "무게추.png" }
+        fan_left: { name: "선풍기좌측", desc: "+3m/s for 5s left wind power", price: 100, icon: "fan_left.png" },
+        fan_right: { name: "선풍기우측", desc: "+3m/s for 5s right wind power", price: 100, icon: "fan_right.png" },
+        gas_item: { name: "가스통", desc: "+100 extra gas", price: 100, icon: "gas_tank.png" },
+        clock: { name: "자명종시계", desc: "+10s time extention", price: 100, icon: "alarm_clock.png" },
+        weight: { name: "무게추", desc: "x5 gravity control", price: 100, icon: "weight.png" }
     }
 };
 
@@ -420,9 +420,9 @@ const soundMgr = new SoundManager();
 
 // BGM is long, keep it as Audio element for streaming
 const bgmFiles = [
-    '열기구음악1.mp3', '열기구음악2.mp3', '열기구음악3.mp3', '열기구음악4.mp3',
-    '열기구음악5.MP3', '열기구음악6.MP3', '열기구음악7.mp3', '열기구음악8.mp3',
-    '열기구음악9.mp3', '열기구음악10.mp3'
+    'bgm1.mp3', 'bgm2.mp3', 'bgm3.mp3', 'bgm4.mp3',
+    'bgm5.mp3', 'bgm6.mp3', 'bgm7.mp3', 'bgm8.mp3',
+    'bgm9.mp3', 'bgm10.mp3'
 ];
 
 let bgmAudio = new Audio();
@@ -447,17 +447,17 @@ async function startSoundSystem() {
 async function preloadSounds() {
     soundMgr.init();
     const effects = [
-        { name: 'burner', url: encodeURI('열기구소리.MP3') },
-        { name: 'burner_alt', url: encodeURI('열기구소리..MP3') },
-        { name: 'success', url: encodeURI('미션성공.MP3') },
-        { name: 'explosion', url: encodeURI('폭발.MP3') },
-        { name: 'coin', url: encodeURI('코인소리.mp3') },
-        { name: 'life', url: encodeURI('생명소리.MP3') },
-        { name: 'popcorn', url: encodeURI('팝콘소리.MP3') },
-        { name: 'hit', url: encodeURI('히트.MP3') },
-        { name: 'bird_hit', url: encodeURI('새충돌소리.MP3') },
-        { name: 'thunder', url: encodeURI('천둥소리.MP3') },
-        { name: 'eagle_fall', url: encodeURI('독수리추락.MP3') }
+        { name: 'burner', url: 'balloon_sound.mp3' },
+        { name: 'burner_alt', url: 'balloon_sound.mp3' },
+        { name: 'success', url: 'mission_success.mp3' },
+        { name: 'explosion', url: 'explosion.mp3' },
+        { name: 'coin', url: 'coin.mp3' },
+        { name: 'life', url: 'life_sound.mp3' },
+        { name: 'popcorn', url: 'popcorn_sound.mp3' },
+        { name: 'hit', url: 'hit.mp3' },
+        { name: 'bird_hit', url: 'bird_hit.mp3' },
+        { name: 'thunder', url: 'thunder.mp3' },
+        { name: 'eagle_fall', url: 'eagle_fall.mp3' }
     ];
     // Parallel decode-into-memory
     await Promise.all(effects.map(effect => soundMgr.loadSound(effect.name, effect.url)));
@@ -3355,7 +3355,7 @@ function resetGame() {
     const groundEl = document.getElementById('ground');
     if (balloonImg) {
         if (isSpaceEventLevel(config.displayName)) {
-            balloonImg.src = 'space ballon.png';
+            balloonImg.src = 'space_balloon.png';
             balloonImg.classList.add('space-balloon');
             balloon.classList.add('space-mode');
             balloon.classList.toggle('level31-mode', config.displayName === "31" || config.displayName === "32");
@@ -3735,7 +3735,7 @@ function addLevel26Cloud() {
     // 점선 크기와 동일하게 백분율(%)로 크기 및 위치 조정
     if (skyBg) {
         const cloud = document.createElement('img');
-        cloud.src = '구름1.png';
+        cloud.src = 'cloud1.png';
         cloud.className = 'level26-cloud';
         if (currentLevel === 33 || currentLevel === 34 || currentLevel === 35) cloud.classList.add('storm-cloud');
         cloud.style.position = 'absolute';
@@ -4836,7 +4836,7 @@ function updateCornPopping() {
 
 function spawnPopcorn(x, y) {
     const p = document.createElement('img');
-    p.src = '팝콘.png';
+    p.src = 'popcorn.png';
     p.className = 'popcorn-particle';
 
     // Convert clientX/Y to gameContainer relative
@@ -5036,7 +5036,7 @@ function createFish() {
 
         for (let i = 0; i < count; i++) {
             const fishEl = document.createElement('img');
-            fishEl.src = `물고기${type}.png`;
+            fishEl.src = `fish${type}.png`;
             fishEl.className = 'fish';
             // 초기 위치 및 스타일 설정
             fishEl.style.position = 'absolute';
@@ -5741,7 +5741,7 @@ function createEagles() {
         eagleWrap.style.zIndex = '12';
         
         const eagleImg = document.createElement('img');
-        eagleImg.src = '독수리.png';
+        eagleImg.src = 'eagle.png';
         eagleImg.style.width = '100%';
         eagleImg.style.height = 'auto';
         eagleWrap.appendChild(eagleImg);
