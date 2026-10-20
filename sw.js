@@ -1,11 +1,16 @@
-const CACHE_NAME = 'balloon-game-v22';
+const CACHE_NAME = 'balloon-game-v23';
 const ASSETS = [
     './',
     './index.html',
     './style.css',
     './game.js',
     './manifest.json',
-    './balloon.png'
+    './balloon.png',
+    './fan_left.png',
+    './fan_right.png',
+    './gas_tank.png',
+    './alarm_clock.png',
+    './weight.png'
 ];
 
 self.addEventListener('install', (event) => {
