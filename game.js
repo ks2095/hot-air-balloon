@@ -6751,71 +6751,168 @@ if (closeAdSelectionBtn) {
     });
 }
 
+// ==========================================
+// Google AdSense H5 Games Ads & Local Fallback
+// ==========================================
+let isH5AdAudioPaused = false;
+
 function showAd(type, duration) {
+    const isKor = (currentLanguage === 'kor');
 
-    if (adOverlay) {
-        adOverlay.classList.remove('hidden');
-        
-        if (adRewardTitle) {
-            adRewardTitle.dataset.adType = type;
-            const isKor = (currentLanguage === 'kor');
-            if (type === 'life') {
-                adRewardTitle.innerText = isKor ? "생명 충전 광고" : "Life Refill Ad";
-            } else {
-                adRewardTitle.innerText = isKor ? "이벤트 보너스 광고" : "Event Bonus Ad";
-            }
-        }
+    // 1. Google AdSense H5 Games 보상형 광고(Rewarded Ad) 우선 시도
+    if (typeof adBreak === 'function') {
+        let isAdViewed = false;
+        let isAdShown = false;
 
-        const timerEl = adOverlay.querySelector('.ad-timer');
-        let timeLeft = duration;
+        try {
+            adBreak({
+                type: 'reward',
+                name: (type === 'life' ? 'refill_lives' : 'bonus_event'),
+                beforeAd: () => {
+                    isAdShown = true;
+                    // 광고 시작 시 오디오 일시정지
+                    if (bgmAudio && !bgmAudio.paused) {
+                        isH5AdAudioPaused = true;
+                        bgmAudio.pause();
+                    }
+                    if (soundMgr && soundMgr.context && soundMgr.context.state === 'running') {
+                        try { soundMgr.context.suspend(); } catch (e) { }
+                    }
+                },
+                afterAd: () => {
+                    // 광고 종료 시 오디오 복구
+                    if (soundMgr && soundMgr.context && soundMgr.context.state === 'suspended') {
+                        try { soundMgr.context.resume(); } catch (e) { }
+                    }
+                    if (isH5AdAudioPaused && isMusicEnabled && bgmAudio) {
+                        bgmAudio.play().catch(() => {});
+                        isH5AdAudioPaused = false;
+                    }
+                },
+                beforeReward: (showAdFn) => {
+                    // 광고 표시 준비 완료 -> 광고 재생 트리거
+                    showAdFn();
+                },
+                adViewed: () => {
+                    // 보상 획득 성공!
+                    isAdViewed = true;
+                    if (type === 'life') {
+                        lives = 7;
+                        lastLifeUpdate = Date.now();
+                        savePlayerData();
+                        updateLivesUI();
+                        triggerLifeSparkle();
+                        alert(isKor ? "생명이 7개로 완전 충전되었습니다! 💖" : "Lives fully refilled to 7! 💖");
+                    } else {
+                        lives = Math.min(7, lives + 1);
+                        savePlayerData();
+                        updateLivesUI();
+                        triggerLifeSparkle();
 
-        if (timerEl) {
-            timerEl.classList.remove('hidden');
-            timerEl.innerText = timeLeft;
-        }
-        
-        // 버튼 초기화
-        if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
-        if (adEventRewardsEl) adEventRewardsEl.classList.add('hidden');
-
-        const countdown = setInterval(() => {
-            timeLeft--;
-            if (timerEl) timerEl.innerText = timeLeft;
-
-            if (timeLeft <= 0) {
-                clearInterval(countdown);
-                if (timerEl) timerEl.classList.add('hidden');
-                
-                if (type === 'life') {
-                    if (getLifeAdBtn) getLifeAdBtn.classList.remove('hidden');
-                } else {
-                    // Reward for event ad: 1 life + event game selection
-                    lives = Math.min(7, lives + 1);
-                    savePlayerData();
-                    updateLivesUI();
-                    triggerLifeSparkle();
-
-                    if (adEventRewardsEl) {
-                        adEventRewardsEl.classList.remove('hidden');
-                        // 클리어 여부에 따라 버튼 활성화/비활성화
-                        const eventBtns = adEventRewardsEl.querySelectorAll('.event-reward-btn');
-                        eventBtns.forEach(btn => {
-                            const eventNum = btn.dataset.event;
-                            const eventLevelIdx = Object.keys(LEVEL_CONFIGS).find(lv => 
-                                LEVEL_CONFIGS[lv].displayName === `EVENT ${eventNum}`
-                            );
-                            
-                            if (eventLevelIdx && clearedLevels.includes(parseInt(eventLevelIdx))) {
-                                btn.classList.remove('locked');
-                            } else {
-                                btn.classList.add('locked');
-                            }
-                        });
+                        if (adOverlay) adOverlay.classList.remove('hidden');
+                        if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
+                        if (adEventRewardsEl) {
+                            adEventRewardsEl.classList.remove('hidden');
+                            const eventBtns = adEventRewardsEl.querySelectorAll('.event-reward-btn');
+                            eventBtns.forEach(btn => {
+                                const eventNum = btn.dataset.event;
+                                const eventLevelIdx = Object.keys(LEVEL_CONFIGS).find(lv => 
+                                    LEVEL_CONFIGS[lv].displayName === `EVENT ${eventNum}`
+                                );
+                                if (eventLevelIdx && clearedLevels.includes(parseInt(eventLevelIdx))) {
+                                    btn.classList.remove('locked');
+                                } else {
+                                    btn.classList.add('locked');
+                                }
+                            });
+                        }
+                    }
+                },
+                adDismissed: () => {
+                    console.log("Ad dismissed before completion.");
+                },
+                adBreakDone: (placementInfo) => {
+                    // 광고가 송출되지 않았거나 오류인 경우 기존 타이머 모달로 안전하게 폴백
+                    const status = placementInfo && placementInfo.breakStatus;
+                    if (!isAdShown && !isAdViewed && status !== 'viewed' && status !== 'dismissed') {
+                        console.log("H5 Ad not served / fallback to local timer ad:", status);
+                        runLocalTimerAd(type, duration);
                     }
                 }
-            }
-        }, 1000);
+            });
+            return;
+        } catch (e) {
+            console.warn("H5 Games Ads exception, fallback to local timer:", e);
+        }
     }
+
+    // 2. Fallback: 자체 타이머 카운트다운 광고 실행
+    runLocalTimerAd(type, duration);
+}
+
+function runLocalTimerAd(type, duration) {
+    if (!adOverlay) return;
+    adOverlay.classList.remove('hidden');
+    
+    if (adRewardTitle) {
+        adRewardTitle.dataset.adType = type;
+        const isKor = (currentLanguage === 'kor');
+        if (type === 'life') {
+            adRewardTitle.innerText = isKor ? "생명 충전 광고" : "Life Refill Ad";
+        } else {
+            adRewardTitle.innerText = isKor ? "이벤트 보너스 광고" : "Event Bonus Ad";
+        }
+    }
+
+    const timerEl = adOverlay.querySelector('.ad-timer');
+    let timeLeft = duration;
+
+    if (timerEl) {
+        timerEl.classList.remove('hidden');
+        timerEl.innerText = timeLeft;
+    }
+    
+    // 버튼 초기화
+    if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
+    if (adEventRewardsEl) adEventRewardsEl.classList.add('hidden');
+
+    const countdown = setInterval(() => {
+        timeLeft--;
+        if (timerEl) timerEl.innerText = timeLeft;
+
+        if (timeLeft <= 0) {
+            clearInterval(countdown);
+            if (timerEl) timerEl.classList.add('hidden');
+            
+            if (type === 'life') {
+                if (getLifeAdBtn) getLifeAdBtn.classList.remove('hidden');
+            } else {
+                // Reward for event ad: 1 life + event game selection
+                lives = Math.min(7, lives + 1);
+                savePlayerData();
+                updateLivesUI();
+                triggerLifeSparkle();
+
+                if (adEventRewardsEl) {
+                    adEventRewardsEl.classList.remove('hidden');
+                    // 클리어 여부에 따라 버튼 활성화/비활성화
+                    const eventBtns = adEventRewardsEl.querySelectorAll('.event-reward-btn');
+                    eventBtns.forEach(btn => {
+                        const eventNum = btn.dataset.event;
+                        const eventLevelIdx = Object.keys(LEVEL_CONFIGS).find(lv => 
+                            LEVEL_CONFIGS[lv].displayName === `EVENT ${eventNum}`
+                        );
+                        
+                        if (eventLevelIdx && clearedLevels.includes(parseInt(eventLevelIdx))) {
+                            btn.classList.remove('locked');
+                        } else {
+                            btn.classList.add('locked');
+                        }
+                    });
+                }
+            }
+        }
+    }, 1000);
 }
 
 if (adEventRewardsEl) {
