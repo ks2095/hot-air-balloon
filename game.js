@@ -6752,25 +6752,22 @@ if (closeAdSelectionBtn) {
 }
 
 // ==========================================
-// Google AdSense H5 Games Ads & Local Fallback
+// Ads System (Timer Simulation & AdSense Ready)
 // ==========================================
+// 구글 애드센스 심사가 통과되어 공식 승인된 후 true로 켜시면 H5 실시간 광고로 전환됩니다.
+const USE_GOOGLE_H5_ADS = false;
 let isH5AdAudioPaused = false;
 
 function showAd(type, duration) {
     const isKor = (currentLanguage === 'kor');
 
-    // 1. Google AdSense H5 Games 보상형 광고(Rewarded Ad) 우선 시도
-    if (typeof adBreak === 'function') {
-        let isAdViewed = false;
-        let isAdShown = false;
-
+    // 애드센스 정식 승인 후 H5 연동 시
+    if (USE_GOOGLE_H5_ADS && typeof adBreak === 'function') {
         try {
             adBreak({
                 type: 'reward',
                 name: (type === 'life' ? 'refill_lives' : 'bonus_event'),
                 beforeAd: () => {
-                    isAdShown = true;
-                    // 광고 시작 시 오디오 일시정지
                     if (bgmAudio && !bgmAudio.paused) {
                         isH5AdAudioPaused = true;
                         bgmAudio.pause();
@@ -6780,7 +6777,6 @@ function showAd(type, duration) {
                     }
                 },
                 afterAd: () => {
-                    // 광고 종료 시 오디오 복구
                     if (soundMgr && soundMgr.context && soundMgr.context.state === 'suspended') {
                         try { soundMgr.context.resume(); } catch (e) { }
                     }
@@ -6789,13 +6785,8 @@ function showAd(type, duration) {
                         isH5AdAudioPaused = false;
                     }
                 },
-                beforeReward: (showAdFn) => {
-                    // 광고 표시 준비 완료 -> 광고 재생 트리거
-                    showAdFn();
-                },
+                beforeReward: (showAdFn) => { showAdFn(); },
                 adViewed: () => {
-                    // 보상 획득 성공!
-                    isAdViewed = true;
                     if (type === 'life') {
                         lives = 7;
                         lastLifeUpdate = Date.now();
@@ -6808,45 +6799,24 @@ function showAd(type, duration) {
                         savePlayerData();
                         updateLivesUI();
                         triggerLifeSparkle();
-
                         if (adOverlay) adOverlay.classList.remove('hidden');
                         if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
-                        if (adEventRewardsEl) {
-                            adEventRewardsEl.classList.remove('hidden');
-                            const eventBtns = adEventRewardsEl.querySelectorAll('.event-reward-btn');
-                            eventBtns.forEach(btn => {
-                                const eventNum = btn.dataset.event;
-                                const eventLevelIdx = Object.keys(LEVEL_CONFIGS).find(lv => 
-                                    LEVEL_CONFIGS[lv].displayName === `EVENT ${eventNum}`
-                                );
-                                if (eventLevelIdx && clearedLevels.includes(parseInt(eventLevelIdx))) {
-                                    btn.classList.remove('locked');
-                                } else {
-                                    btn.classList.add('locked');
-                                }
-                            });
-                        }
+                        if (adEventRewardsEl) adEventRewardsEl.classList.remove('hidden');
                     }
                 },
-                adDismissed: () => {
-                    console.log("Ad dismissed before completion.");
-                },
-                adBreakDone: (placementInfo) => {
-                    // 광고가 송출되지 않았거나 오류인 경우 기존 타이머 모달로 안전하게 폴백
-                    const status = placementInfo && placementInfo.breakStatus;
-                    if (!isAdShown && !isAdViewed && status !== 'viewed' && status !== 'dismissed') {
-                        console.log("H5 Ad not served / fallback to local timer ad:", status);
+                adBreakDone: (info) => {
+                    if (info && info.breakStatus !== 'viewed' && info.breakStatus !== 'dismissed') {
                         runLocalTimerAd(type, duration);
                     }
                 }
             });
             return;
         } catch (e) {
-            console.warn("H5 Games Ads exception, fallback to local timer:", e);
+            console.warn("H5 Ads error, running local timer:", e);
         }
     }
 
-    // 2. Fallback: 자체 타이머 카운트다운 광고 실행
+    // 기본: 자체 타이머 광고 모달 즉시 실행 (안전 보장)
     runLocalTimerAd(type, duration);
 }
 
