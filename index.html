@@ -384,6 +384,7 @@
         <div id="coord-debugger" class="hidden"></div>
 
         <div id="clear-screen" class="overlay hidden">
+            <div id="clear-rank-btn" class="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 1001; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px; pointer-events: auto;">Rank</div>
             <h1 id="clear-title">MISSION CLEAR!</h1>
             <div class="result-stats">
                 <div class="formula-label"><span style="color: #ffd32a;">C</span> = (GAS + (TIME * 10) + LANDING POINT)
@@ -397,11 +398,13 @@
                 <div class="total-credit-display">
                     TOTAL: <span id="accumulated-total-credits">0</span>C
                 </div>
+                <button id="score-rank-register-btn" class="score-rank-btn">Rank Register</button>
             </div>
             <button id="close-clear-btn" class="close-btn">×</button>
         </div>
 
         <div id="event-clear-screen" class="overlay hidden">
+            <div id="event-clear-rank-btn" class="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 1001; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px; pointer-events: auto;">Rank</div>
             <div class="event-clear-container">
                 <h1 class="event-title">EVENT CLEAR!</h1>
                 <div class="event-result-box">
@@ -413,6 +416,7 @@
                     TOTAL: <span id="event-accumulated-total-credits">0</span>C
                 </div>
                 <button id="event-close-btn" class="event-btn">CONTINUE</button>
+                <button id="event-score-rank-register-btn" class="score-rank-btn">Rank Register</button>
                 <button id="event-close-clear-btn" class="close-btn">×</button>
             </div>
         </div>

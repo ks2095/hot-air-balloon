@@ -905,8 +905,7 @@ body {
     align-items: center;
     padding: 0 6px 0 18px;
     /* Shifted total 6px right (12+6, 12-6) */
-    overflow: hidden;
-    /* Keep grass layer contained if needed */
+    overflow: visible;
 }
 
 /* Grass layer on top of ground */
@@ -1053,11 +1052,12 @@ body {
 #main-action-btn::after {
     content: '';
     position: absolute;
-    top: -80%;
-    left: -60%;
-    right: -60%;
-    bottom: -60%;
+    top: -10%;
+    left: -10%;
+    right: -10%;
+    bottom: -10%;
     border-radius: 50%;
+    pointer-events: auto;
 }
 
 #main-action-btn.item-paused {
@@ -3778,4 +3778,47 @@ button:hover {
     border-color: rgba(56, 189, 248, 0.7) !important;
     box-shadow: 0 0 8px rgba(56, 189, 248, 0.7) !important;
     transform: scale(0.92);
+}
+
+
+
+/* Leaderboard screen higher z-index to appear on top of clear screens */
+#rank-screen {
+    z-index: 1500 !important;
+}
+
+/* Score screen Rank Register Button (Text only, transparent background) */
+.score-rank-btn {
+    margin-top: 10px;
+    margin-bottom: 2px;
+    padding: 4px 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: inherit;
+    color: #2ecc71;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0;
+    box-shadow: none !important;
+    cursor: pointer;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    transition: color 0.15s ease, transform 0.15s ease, text-shadow 0.15s ease;
+    letter-spacing: 0.5px;
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.score-rank-btn:hover {
+    color: #ffd32a;
+    transform: scale(1.06);
+    text-shadow: 0 0 10px rgba(255, 211, 42, 0.7);
+    background: transparent !important;
+}
+
+.score-rank-btn:active {
+    transform: scale(0.96);
 }

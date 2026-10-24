@@ -756,7 +756,7 @@ const LEVEL_CONFIGS = {
     },
     23: {
         displayName: "20",
-        winds: [-2, 2, -5, -4.75, 4.75, -4.75, 3],
+        winds: [-2, 2, -5, -4.75, 4.75, -4.75, 8],
         maxGas: 400,
         maxTime: 40,
         platformY: 6.0
@@ -2932,7 +2932,6 @@ function checkBoundaries() {
         }
     }
 }
-
 function clearDroppedItems() {
     droppedItems.forEach(item => {
         if (item.el && item.el.parentNode) {
@@ -6425,6 +6424,17 @@ function updateSettingsUI() {
 }
 
 function updateLanguageUI() {
+    const isKorLang = (currentLanguage === 'kor');
+    const isPC = (getDeviceType() === 'PC');
+    document.querySelectorAll('.score-rank-btn').forEach(btn => {
+        if (isPC) {
+            btn.innerText = isKorLang ? '랭킹등록 (모바일 전용)' : 'Rank Register (Mobile)';
+            btn.style.opacity = '0.6';
+        } else {
+            btn.innerText = isKorLang ? '랭킹등록' : 'Rank Register';
+            btn.style.opacity = '1';
+        }
+    });
     updateNoticeUI();
     const isKor = (currentLanguage === 'kor');
 
@@ -7049,7 +7059,7 @@ async function updateRankUI() {
     }
 
     const dummyNames = ["CloudKing", "SkyRider", "AeroMaster", "WindWalker", "BalloonPro", "StormChaser"];
-    board = board.filter(user => !dummyNames.includes(user.nickname));
+    board = board.filter(user => !dummyNames.includes(user.nickname) && user.device !== 'PC');
 
     const rankScoreLabelEl = document.getElementById('rank-score-label');
     const tabLevelBtn = document.getElementById('tab-level');
@@ -7111,12 +7121,34 @@ async function updateRankUI() {
     }
     
     if(myRankPosEl) {
-        if (myDisplayScore === 0) {
+        if (myDevType === 'PC') {
+            myRankPosEl.innerHTML = `<span style="color:#aaa; font-size:0.75rem;">${isKor ? '랭킹 등록 불가 (PC)' : 'Unranked (PC)'}</span>`;
+        } else if (myDisplayScore === 0) {
              myRankPosEl.innerText = `-`;
         } else if(myRank <= 3) {
             myRankPosEl.innerHTML = `<span style="color:#f1c40f;">${myRank}${isKor ? '위' : ''}</span>`;
         } else {
             myRankPosEl.innerText = `${myRank}${isKor ? '위' : ''}`;
+        }
+    }
+
+    if (rankNicknameInput && submitRankBtn) {
+        if (myDevType === 'PC') {
+            rankNicknameInput.placeholder = isKor ? "PC 등록 불가 (모바일 전용)" : "PC unavailable (Mobile only)";
+            rankNicknameInput.disabled = true;
+            submitRankBtn.disabled = true;
+            submitRankBtn.style.opacity = '0.5';
+            submitRankBtn.style.cursor = 'not-allowed';
+            submitRankBtn.innerText = isKor ? "등록 불가" : "Blocked";
+            submitRankBtn.title = isKor ? "PC에서는 랭킹 등록이 불가합니다." : "Leaderboard registration is not available on PC.";
+        } else {
+            rankNicknameInput.placeholder = isKor ? "닉네임" : "Nickname";
+            rankNicknameInput.disabled = false;
+            submitRankBtn.disabled = false;
+            submitRankBtn.style.opacity = '1';
+            submitRankBtn.style.cursor = 'pointer';
+            submitRankBtn.innerText = isKor ? "등록" : "Submit";
+            submitRankBtn.title = "";
         }
     }
 
@@ -7168,33 +7200,75 @@ if (tabLevelBtn && tabOverallBtn) {
 
 
 // Add Rank Events
-if (rankBtn) {
-    rankBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (!isSoundPreloaded && typeof startSoundSystem === 'function') await startSoundSystem();
-        
-        if (gameState === 'PLAY') {
-            gameState = 'PAUSED';
-            pauseStartTime = Date.now();
-            if (mainActionBtn) {
-                mainActionBtn.innerText = 'PAUSE';
-                mainActionBtn.classList.add('item-paused');
-            }
+async function openRankModal(e) {
+    if (e) e.stopPropagation();
+    if (!isSoundPreloaded && typeof startSoundSystem === 'function') await startSoundSystem();
+    
+    if (gameState === 'PLAY') {
+        gameState = 'PAUSED';
+        pauseStartTime = Date.now();
+        if (mainActionBtn) {
+            mainActionBtn.innerText = 'PAUSE';
+            mainActionBtn.classList.add('item-paused');
         }
+    }
+    // 클리어 상태가 아닐 때만 clearScreen을 숨김 (클리어 상태에서는 점수 결과창 위에 랭킹창이 뜨고, 닫으면 점수창이 유지됨)
+    if (gameState !== 'CLEAR') {
         if (clearScreen) clearScreen.classList.add('hidden');
-        if (levelHintEl) levelHintEl.classList.add('hidden');
-        if (storeScreen) storeScreen.classList.add('hidden');
-        if (settingsScreen) settingsScreen.classList.add('hidden');
+    }
+    if (levelHintEl) levelHintEl.classList.add('hidden');
+    if (storeScreen) storeScreen.classList.add('hidden');
+    if (settingsScreen) settingsScreen.classList.add('hidden');
 
-        if (rankScreen) {
-            rankScreen.classList.remove('hidden');
-            const savedNick = localStorage.getItem('balloon_registered_nickname');
-            if (rankNicknameInput && !rankNicknameInput.value && savedNick) {
-                rankNicknameInput.value = savedNick;
-            }
-            updateRankUI();
+    if (rankScreen) {
+        rankScreen.classList.remove('hidden');
+        const savedNick = localStorage.getItem('balloon_registered_nickname');
+        if (rankNicknameInput && !rankNicknameInput.value && savedNick) {
+            rankNicknameInput.value = savedNick;
         }
+        updateRankUI();
+    }
+}
+
+if (rankBtn) {
+    rankBtn.addEventListener('click', openRankModal);
+}
+const scoreRankRegisterBtn = document.getElementById('score-rank-register-btn');
+if (scoreRankRegisterBtn) {
+    scoreRankRegisterBtn.addEventListener('click', (e) => {
+        if (getDeviceType() === 'PC') {
+            const isKor = (currentLanguage === 'kor');
+            alert(isKor ? "PC 환경에서 플레이한 게임은 레벨 랭킹 및 전체 랭킹에 등록할 수 없습니다.\n(모바일 기기에서만 랭킹 등록이 가능합니다.)" : "Games played on PC cannot be registered to Level Rank and Overall Rank.\n(Leaderboard registration is only available on mobile devices.)");
+            return;
+        }
+        openRankModal(e);
+        setTimeout(() => {
+            if (rankNicknameInput) rankNicknameInput.focus();
+        }, 120);
     });
+}
+const eventScoreRankRegisterBtn = document.getElementById('event-score-rank-register-btn');
+if (eventScoreRankRegisterBtn) {
+    eventScoreRankRegisterBtn.addEventListener('click', (e) => {
+        if (getDeviceType() === 'PC') {
+            const isKor = (currentLanguage === 'kor');
+            alert(isKor ? "PC 환경에서 플레이한 게임은 레벨 랭킹 및 전체 랭킹에 등록할 수 없습니다.\n(모바일 기기에서만 랭킹 등록이 가능합니다.)" : "Games played on PC cannot be registered to Level Rank and Overall Rank.\n(Leaderboard registration is only available on mobile devices.)");
+            return;
+        }
+        openRankModal(e);
+        setTimeout(() => {
+            if (rankNicknameInput) rankNicknameInput.focus();
+        }, 120);
+    });
+}
+
+const clearRankBtn = document.getElementById('clear-rank-btn');
+if (clearRankBtn) {
+    clearRankBtn.addEventListener('click', openRankModal);
+}
+const eventClearRankBtn = document.getElementById('event-clear-rank-btn');
+if (eventClearRankBtn) {
+    eventClearRankBtn.addEventListener('click', openRankModal);
 }
 
 if (closeRankBtn) {
@@ -7213,8 +7287,12 @@ if (closeRankBtn) {
 
 if (submitRankBtn) {
     submitRankBtn.addEventListener('click', async () => {
-        const nickname = rankNicknameInput ? rankNicknameInput.value.trim() : "";
         const isKor = (currentLanguage === 'kor');
+        if (getDeviceType() === 'PC') {
+            alert(isKor ? "PC 환경에서 플레이한 게임은 레벨 랭킹 및 전체 랭킹에 등록할 수 없습니다.\n(모바일 기기에서만 랭킹 등록이 가능합니다.)" : "Games played on PC cannot be registered to Level Rank and Overall Rank.\n(Leaderboard registration is only available on mobile devices.)");
+            return;
+        }
+        const nickname = rankNicknameInput ? rankNicknameInput.value.trim() : "";
         if (!nickname) {
             alert(isKor ? "닉네임을 입력하세요!" : "Please enter a nickname!");
             return;
