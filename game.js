@@ -6255,10 +6255,46 @@ function updateNextLevelButtonVisibility() {
 }
 
 
+function restoreBalloonVisibility() {
+    if (!balloon) return;
+    balloon.classList.remove('explosion', 'shake-balloon');
+    balloon.style.opacity = "1";
+    balloon.style.transform = "translateX(-50%) scale(1)";
+
+    // 시작 위치로 열기구 좌표 이동
+    balloonX = 50;
+    const config = (typeof LEVEL_CONFIGS !== 'undefined') ? LEVEL_CONFIGS[currentLevel] : null;
+    if (config && (config.displayName === "EVENT 2" || config.displayName === "EVENT 4")) {
+        const skyHeight = gameContainer ? (gameContainer.clientHeight * 0.9195) : 500;
+        const platformY = config.platformY;
+        const pixelOffset = 12 - 50;
+        const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100;
+        const platformHeightPercentage = (9 / skyHeight) * 100;
+        const targetYTop = targetYBottom + platformHeightPercentage;
+        balloonY = targetYTop - getBasketOffset() + 0.1;
+    } else {
+        balloonY = -getBasketOffset();
+    }
+    balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
+    balloon.style.left = `${balloonX}%`;
+
+    if (mainActionBtn) {
+        mainActionBtn.classList.remove('overheated', 'burner-mode');
+        mainActionBtn.classList.add('restart-mode');
+        const currentDisplayName = config ? config.displayName : '';
+        mainActionBtn.innerText = currentLevel === 0 ? 'START' : (currentDisplayName.startsWith("EVENT") ? 'START EVENT LEVEL' : `START LEVEL ${currentDisplayName}`);
+    }
+}
+
 function updateLivesUI() {
     checkLifeRegen(); // UI 업데이트 전 리젠 확인
     if (livesCountEl) {
         livesCountEl.innerText = `x${Math.max(0, lives - 1)}`;
+    }
+    if (lives > 0 && gameState !== 'PLAY') {
+        if (balloon && (balloon.style.opacity === "0" || balloon.classList.contains('explosion') || balloon.style.transform.includes('scale(0)'))) {
+            restoreBalloonVisibility();
+        }
     }
 }
 
@@ -6402,26 +6438,63 @@ function updateNoticeUI() {
 // --- Settings Management ---
 function updateSettingsUI() {
     updateNoticeUI();
+    const isKor = (currentLanguage === 'kor');
+
+    const settingsTitleEl = document.getElementById('settings-title');
+    if (settingsTitleEl) settingsTitleEl.innerText = isKor ? '설정' : 'Settings';
+
+    const settingNoticeLabelEl = document.getElementById('setting-notice-label');
+    if (settingNoticeLabelEl) settingNoticeLabelEl.innerText = isKor ? '공지사항' : 'Notice';
+    if (noticeSettingsBtn) noticeSettingsBtn.innerText = isKor ? '보기 📢' : 'OPEN 📢';
+
+    const settingLangLabelEl = document.getElementById('setting-lang-label');
+    if (settingLangLabelEl) settingLangLabelEl.innerText = isKor ? '언어 설정' : 'Language';
+
+    const settingWindLabelEl = document.getElementById('setting-wind-label');
+    if (settingWindLabelEl) settingWindLabelEl.innerText = isKor ? '바람세기' : 'Wind info';
+
+    const settingMusicLabelEl = document.getElementById('setting-music-label');
+    if (settingMusicLabelEl) settingMusicLabelEl.innerText = isKor ? '배경 음악' : 'Music';
+
+    const settingUiSwapLabelEl = document.getElementById('setting-uiswap-label');
+    if (settingUiSwapLabelEl) settingUiSwapLabelEl.innerText = isKor ? '버튼위치' : 'UI Layout';
+
+    const settingFullscreenLabelEl = document.getElementById('setting-fullscreen-label');
+    if (settingFullscreenLabelEl) settingFullscreenLabelEl.innerText = isKor ? '전체 화면' : 'Full Screen';
+
+    const settingResetLabelEl = document.getElementById('setting-reset-label');
+    if (settingResetLabelEl) settingResetLabelEl.innerText = isKor ? '기록 초기화' : 'Reset Record';
+
+    const closeSettingsBtnEl = document.getElementById('close-settings-btn');
+    if (closeSettingsBtnEl) closeSettingsBtnEl.innerText = isKor ? '닫기' : 'Close';
+
+    const resetRecordSettingsBtnEl = document.getElementById('reset-record-settings-btn');
+    if (resetRecordSettingsBtnEl) resetRecordSettingsBtnEl.innerText = isKor ? '초기화' : 'RESET';
+
     if (langToggleSettingsBtn) {
         langToggleSettingsBtn.classList.toggle('active', currentLanguage === 'kor');
-        langToggleSettingsBtn.innerText = currentLanguage === 'kor' ? 'KOR' : 'ENG';
+        langToggleSettingsBtn.innerText = currentLanguage === 'kor' ? '한국어' : 'ENG';
     }
     if (windToggleSettingsBtn) {
         windToggleSettingsBtn.classList.toggle('active', showWindLabels);
-        windToggleSettingsBtn.innerText = showWindLabels ? 'ON' : 'OFF';
+        windToggleSettingsBtn.innerText = showWindLabels ? (isKor ? '켜짐' : 'ON') : (isKor ? '꺼짐' : 'OFF');
     }
     if (musicToggleSettingsBtn) {
         musicToggleSettingsBtn.classList.toggle('active', isMusicEnabled);
-        musicToggleSettingsBtn.innerText = isMusicEnabled ? 'ON' : 'OFF';
+        musicToggleSettingsBtn.innerText = isMusicEnabled ? (isKor ? '켜짐' : 'ON') : (isKor ? '꺼짐' : 'OFF');
     }
     if (uiSwapSettingsBtn) {
         uiSwapSettingsBtn.classList.toggle('active', isUiSwapped);
-        uiSwapSettingsBtn.innerText = isUiSwapped ? 'ON' : 'OFF';
+        uiSwapSettingsBtn.innerText = isUiSwapped ? (isKor ? '오른손' : 'Right') : (isKor ? '왼손' : 'Left');
     }
     if (fullscreenToggleSettingsBtn) {
         const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
         fullscreenToggleSettingsBtn.classList.toggle('active', isFullscreen);
-        fullscreenToggleSettingsBtn.innerText = isFullscreen ? 'ON' : 'GO ⛶';
+        fullscreenToggleSettingsBtn.innerText = isFullscreen ? (isKor ? '켜짐' : 'ON') : (isKor ? '실행 ⛶' : 'GO ⛶');
+    }
+
+    if (settingsBtn) {
+        settingsBtn.title = isKor ? '설정' : 'Settings';
     }
 }
 
@@ -6430,15 +6503,35 @@ function updateLanguageUI() {
     const isPC = (getDeviceType() === 'PC');
     document.querySelectorAll('.score-rank-btn').forEach(btn => {
         if (isPC) {
-            btn.innerText = isKorLang ? '랭킹등록 (모바일 전용)' : 'Rank Register (Mobile)';
+            btn.innerText = isKorLang ? '순위등록 (모바일 전용)' : 'Rank Register (Mobile)';
             btn.style.opacity = '0.6';
         } else {
-            btn.innerText = isKorLang ? '랭킹등록' : 'Rank Register';
+            btn.innerText = isKorLang ? '순위등록' : 'Rank Register';
             btn.style.opacity = '1';
         }
     });
     updateNoticeUI();
     const isKor = (currentLanguage === 'kor');
+
+    updateSettingsUI();
+
+    // Rank -> 순위 라벨 언어 동기화
+    ['rank-btn', 'clear-rank-btn', 'event-clear-rank-btn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = isKor ? '순위' : 'Rank';
+    });
+    if (adsBtn) {
+        adsBtn.innerText = isKor ? '광고' : 'Ads';
+        adsBtn.title = isKor ? '광고 시청 및 보상' : 'Watch Ads';
+    }
+    const tabLevelEl = document.getElementById('tab-level');
+    if (tabLevelEl) tabLevelEl.innerText = isKor ? '레벨 순위' : 'Level Rank';
+    const tabOverallEl = document.getElementById('tab-overall');
+    if (tabOverallEl) tabOverallEl.innerText = isKor ? '전체 순위' : 'Overall Rank';
+    const myRankPosLabelEl = document.getElementById('my-rank-pos-label');
+    if (myRankPosLabelEl) myRankPosLabelEl.innerText = isKor ? '내 순위:' : 'My Rank:';
+    const closeRankBtnEl = document.getElementById('close-rank-btn');
+    if (closeRankBtnEl) closeRankBtnEl.innerText = isKor ? '닫기' : 'CLOSE';
 
     // 1. 이벤트 2 (스테이크)
     const cookedPctEl = document.getElementById('event2-cooked-pct');
@@ -6672,6 +6765,7 @@ if (getLifeAdBtn) {
         savePlayerData();
         updateLivesUI();
         triggerLifeSparkle();
+        restoreBalloonVisibility();
 
         // Play life soundEffect
         if (soundMgr) {
@@ -6805,12 +6899,14 @@ function showAd(type, duration) {
                         savePlayerData();
                         updateLivesUI();
                         triggerLifeSparkle();
+                        restoreBalloonVisibility();
                         alert(isKor ? "생명이 7개로 완전 충전되었습니다! 💖" : "Lives fully refilled to 7! 💖");
                     } else {
                         lives = Math.min(7, lives + 1);
                         savePlayerData();
                         updateLivesUI();
                         triggerLifeSparkle();
+                        restoreBalloonVisibility();
                         if (adOverlay) adOverlay.classList.remove('hidden');
                         if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
                         if (adEventRewardsEl) adEventRewardsEl.classList.remove('hidden');
@@ -6874,6 +6970,7 @@ function runLocalTimerAd(type, duration) {
                 savePlayerData();
                 updateLivesUI();
                 triggerLifeSparkle();
+                restoreBalloonVisibility();
 
                 if (adEventRewardsEl) {
                     adEventRewardsEl.classList.remove('hidden');
@@ -7074,18 +7171,18 @@ async function updateRankUI() {
         const config = LEVEL_CONFIGS[currentLevel];
         const dispName = config ? config.displayName : currentLevel;
         if (dispName.toString().includes('EVENT') || dispName === "튜토리얼" || currentLevel === 0) {
-            if(rankScoreLabelEl) rankScoreLabelEl.innerText = isKor ? `[LV-${dispName}] 랭킹 제외 레벨` : `[LV-${dispName}] Unranked Level`;
+            if(rankScoreLabelEl) rankScoreLabelEl.innerText = isKor ? `[LV-${dispName}] 순위 제외 레벨` : `[LV-${dispName}] Unranked Level`;
             if(myRankScoreEl) myRankScoreEl.innerText = '-';
             if(myRankPosEl) myRankPosEl.innerText = '-';
             if(rankListEl) rankListEl.innerHTML = isKor ?
-                '<div style="text-align:center; padding:20px; color:#ccc;">튜토리얼 및 이벤트 레벨은 랭킹이 제공되지 않습니다.</div>' :
+                '<div style="text-align:center; padding:20px; color:#ccc;">튜토리얼 및 이벤트 레벨은 순위가 제공되지 않습니다.</div>' :
                 '<div style="text-align:center; padding:20px; color:#ccc;">Leaderboard is not available for Tutorial and Event levels.</div>';
             if (tabLevelBtn) { tabLevelBtn.style.background = '#2ecc71'; tabLevelBtn.style.color = '#000'; }
             if (tabOverallBtn) { tabOverallBtn.style.background = 'transparent'; tabOverallBtn.style.color = '#fff'; }
             return;
         }
 
-        if(rankScoreLabelEl) rankScoreLabelEl.innerText = `[LV-${dispName}] My Score:`;
+        if(rankScoreLabelEl) rankScoreLabelEl.innerText = isKor ? `[LV-${dispName}] 내 점수:` : `[LV-${dispName}] My Score:`;
         myDisplayScore = myLevelBestScores[currentLevel] || 0;
         
         // Sort descending by level score
@@ -7094,7 +7191,7 @@ async function updateRankUI() {
         if (tabLevelBtn) { tabLevelBtn.style.background = '#2ecc71'; tabLevelBtn.style.color = '#000'; }
         if (tabOverallBtn) { tabOverallBtn.style.background = 'transparent'; tabOverallBtn.style.color = '#fff'; }
     } else {
-        if(rankScoreLabelEl) rankScoreLabelEl.innerText = 'Overall My Score:';
+        if(rankScoreLabelEl) rankScoreLabelEl.innerText = isKor ? '전체 내 점수:' : 'Overall My Score:';
         myDisplayScore = calculateMyOverallScore();
         
         // Sort descending by overall score
@@ -7124,7 +7221,7 @@ async function updateRankUI() {
     
     if(myRankPosEl) {
         if (myDevType === 'PC') {
-            myRankPosEl.innerHTML = `<span style="color:#aaa; font-size:0.75rem;">${isKor ? '랭킹 등록 불가 (PC)' : 'Unranked (PC)'}</span>`;
+            myRankPosEl.innerHTML = `<span style="color:#aaa; font-size:0.75rem;">${isKor ? '순위 등록 불가 (PC)' : 'Unranked (PC)'}</span>`;
         } else if (myDisplayScore === 0) {
              myRankPosEl.innerText = `-`;
         } else if(myRank <= 3) {
@@ -7142,7 +7239,7 @@ async function updateRankUI() {
             submitRankBtn.style.opacity = '0.5';
             submitRankBtn.style.cursor = 'not-allowed';
             submitRankBtn.innerText = isKor ? "등록 불가" : "Blocked";
-            submitRankBtn.title = isKor ? "PC에서는 랭킹 등록이 불가합니다." : "Leaderboard registration is not available on PC.";
+            submitRankBtn.title = isKor ? "PC에서는 순위 등록이 불가합니다." : "Leaderboard registration is not available on PC.";
         } else {
             rankNicknameInput.placeholder = isKor ? "닉네임" : "Nickname";
             rankNicknameInput.disabled = false;
@@ -7159,7 +7256,7 @@ async function updateRankUI() {
         rankListEl.innerHTML = '';
         if (board.length === 0) {
             rankListEl.innerHTML = isKor ?
-                '<div style="text-align:center; padding:20px; color:#ccc;">등록된 랭킹이 없습니다.</div>' :
+                '<div style="text-align:center; padding:20px; color:#ccc;">등록된 순위가 없습니다.</div>' :
                 '<div style="text-align:center; padding:20px; color:#ccc;">No scores submitted yet.</div>';
             return;
         }
@@ -7240,7 +7337,7 @@ if (scoreRankRegisterBtn) {
     scoreRankRegisterBtn.addEventListener('click', (e) => {
         if (getDeviceType() === 'PC') {
             const isKor = (currentLanguage === 'kor');
-            alert(isKor ? "PC 환경에서 플레이한 게임은 레벨 랭킹 및 전체 랭킹에 등록할 수 없습니다.\n(모바일 기기에서만 랭킹 등록이 가능합니다.)" : "Games played on PC cannot be registered to Level Rank and Overall Rank.\n(Leaderboard registration is only available on mobile devices.)");
+            alert(isKor ? "PC 환경에서 플레이한 게임은 레벨 순위 및 전체 순위에 등록할 수 없습니다.\n(모바일 기기에서만 순위 등록이 가능합니다.)" : "Games played on PC cannot be registered to Level Rank and Overall Rank.\n(Leaderboard registration is only available on mobile devices.)");
             return;
         }
         openRankModal(e);
@@ -7254,7 +7351,7 @@ if (eventScoreRankRegisterBtn) {
     eventScoreRankRegisterBtn.addEventListener('click', (e) => {
         if (getDeviceType() === 'PC') {
             const isKor = (currentLanguage === 'kor');
-            alert(isKor ? "PC 환경에서 플레이한 게임은 레벨 랭킹 및 전체 랭킹에 등록할 수 없습니다.\n(모바일 기기에서만 랭킹 등록이 가능합니다.)" : "Games played on PC cannot be registered to Level Rank and Overall Rank.\n(Leaderboard registration is only available on mobile devices.)");
+            alert(isKor ? "PC 환경에서 플레이한 게임은 레벨 순위 및 전체 순위에 등록할 수 없습니다.\n(모바일 기기에서만 순위 등록이 가능합니다.)" : "Games played on PC cannot be registered to Level Rank and Overall Rank.\n(Leaderboard registration is only available on mobile devices.)");
             return;
         }
         openRankModal(e);
@@ -7291,7 +7388,7 @@ if (submitRankBtn) {
     submitRankBtn.addEventListener('click', async () => {
         const isKor = (currentLanguage === 'kor');
         if (getDeviceType() === 'PC') {
-            alert(isKor ? "PC 환경에서 플레이한 게임은 레벨 랭킹 및 전체 랭킹에 등록할 수 없습니다.\n(모바일 기기에서만 랭킹 등록이 가능합니다.)" : "Games played on PC cannot be registered to Level Rank and Overall Rank.\n(Leaderboard registration is only available on mobile devices.)");
+            alert(isKor ? "PC 환경에서 플레이한 게임은 레벨 순위 및 전체 순위에 등록할 수 없습니다.\n(모바일 기기에서만 순위 등록이 가능합니다.)" : "Games played on PC cannot be registered to Level Rank and Overall Rank.\n(Leaderboard registration is only available on mobile devices.)");
             return;
         }
         const nickname = rankNicknameInput ? rankNicknameInput.value.trim() : "";
@@ -7343,12 +7440,12 @@ if (submitRankBtn) {
 
             localStorage.setItem('balloon_registered_nickname', nickname);
 
-            alert(isKor ? "기록이 성공적으로 서버에 갱신되었습니다!" : "Record successfully submitted to leaderboard!");
+            alert(isKor ? "기록이 성공적으로 순위 서버에 갱신되었습니다!" : "Record successfully submitted to leaderboard!");
             
             updateRankUI(); 
         } catch (error) {
             console.error("랭킹 서버 저장 중 오류 발생: ", error);
-            alert(isKor ? "서버 연결에 실패했습니다." : "Failed to connect to leaderboard server.");
+            alert(isKor ? "순위 서버 연결에 실패했습니다." : "Failed to connect to leaderboard server.");
         }
     });
 }

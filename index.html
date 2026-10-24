@@ -93,7 +93,7 @@
                 <div id="lives-display">
                     <img src="balloon.png" alt="Life" class="life-icon" id="life-balloon-icon">
                     <span id="lives-count">x6</span>
-                    <span id="ads-btn">Ads</span>
+                    <span id="ads-btn">광고</span>
                 </div>
                 <div class="dev-control">
                     <span>Z1</span>
@@ -186,7 +186,7 @@
 
                 <div style="margin-bottom: 20px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px;">
                     <p style="font-size: 0.8rem; color: #ffd32a; font-weight: normal; margin-bottom: 5px;"><span id="rank-score-label">My Level Score:</span> <span id="my-rank-score">0</span></p>
-                    <p style="font-size: 0.8rem; font-weight: normal;">My Rank: <span id="my-rank-pos" style="color: #3498db;">-</span></p>
+                    <p style="font-size: 0.8rem; font-weight: normal;"><span id="my-rank-pos-label">My Rank:</span> <span id="my-rank-pos" style="color: #3498db;">-</span></p>
                 </div>
                 
                 <div style="margin-bottom: 25px; display: flex; justify-content: space-between;">
@@ -204,34 +204,34 @@
 
         <div id="settings-screen" class="overlay hidden">
             <div class="settings-container">
-                <h2 class="settings-title">Settings</h2>
+                <h2 class="settings-title" id="settings-title">Settings</h2>
                 <div class="settings-options">
                     <div class="setting-item">
                         <span class="setting-label" id="setting-notice-label">Notice</span>
                         <button id="notice-settings-btn" class="toggle-btn" style="color: #2ecc71 !important; font-weight: bold; cursor: pointer;">OPEN 📢</button>
                     </div>
                     <div class="setting-item">
-                        <span class="setting-label">Language</span>
+                        <span class="setting-label" id="setting-lang-label">Language</span>
                         <button id="lang-toggle-settings-btn" class="toggle-btn">KOR</button>
                     </div>
                     <div class="setting-item">
-                        <span class="setting-label">Wind info</span>
+                        <span class="setting-label" id="setting-wind-label">바람세기</span>
                         <button id="wind-toggle-settings-btn" class="toggle-btn">OFF</button>
                     </div>
                     <div class="setting-item">
-                        <span class="setting-label">Music</span>
+                        <span class="setting-label" id="setting-music-label">Music</span>
                         <button id="music-toggle-settings-btn" class="toggle-btn">ON</button>
                     </div>
                     <div class="setting-item">
-                        <span class="setting-label">UI Swap</span>
-                        <button id="ui-swap-settings-btn" class="toggle-btn">OFF</button>
+                        <span class="setting-label" id="setting-uiswap-label">버튼위치</span>
+                        <button id="ui-swap-settings-btn" class="toggle-btn">왼손</button>
                     </div>
                     <div class="setting-item">
-                        <span class="setting-label">Full Screen</span>
+                        <span class="setting-label" id="setting-fullscreen-label">Full Screen</span>
                         <button id="fullscreen-toggle-settings-btn" class="toggle-btn">GO ⛶</button>
                     </div>
                     <div class="setting-item">
-                        <span class="setting-label">Reset Record</span>
+                        <span class="setting-label" id="setting-reset-label">Reset Record</span>
                         <button id="reset-record-settings-btn" class="toggle-btn">RESET</button>
                     </div>
                 </div>

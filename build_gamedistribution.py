@@ -232,6 +232,7 @@ new_show_ad_function = """function showAd(type, duration) {
                     savePlayerData();
                     updateLivesUI();
                     triggerLifeSparkle();
+                    if (typeof restoreBalloonVisibility === 'function') restoreBalloonVisibility();
                     const lifeModal = document.getElementById('ad-selection-overlay');
                     if (lifeModal) lifeModal.classList.add('hidden');
                     alert(isKor ? "생명이 7개로 완전 충전되었습니다! 💖" : "Lives fully refilled to 7! 💖");
@@ -240,6 +241,7 @@ new_show_ad_function = """function showAd(type, duration) {
                     savePlayerData();
                     updateLivesUI();
                     triggerLifeSparkle();
+                    if (typeof restoreBalloonVisibility === 'function') restoreBalloonVisibility();
                     if (adOverlay) adOverlay.classList.remove('hidden');
                     if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
                     if (adEventRewardsEl) adEventRewardsEl.classList.remove('hidden');

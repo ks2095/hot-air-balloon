@@ -1052,10 +1052,10 @@ body {
 #main-action-btn::after {
     content: '';
     position: absolute;
-    top: -100%;
-    left: -75%;
-    right: -75%;
-    bottom: -75%;
+    top: -80%;
+    left: -60%;
+    right: -60%;
+    bottom: -60%;
     border-radius: 50%;
     pointer-events: auto;
 }

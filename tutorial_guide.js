@@ -32,7 +32,7 @@
             placement: 'top'
         },
         'rank-btn': {
-            title: { kor: 'RANK (순위)', eng: 'RANK' },
+            title: { kor: '순위 (RANK)', eng: 'RANK' },
             desc: {
                 kor: '레벨별 클리어 점수와 전체<br>랭킹 순위를 확인하고 등록합니다.',
                 eng: 'Check and submit level scores<br>and overall leaderboard rank.'
@@ -40,7 +40,7 @@
             placement: 'bottom'
         },
         'ads-btn': {
-            title: { kor: 'Ads (보상 광고)', eng: 'Ads' },
+            title: { kor: '광고', eng: 'Ads' },
             desc: {
                 kor: '광고를 시청하고 생명 충전<br>또는 이벤트 게임을 즐길 수 있습니다.',
                 eng: 'Watch ads to refill lives or<br>play special event games.'
