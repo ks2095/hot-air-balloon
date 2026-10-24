@@ -10,8 +10,8 @@
         'main-action-btn': {
             title: { kor: 'START / BURNER', eng: 'START / BURNER' },
             desc: {
-                kor: '열기구를 출발시키고,<br>누르고 있으면 버너로 상승합니다.',
-                eng: 'Starts balloon, and hold to<br>activate burner to ascend.'
+                kor: '열기구를 출발시키고,<br>누르고 있으면 버너로 상승합니다.<br><span style="color:#ff6b6b; font-weight:bold;">(2초 이상 누르면 열기구 터짐!)</span>',
+                eng: 'Starts balloon, and hold to<br>activate burner to ascend.<br><span style="color:#ff6b6b; font-weight:bold;">(Hold >2s will explode balloon!)</span>'
             },
             placement: 'top'
         },

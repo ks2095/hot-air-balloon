@@ -3264,8 +3264,10 @@ function winGame() {
         const isKor = (currentLanguage === 'kor');
         if (scoreForRank > oldBest) {
             finalScore = scoreForRank - oldBest;
-            if (isAlreadyCleared && resultFormulaEl) {
-                const newRecordText = isKor ? `(신기록 달성! +${finalScore}C 추가 획득)` : `(New Record! +${finalScore}C earned)`;
+            if (resultFormulaEl) {
+                const newRecordText = (isAlreadyCleared && oldBest > 0)
+                    ? (isKor ? `(신기록 달성! +${finalScore}C 추가 획득)` : `(New Record! +${finalScore}C earned)`)
+                    : (isKor ? `(신기록 달성! +${finalScore}C 획득)` : `(New Record! +${finalScore}C earned)`);
                 resultFormulaEl.innerHTML += `<br><span style="color: #ffd32a; font-size: 0.8em;">${newRecordText}</span>`;
             }
         } else {
@@ -3878,8 +3880,8 @@ function resetGame() {
         const isTutorial = (currentLevel === 0 || displayName === "튜토리얼");
         if (isTutorial) {
             levelHintEl.innerHTML = (currentLanguage === 'kor') ?
-                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">START 와 BURNER를 터치하여<br>상단 녹색 패드에 착륙 하세요!</div>` :
-                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">Touch START and BURNER<br>to land on the green pad!</div>`;
+                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">START 와 BURNER를 터치하여<br>상단 녹색 패드에 착륙 하세요!<br><span style="color:#ff6b6b; font-size:0.85em; font-weight:bold;">(2초 이상 누르면 열기구 터짐)</span></div>` :
+                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">Touch START and BURNER<br>to land on the green pad!<br><span style="color:#ff6b6b; font-size:0.85em; font-weight:bold;">(Hold burner >2s to explode)</span></div>`;
             levelHintEl.classList.remove('hidden');
         } else if (BONUS_G1_LEVELS.includes(displayName)) {
             levelHintEl.innerHTML = (currentLanguage === 'kor') ? `아이템 1개 이하 사용` : `Use 1 item or less`;
@@ -6316,7 +6318,7 @@ const NOTICE_GUIDE_DATA = {
         },
         {
             title: "🔥 기본 비행 및 버너 조작",
-            desc: "START 버튼을 터치하여 비행을 시작하고, 길게 누르고 있으면 버너가 가동되어 상승합니다. 손을 떼면 서서히 하강합니다."
+            desc: "START 버튼을 터치하여 비행을 시작하고, 길게 누르고 있으면 버너가 가동되어 상승합니다. 손을 떼면 서서히 하강합니다. (⚠️ 2초 이상 누르면 열기구가 과열되어 터집니다!)"
         },
         {
             title: "💨 바람과 착륙 패드",
@@ -6342,7 +6344,7 @@ const NOTICE_GUIDE_DATA = {
         },
         {
             title: "🔥 Flight & Burner Controls",
-            desc: "Tap START to launch. Hold the button to fire the burner and ascend. Release the button to slowly descend."
+            desc: "Tap START to launch. Hold the button to fire the burner and ascend. Release the button to slowly descend. (⚠️ Holding the burner for more than 2 seconds will overheat and explode the balloon!)"
         },
         {
             title: "💨 Wind Zones & Landing Pad",
@@ -6559,8 +6561,8 @@ function updateLanguageUI() {
         const isTutorial = (currentLevel === 0 || displayName === "튜토리얼");
         if (isTutorial) {
             levelHintEl.innerHTML = isKor ?
-                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">START 와 BURNER를 터치하여<br>상단 녹색 패드에 착륙 하세요!</div>` :
-                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">Touch START and BURNER<br>to land on the green pad!</div>`;
+                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">START 와 BURNER를 터치하여<br>상단 녹색 패드에 착륙 하세요!<br><span style="color:#ff6b6b; font-size:0.85em; font-weight:bold;">(2초 이상 누르면 열기구 터짐)</span></div>` :
+                `<div class="tutorial-main-title">HOT AIR BALLOON<br>ADVENTURE</div><div class="tutorial-sub-guide">Touch START and BURNER<br>to land on the green pad!<br><span style="color:#ff6b6b; font-size:0.85em; font-weight:bold;">(Hold burner >2s to explode)</span></div>`;
         } else if (BONUS_G1_LEVELS.includes(displayName)) {
             levelHintEl.innerHTML = isKor ? `아이템 1개 이하 사용` : `Use 1 item or less`;
         } else if (BONUS_G2_LEVELS.includes(displayName)) {
