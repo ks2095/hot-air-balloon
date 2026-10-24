@@ -87,6 +87,7 @@ const lifeBalloonIcon = document.getElementById('life-balloon-icon');
 const adsBtn = document.getElementById('ads-btn');
 const adOverlay = document.getElementById('ad-overlay');
 const getLifeAdBtn = document.getElementById('get-life-ad-btn');
+const closeAdBtn = document.getElementById('close-ad-btn');
 const eventClearScreen = document.getElementById('event-clear-screen');
 const eventResultScoreEl = document.getElementById('event-result-score');
 const eventCounterEl = document.getElementById('event-credit-counter');
@@ -3265,10 +3266,18 @@ function winGame() {
         if (scoreForRank > oldBest) {
             finalScore = scoreForRank - oldBest;
             if (resultFormulaEl) {
-                const newRecordText = (isAlreadyCleared && oldBest > 0)
-                    ? (isKor ? `(신기록 달성! +${finalScore}C 추가 획득)` : `(New Record! +${finalScore}C earned)`)
-                    : (isKor ? `(신기록 달성! +${finalScore}C 획득)` : `(New Record! +${finalScore}C earned)`);
-                resultFormulaEl.innerHTML += `<br><span style="color: #ffd32a; font-size: 0.8em;">${newRecordText}</span>`;
+                const isTop1 = (typeof isTopRankScore === 'function') ? isTopRankScore(currentLevel, scoreForRank) : false;
+                let recordText = "";
+                if (isTop1) {
+                    recordText = (isAlreadyCleared && oldBest > 0)
+                        ? (isKor ? `(신기록 달성! +${finalScore}C 추가 획득)` : `(New Record! +${finalScore}C earned)`)
+                        : (isKor ? `(신기록 달성! +${finalScore}C 획득)` : `(New Record! +${finalScore}C earned)`);
+                } else {
+                    recordText = (isAlreadyCleared && oldBest > 0)
+                        ? (isKor ? `(+${finalScore}C 추가 획득)` : `(+${finalScore}C earned)`)
+                        : (isKor ? `(+${finalScore}C 획득)` : `(+${finalScore}C earned)`);
+                }
+                resultFormulaEl.innerHTML += `<br><span style="color: #ffd32a; font-size: 0.8em;">${recordText}</span>`;
             }
         } else {
             finalScore = 0;
@@ -6590,6 +6599,7 @@ function updateLanguageUI() {
 
     const getLifeAdBtnEl = document.getElementById('get-life-ad-btn');
     if (getLifeAdBtnEl) getLifeAdBtnEl.innerText = isKor ? '생명받기' : 'GET LIFE';
+    if (closeAdBtn) closeAdBtn.innerText = isKor ? '닫기' : 'Close';
 
     const rewardHint = document.querySelector('#ad-event-rewards .reward-hint');
     if (rewardHint) rewardHint.innerText = isKor ? '원하는 이벤트 번호를 선택하세요!' : 'Select an event to play!';
@@ -6706,6 +6716,7 @@ updateLanguageUI();
 updateSettingsUI();
 updateLivesUI();
 savePlayerData(); // Initial ground credits UI update
+syncLeaderboardData();
 
 // showEventBonusText function removed as requested
 
@@ -6728,63 +6739,29 @@ function showFloatingText(text, color = "#ffd32a") {
     }, 2000);
 }
 
-function showAd() {
-    if (adOverlay) {
-        adOverlay.classList.remove('hidden');
-        const timerEl = adOverlay.querySelector('.ad-timer');
-        let timeLeft = 20;
+// Audio Control for Ads
+let isAdAudioPaused = false;
 
-        if (timerEl) timerEl.innerText = timeLeft;
-
-        const countdown = setInterval(() => {
-            timeLeft--;
-            if (timerEl) timerEl.innerText = timeLeft;
-
-            if (timeLeft <= 0) {
-                clearInterval(countdown);
-                if (timerEl) timerEl.classList.add('hidden');
-                if (getLifeAdBtn) getLifeAdBtn.classList.remove('hidden');
-            }
-        }, 1000);
+function pauseAdAudio() {
+    if (bgmAudio && !bgmAudio.paused) {
+        isAdAudioPaused = true;
+        bgmAudio.pause();
+    }
+    if (soundMgr && soundMgr.context && soundMgr.context.state === 'running') {
+        try { soundMgr.context.suspend(); } catch (e) { }
     }
 }
 
-if (getLifeAdBtn) {
-    getLifeAdBtn.addEventListener('click', () => {
-        if (adOverlay) adOverlay.classList.add('hidden');
-        if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
-        // Reset ad UI for next time
-        const timerEl = adOverlay.querySelector('.ad-timer');
-        if (timerEl) {
-            timerEl.classList.remove('hidden');
-            timerEl.innerText = "20";
-        }
-
-        // Reward: 2 lives (max 7)
-        lives = Math.min(7, lives + 2);
-        savePlayerData();
-        updateLivesUI();
-        triggerLifeSparkle();
-        restoreBalloonVisibility();
-
-        // Play life soundEffect
-        if (soundMgr) {
-            soundMgr.resume();
-            soundMgr.play('life');
-        }
-
-        // If the balloon was hidden due to no lives, show it
-        if (lives > 0 && balloon.style.opacity === "0") {
-            balloon.style.opacity = "1";
-            balloon.classList.remove('explosion');
-            balloon.style.transform = "translateX(-50%) scale(1)";
-            balloonY = -getBasketOffset();
-            balloonX = 50;
-            balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
-            balloon.style.left = `${balloonX}%`;
-        }
-    });
+function resumeAdAudio() {
+    if (soundMgr && soundMgr.context && soundMgr.context.state === 'suspended') {
+        try { soundMgr.context.resume(); } catch (e) { }
+    }
+    if (isAdAudioPaused && isMusicEnabled && bgmAudio) {
+        bgmAudio.play().catch(() => {});
+        isAdAudioPaused = false;
+    }
 }
+
 function triggerLifeSparkle() {
     if (lifeBalloonIcon) {
         lifeBalloonIcon.classList.remove('sparkle-effect');
@@ -6807,8 +6784,6 @@ if (adsBtn) {
         // 광고 선택 메뉴 표시
         if (adSelectionOverlay) {
             adSelectionOverlay.classList.remove('hidden');
-            
-            // 생명이 가득 찬 경우 생명 충전 버튼 비활성화 시각적 피드백 (필요 시)
             if (lives >= 7) {
                 adSelectLifeBtn.style.opacity = "0.5";
             } else {
@@ -6832,7 +6807,6 @@ if (adSelectLifeBtn) {
 
 if (adSelectEventBtn) {
     adSelectEventBtn.addEventListener('click', () => {
-        // 이미 클리어한 이벤트가 있는지 확인
         const clearedEvents = Object.keys(LEVEL_CONFIGS).filter(lv => {
             const config = LEVEL_CONFIGS[lv];
             return config.displayName.includes('EVENT') && clearedLevels.includes(parseInt(lv));
@@ -6857,12 +6831,22 @@ if (closeAdSelectionBtn) {
     });
 }
 
+// 광고 모달 터치/클릭 외부 침범 차단 (닫기 버튼 외 다른 버튼 안 눌러지게 방지)
+if (adOverlay) {
+    ['click', 'touchstart', 'touchend', 'mousedown', 'mouseup', 'pointerdown', 'pointerup'].forEach(evt => {
+        adOverlay.addEventListener(evt, (e) => {
+            // 내부 버튼(닫기, 생명받기 등) 클릭 시에는 정상 작동하도록 이벤트 허용하되, 외부 전파는 완벽 차단
+            e.stopPropagation();
+        }, { passive: false });
+    });
+}
+
 // ==========================================
 // Ads System (Timer Simulation & AdSense Ready)
 // ==========================================
-// 구글 애드센스 심사가 통과되어 공식 승인된 후 true로 켜시면 H5 실시간 광고로 전환됩니다.
 const USE_GOOGLE_H5_ADS = false;
-let isH5AdAudioPaused = false;
+let adCountdownInterval = null;
+let isCurrentAdCompleted = false;
 
 function showAd(type, duration) {
     const isKor = (currentLanguage === 'kor');
@@ -6874,33 +6858,21 @@ function showAd(type, duration) {
                 type: 'reward',
                 name: (type === 'life' ? 'refill_lives' : 'bonus_event'),
                 beforeAd: () => {
-                    if (bgmAudio && !bgmAudio.paused) {
-                        isH5AdAudioPaused = true;
-                        bgmAudio.pause();
-                    }
-                    if (soundMgr && soundMgr.context && soundMgr.context.state === 'running') {
-                        try { soundMgr.context.suspend(); } catch (e) { }
-                    }
+                    pauseAdAudio();
                 },
                 afterAd: () => {
-                    if (soundMgr && soundMgr.context && soundMgr.context.state === 'suspended') {
-                        try { soundMgr.context.resume(); } catch (e) { }
-                    }
-                    if (isH5AdAudioPaused && isMusicEnabled && bgmAudio) {
-                        bgmAudio.play().catch(() => {});
-                        isH5AdAudioPaused = false;
-                    }
+                    resumeAdAudio();
                 },
                 beforeReward: (showAdFn) => { showAdFn(); },
                 adViewed: () => {
                     if (type === 'life') {
-                        lives = 7;
+                        lives = Math.min(7, lives + 2);
                         lastLifeUpdate = Date.now();
                         savePlayerData();
                         updateLivesUI();
                         triggerLifeSparkle();
                         restoreBalloonVisibility();
-                        alert(isKor ? "생명이 7개로 완전 충전되었습니다! 💖" : "Lives fully refilled to 7! 💖");
+                        alert(isKor ? "생명이 충전되었습니다! 💖" : "Lives recharged! 💖");
                     } else {
                         lives = Math.min(7, lives + 1);
                         savePlayerData();
@@ -6924,12 +6896,27 @@ function showAd(type, duration) {
         }
     }
 
-    // 기본: 자체 타이머 광고 모달 즉시 실행 (안전 보장)
+    // 기본: 자체 타이머 광고 모달 실행
     runLocalTimerAd(type, duration);
 }
 
 function runLocalTimerAd(type, duration) {
     if (!adOverlay) return;
+    
+    // 플레이 중 광고 진입 시 일시정지 처리
+    if (gameState === 'PLAY') {
+        gameState = 'PAUSED';
+        pauseStartTime = Date.now();
+        if (mainActionBtn) {
+            mainActionBtn.innerText = 'PAUSE';
+            mainActionBtn.classList.add('item-paused');
+        }
+    }
+
+    // 광고 시청 시 배경음악 및 사운드 즉시 정지
+    pauseAdAudio();
+    
+    isCurrentAdCompleted = false;
     adOverlay.classList.remove('hidden');
     
     if (adRewardTitle) {
@@ -6950,22 +6937,29 @@ function runLocalTimerAd(type, duration) {
         timerEl.innerText = timeLeft;
     }
     
-    // 버튼 초기화
+    // 보상 버튼 초기화
     if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
     if (adEventRewardsEl) adEventRewardsEl.classList.add('hidden');
 
-    const countdown = setInterval(() => {
+    if (adCountdownInterval) {
+        clearInterval(adCountdownInterval);
+        adCountdownInterval = null;
+    }
+
+    adCountdownInterval = setInterval(() => {
         timeLeft--;
         if (timerEl) timerEl.innerText = timeLeft;
 
         if (timeLeft <= 0) {
-            clearInterval(countdown);
+            clearInterval(adCountdownInterval);
+            adCountdownInterval = null;
+            isCurrentAdCompleted = true; // 광고 완주 플래그
             if (timerEl) timerEl.classList.add('hidden');
             
             if (type === 'life') {
                 if (getLifeAdBtn) getLifeAdBtn.classList.remove('hidden');
             } else {
-                // Reward for event ad: 1 life + event game selection
+                // 이벤트 광고 보상: 생명 1개 충전 및 이벤트 목록 오픈
                 lives = Math.min(7, lives + 1);
                 savePlayerData();
                 updateLivesUI();
@@ -6974,7 +6968,6 @@ function runLocalTimerAd(type, duration) {
 
                 if (adEventRewardsEl) {
                     adEventRewardsEl.classList.remove('hidden');
-                    // 클리어 여부에 따라 버튼 활성화/비활성화
                     const eventBtns = adEventRewardsEl.querySelectorAll('.event-reward-btn');
                     eventBtns.forEach(btn => {
                         const eventNum = btn.dataset.event;
@@ -6994,6 +6987,80 @@ function runLocalTimerAd(type, duration) {
     }, 1000);
 }
 
+// 닫기 버튼 이벤트 (중간에 닫으면 생명 미충전 및 음악 재개)
+if (closeAdBtn) {
+    closeAdBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        // 1. 광고를 끝까지 보지 않고 중간에 닫은 경우
+        if (!isCurrentAdCompleted) {
+            if (adCountdownInterval) {
+                clearInterval(adCountdownInterval);
+                adCountdownInterval = null;
+            }
+            if (adOverlay) adOverlay.classList.add('hidden');
+            if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
+            if (adEventRewardsEl) adEventRewardsEl.classList.add('hidden');
+
+            const timerEl = adOverlay ? adOverlay.querySelector('.ad-timer') : null;
+            if (timerEl) {
+                timerEl.classList.remove('hidden');
+                timerEl.innerText = "20";
+            }
+
+            // 음악 다시 재생
+            resumeAdAudio();
+
+            // 생명 미충전 안내 알림
+            const isKor = (currentLanguage === 'kor');
+            alert(isKor ? "광고 시청이 중단되어 생명이 충전되지 않았습니다." : "Ad playback was cancelled. No lives were recharged.");
+            return;
+        }
+
+        // 2. 이미 광고 시청이 완료된 후 닫은 경우
+        if (adOverlay) adOverlay.classList.add('hidden');
+        if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
+        if (adEventRewardsEl) adEventRewardsEl.classList.add('hidden');
+
+        const timerEl = adOverlay ? adOverlay.querySelector('.ad-timer') : null;
+        if (timerEl) {
+            timerEl.classList.remove('hidden');
+            timerEl.innerText = "20";
+        }
+        resumeAdAudio();
+    });
+}
+
+// 생명받기 버튼 클릭 시 생명 2개 충전 및 음악 재개
+if (getLifeAdBtn) {
+    getLifeAdBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (adOverlay) adOverlay.classList.add('hidden');
+        if (getLifeAdBtn) getLifeAdBtn.classList.add('hidden');
+
+        const timerEl = adOverlay ? adOverlay.querySelector('.ad-timer') : null;
+        if (timerEl) {
+            timerEl.classList.remove('hidden');
+            timerEl.innerText = "20";
+        }
+
+        // 보상 지급: 생명 2개 충전 (최대 7개)
+        lives = Math.min(7, lives + 2);
+        savePlayerData();
+        updateLivesUI();
+        triggerLifeSparkle();
+        restoreBalloonVisibility();
+
+        if (soundMgr) {
+            soundMgr.resume();
+            soundMgr.play('life');
+        }
+
+        // 음악 다시 재생
+        resumeAdAudio();
+    });
+}
+
 if (adEventRewardsEl) {
     const eventBtns = adEventRewardsEl.querySelectorAll('.event-reward-btn');
     eventBtns.forEach(btn => {
@@ -7006,6 +7073,7 @@ if (adEventRewardsEl) {
             if (eventLevelIdx) {
                 if (adOverlay) adOverlay.classList.add('hidden');
                 if (adEventRewardsEl) adEventRewardsEl.classList.add('hidden');
+                resumeAdAudio();
                 startRewardedEvent(parseInt(eventLevelIdx));
             }
         });
@@ -7021,15 +7089,8 @@ if (closeAdEventBtn) {
             timerEl.classList.remove('hidden');
             timerEl.innerText = "20";
         }
-        if (lives > 0 && balloon && balloon.style.opacity === "0") {
-            balloon.style.opacity = "1";
-            balloon.classList.remove('explosion');
-            balloon.style.transform = "translateX(-50%) scale(1)";
-            balloonY = -getBasketOffset();
-            balloonX = 50;
-            balloon.style.bottom = `calc(8.05% + ${balloonY * 0.9195}%)`;
-            balloon.style.left = `${balloonX}%`;
-        }
+        resumeAdAudio();
+        restoreBalloonVisibility();
     });
 }
 
@@ -7127,6 +7188,64 @@ function getDeviceUid() {
         localStorage.setItem('balloon_device_uid', uid);
     }
     return uid;
+}
+
+function isTopRankScore(level, newScore) {
+    if (newScore <= 0) return false;
+    try {
+        const localBoard = JSON.parse(localStorage.getItem('balloon_leaderboard_profiles'));
+        if (!localBoard || !Array.isArray(localBoard) || localBoard.length === 0) {
+            return false;
+        }
+        const myUid = (typeof getDeviceUid === 'function') ? getDeviceUid() : null;
+        const dummyNames = ["CloudKing", "SkyRider", "AeroMaster", "WindWalker", "BalloonPro", "StormChaser"];
+        
+        let highestOtherScore = 0;
+        let hasOtherScores = false;
+
+        for (const user of localBoard) {
+            if (!user || dummyNames.includes(user.nickname) || user.device === 'PC') continue;
+            // 내 기기에서 등록했던 이전 점수는 다른 유저의 점수가 아니므로 제외
+            if (myUid && user.uid === myUid) continue;
+
+            const lvlScore = (user.levelScores && typeof user.levelScores[level] === 'number') ? user.levelScores[level] : 0;
+            if (lvlScore > 0) {
+                hasOtherScores = true;
+                if (lvlScore > highestOtherScore) {
+                    highestOtherScore = lvlScore;
+                }
+            }
+        }
+
+        // 다른 유저 점수가 존재하면 그 중 최고 점수보다 높아야 1등 신기록
+        if (hasOtherScores) {
+            return newScore > highestOtherScore;
+        }
+        // 다른 유저 등록 기록이 없으면 1등 신기록
+        return true;
+    } catch (e) {
+        console.error("Error in isTopRankScore:", e);
+        return false;
+    }
+}
+
+async function syncLeaderboardData() {
+    try {
+        if (typeof db === 'undefined' || !db) return;
+        const querySnapshot = await db.collection("leaderboard").get();
+        let board = [];
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data && data.nickname) {
+                if (!data.levelScores) data.levelScores = {};
+                if (typeof data.overallScore !== 'number') data.overallScore = 0;
+                board.push(data);
+            }
+        });
+        localStorage.setItem('balloon_leaderboard_profiles', JSON.stringify(board));
+    } catch (e) {
+        // 백그라운드 동기화 실패 시 무시
+    }
 }
 
 function getDummyLeaderboard() {
