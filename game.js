@@ -2533,7 +2533,7 @@ function update(timestamp) {
         const timeLeft = Math.max(0, currentMaxTime - diffSeconds);
 
         const currentGas = Math.floor(gas);
-        const currentTime = Math.ceil(timeLeft);
+        const currentTime = timeLeft.toFixed(1);
 
         // 풍향 반전 로직 (LV-11 ~ LV-20)
         const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
@@ -3227,6 +3227,8 @@ function winGame() {
     const now = Date.now();
     const diffSeconds = (now - missionStartTime) / 1000;
     const timeLeft = Math.max(0, currentMaxTime - diffSeconds);
+    const displayTimeLeft = Number(timeLeft.toFixed(1));
+    const timeScore = Math.round(displayTimeLeft * 10);
 
     const platHalfWidth = (100 / 12) / 2;
     const distance = Math.abs(balloonX - targetLineX);
@@ -3248,7 +3250,7 @@ function winGame() {
         landingBonus = 20;
     }
 
-    const score = Math.floor(gas) + Math.floor(timeLeft * 10) + landingBonus;
+    const score = Math.floor(gas) + timeScore + landingBonus;
 
     let itemBonus = 0;
     const currentItemCount = getTotalItemsCount();
@@ -3309,7 +3311,7 @@ function winGame() {
     } else {
         if (resultScoreEl) resultScoreEl.innerText = isSteakEvent ? (displayCookedPct * 10) : (score + itemBonus);
         if (resultFormulaEl) {
-            let formula = `(${Math.floor(gas)} + (${Math.floor(timeLeft)} * 10) + <span style="color: #ffd32a;">${landingBonus}</span>)`;
+            let formula = `(${Math.floor(gas)} + (${displayTimeLeft.toFixed(1)} * 10) + <span style="color: #ffd32a;">${landingBonus}</span>)`;
             if (itemBonus > 0) {
                 formula += ` + <span style="color: #2ecc71;">${itemBonus}(ITEM BONUS)</span>`;
             }
@@ -3759,7 +3761,7 @@ function resetGame() {
     if (gasFillEl) gasFillEl.style.width = "100%";
     if (timeFillEl) timeFillEl.style.width = "100%";
     if (gasTextEl) gasTextEl.innerText = currentMaxGas;
-    if (timeTextEl) timeTextEl.innerText = currentMaxTime;
+    if (timeTextEl) timeTextEl.innerText = Number(currentMaxTime).toFixed(1);
     if (gasValEl) gasValEl.innerText = "0";
     if (timeValEl) timeValEl.innerText = "0";
 
