@@ -6296,6 +6296,18 @@ function checkEagleCollisions() {
 function updateNextLevelButtonVisibility() {
     const isEventLevel = LEVEL_CONFIGS[currentLevel]?.displayName?.startsWith("EVENT") || isSpaceEventLevel(LEVEL_CONFIGS[currentLevel]?.displayName);
     const isTutorial = isTutorialLevel(currentLevel);
+    const isRankOpen = rankScreen && !rankScreen.classList.contains('hidden');
+
+    // 리더보드(순위/기록) 창이 열려 있을 때는 다른 레벨로 가는 좌우 화살표 숨김
+    if (isRankOpen) {
+        if (nextLevelBtn) {
+            nextLevelBtn.classList.add('hidden');
+            nextLevelBtn.classList.remove('tutorial-blink');
+        }
+        if (prevLevelBtn) prevLevelBtn.classList.add('hidden');
+        return;
+    }
+
     if (gameState === 'PLAY' && !isEventLevel) {
         if (nextLevelBtn) {
             nextLevelBtn.classList.add('hidden');
@@ -6608,10 +6620,12 @@ function updateLanguageUI() {
         adsBtn.innerText = isKor ? '광고' : 'Ads';
         adsBtn.title = isKor ? '광고 시청 및 보상' : 'Watch Ads';
     }
+    const tabMaxLevelEl = document.getElementById('tab-max-level');
+    if (tabMaxLevelEl) tabMaxLevelEl.innerText = isKor ? '최고레벨' : 'Max Level';
     const tabLevelEl = document.getElementById('tab-level');
-    if (tabLevelEl) tabLevelEl.innerText = isKor ? '레벨 순위' : 'Level Rank';
+    if (tabLevelEl) tabLevelEl.innerText = isKor ? '레벨순위' : 'Level Rank';
     const tabOverallEl = document.getElementById('tab-overall');
-    if (tabOverallEl) tabOverallEl.innerText = isKor ? '전체 순위' : 'Overall Rank';
+    if (tabOverallEl) tabOverallEl.innerText = isKor ? '전체순위' : 'Overall Rank';
     const myRankPosLabelEl = document.getElementById('my-rank-pos-label');
     if (myRankPosLabelEl) myRankPosLabelEl.innerText = isKor ? '내 순위:' : 'My Rank:';
     const copyUidTextEl = document.getElementById('copy-uid-text');
@@ -7338,7 +7352,70 @@ function getDummyLeaderboard() {
     return [];
 }
 
-let currentRankMode = 'level'; // 'level' or 'overall'
+let currentRankMode = 'level'; // 'max_level', 'level' or 'overall'
+
+function getMyMaxLevelInfo() {
+    let maxIdx = 0;
+    if (Array.isArray(clearedLevels)) {
+        for (let lv of clearedLevels) {
+            const num = parseInt(lv);
+            if (!isNaN(num) && LEVEL_CONFIGS[num] && num > maxIdx) {
+                maxIdx = num;
+            }
+        }
+    }
+    if (myLevelBestScores && typeof myLevelBestScores === 'object') {
+        for (let lv in myLevelBestScores) {
+            const num = parseInt(lv);
+            if (!isNaN(num) && LEVEL_CONFIGS[num] && (myLevelBestScores[num] > 0) && num > maxIdx) {
+                maxIdx = num;
+            }
+        }
+    }
+    if (Array.isArray(clearedLevels) && clearedLevels.includes(maxIdx) && LEVEL_CONFIGS[maxIdx + 1]) {
+        maxIdx = maxIdx + 1;
+    }
+    if (typeof currentLevel === 'number' && LEVEL_CONFIGS[currentLevel] && currentLevel > maxIdx) {
+        if (Array.isArray(clearedLevels) && (clearedLevels.includes(currentLevel - 1) || clearedLevels.includes(currentLevel))) {
+            maxIdx = currentLevel;
+        }
+    }
+    const cfg = LEVEL_CONFIGS[maxIdx] || LEVEL_CONFIGS[0];
+    const dispName = cfg ? cfg.displayName : maxIdx;
+    return {
+        levelIndex: maxIdx,
+        displayName: dispName,
+        label: `LV-${dispName}`
+    };
+}
+
+function getEntryMaxLevel(entry) {
+    if (entry && typeof entry.maxLevel === 'number' && LEVEL_CONFIGS[entry.maxLevel]) {
+        const cfg = LEVEL_CONFIGS[entry.maxLevel];
+        const disp = entry.maxLevelDisplayName || (cfg ? cfg.displayName : entry.maxLevel);
+        return {
+            levelIndex: entry.maxLevel,
+            displayName: disp,
+            label: `LV-${disp}`
+        };
+    }
+    let maxIdx = 0;
+    if (entry && entry.levelScores && typeof entry.levelScores === 'object') {
+        for (let lv in entry.levelScores) {
+            const num = parseInt(lv);
+            if (!isNaN(num) && LEVEL_CONFIGS[num] && (entry.levelScores[num] > 0) && num > maxIdx) {
+                maxIdx = num;
+            }
+        }
+    }
+    const cfg = LEVEL_CONFIGS[maxIdx] || LEVEL_CONFIGS[0];
+    const disp = cfg ? cfg.displayName : maxIdx;
+    return {
+        levelIndex: maxIdx,
+        displayName: disp,
+        label: `LV-${disp}`
+    };
+}
 
 async function updateRankUI() {
     if(rankListEl) rankListEl.innerHTML = '<div style="text-align:center; padding:10px; color:#2ecc71;">Loading ranking...</div>';
@@ -7375,13 +7452,64 @@ async function updateRankUI() {
     board = board.filter(user => !dummyNames.includes(user.nickname) && user.device !== 'PC');
 
     const rankScoreLabelEl = document.getElementById('rank-score-label');
+    const tabMaxLevelBtn = document.getElementById('tab-max-level');
     const tabLevelBtn = document.getElementById('tab-level');
     const tabOverallBtn = document.getElementById('tab-overall');
     const isKor = (currentLanguage === 'kor');
 
     let myDisplayScore = 0;
+    const myDevType = getDeviceType();
+    const myDevLabel = (myDevType === 'PC') ? 'PC' : (isKor ? '폰' : 'Phone');
+    const myDevIcon = (myDevType === 'PC') ? '💻' : '📱';
     
-    if (currentRankMode === 'level') {
+    if (currentRankMode === 'max_level') {
+        if (tabMaxLevelBtn) { tabMaxLevelBtn.style.background = '#2ecc71'; tabMaxLevelBtn.style.color = '#000'; }
+        if (tabLevelBtn) { tabLevelBtn.style.background = 'transparent'; tabLevelBtn.style.color = '#fff'; }
+        if (tabOverallBtn) { tabOverallBtn.style.background = 'transparent'; tabOverallBtn.style.color = '#fff'; }
+
+        if (rankScoreLabelEl) rankScoreLabelEl.innerText = isKor ? '내 최고 도달 레벨:' : 'My Max Level:';
+
+        const myMax = getMyMaxLevelInfo();
+        const myOverall = calculateMyOverallScore();
+
+        if (myRankScoreEl) {
+            myRankScoreEl.innerHTML = `<span style="color:#2ecc71; font-weight:bold;">${myMax.label}</span> <span style="font-size:0.75rem; color:#ffd32a; margin-left:3px;">(${myOverall.toLocaleString()} C)</span> <span style="font-size:0.75rem; color:#aaa; margin-left:3px;">(${myDevLabel} ${myDevIcon})</span>`;
+        }
+
+        // Sort: 1차 최고 레벨 순, 2차 전체 누적 점수 순
+        board.sort((a, b) => {
+            const maxA = getEntryMaxLevel(a).levelIndex;
+            const maxB = getEntryMaxLevel(b).levelIndex;
+            if (maxB !== maxA) return maxB - maxA;
+            return (b.overallScore || 0) - (a.overallScore || 0);
+        });
+
+        // 내 순위 계산
+        let myRank = 1;
+        const myLevelIdx = myMax.levelIndex;
+        for (let entry of board) {
+            const entryLevelIdx = getEntryMaxLevel(entry).levelIndex;
+            if (entryLevelIdx > myLevelIdx) {
+                myRank++;
+            } else if (entryLevelIdx === myLevelIdx && (entry.overallScore || 0) > myOverall) {
+                myRank++;
+            }
+        }
+
+        if (myRankPosEl) {
+            if (myDevType === 'PC') {
+                myRankPosEl.innerHTML = `<span style="color:#aaa; font-size:0.75rem;">${isKor ? '순위 등록 불가 (PC)' : 'Unranked (PC)'}</span>`;
+            } else if (myRank <= 3) {
+                myRankPosEl.innerHTML = `<span style="color:#f1c40f;">${myRank}${isKor ? '위' : ''}</span>`;
+            } else {
+                myRankPosEl.innerText = `${myRank}${isKor ? '위' : ''}`;
+            }
+        }
+    } else if (currentRankMode === 'level') {
+        if (tabMaxLevelBtn) { tabMaxLevelBtn.style.background = 'transparent'; tabMaxLevelBtn.style.color = '#fff'; }
+        if (tabLevelBtn) { tabLevelBtn.style.background = '#2ecc71'; tabLevelBtn.style.color = '#000'; }
+        if (tabOverallBtn) { tabOverallBtn.style.background = 'transparent'; tabOverallBtn.style.color = '#fff'; }
+
         const config = LEVEL_CONFIGS[currentLevel];
         const dispName = config ? config.displayName : currentLevel;
         if (dispName.toString().includes('EVENT') || dispName === "튜토리얼" || currentLevel === 0) {
@@ -7391,8 +7519,6 @@ async function updateRankUI() {
             if(rankListEl) rankListEl.innerHTML = isKor ?
                 '<div style="text-align:center; padding:20px; color:#ccc;">튜토리얼 및 이벤트 레벨은 순위가 제공되지 않습니다.</div>' :
                 '<div style="text-align:center; padding:20px; color:#ccc;">Leaderboard is not available for Tutorial and Event levels.</div>';
-            if (tabLevelBtn) { tabLevelBtn.style.background = '#2ecc71'; tabLevelBtn.style.color = '#000'; }
-            if (tabOverallBtn) { tabOverallBtn.style.background = 'transparent'; tabOverallBtn.style.color = '#fff'; }
             return;
         }
 
@@ -7401,49 +7527,59 @@ async function updateRankUI() {
         
         // Sort descending by level score
         board.sort((a,b) => (b.levelScores[currentLevel] || 0) - (a.levelScores[currentLevel] || 0));
-        
-        if (tabLevelBtn) { tabLevelBtn.style.background = '#2ecc71'; tabLevelBtn.style.color = '#000'; }
-        if (tabOverallBtn) { tabOverallBtn.style.background = 'transparent'; tabOverallBtn.style.color = '#fff'; }
+
+        if(myRankScoreEl) {
+            myRankScoreEl.innerHTML = `${myDisplayScore} <span style="font-size:0.75rem; color:#aaa; margin-left:3px;">(${myDevLabel} ${myDevIcon})</span>`;
+        }
+
+        let myRank = 1;
+        for (let entry of board) {
+            if (myDisplayScore < (entry.levelScores[currentLevel] || 0)) myRank++;
+        }
+        if(myRankPosEl) {
+            if (myDevType === 'PC') {
+                myRankPosEl.innerHTML = `<span style="color:#aaa; font-size:0.75rem;">${isKor ? '순위 등록 불가 (PC)' : 'Unranked (PC)'}</span>`;
+            } else if (myDisplayScore === 0) {
+                myRankPosEl.innerText = `-`;
+            } else if(myRank <= 3) {
+                myRankPosEl.innerHTML = `<span style="color:#f1c40f;">${myRank}${isKor ? '위' : ''}</span>`;
+            } else {
+                myRankPosEl.innerText = `${myRank}${isKor ? '위' : ''}`;
+            }
+        }
     } else {
+        if (tabMaxLevelBtn) { tabMaxLevelBtn.style.background = 'transparent'; tabMaxLevelBtn.style.color = '#fff'; }
+        if (tabLevelBtn) { tabLevelBtn.style.background = 'transparent'; tabLevelBtn.style.color = '#fff'; }
+        if (tabOverallBtn) { tabOverallBtn.style.background = '#2ecc71'; tabOverallBtn.style.color = '#000'; }
+
         if(rankScoreLabelEl) rankScoreLabelEl.innerText = isKor ? '전체 내 점수:' : 'Overall My Score:';
         myDisplayScore = calculateMyOverallScore();
         
         // Sort descending by overall score
         board.sort((a,b) => (b.overallScore || 0) - (a.overallScore || 0));
-        
-        if (tabLevelBtn) { tabLevelBtn.style.background = 'transparent'; tabLevelBtn.style.color = '#fff'; }
-        if (tabOverallBtn) { tabOverallBtn.style.background = '#2ecc71'; tabOverallBtn.style.color = '#000'; }
-    }
 
-    const myDevType = getDeviceType();
-    const myDevLabel = (myDevType === 'PC') ? 'PC' : (isKor ? '폰' : 'Phone');
-    const myDevIcon = (myDevType === 'PC') ? '💻' : '📱';
+        if(myRankScoreEl) {
+            myRankScoreEl.innerHTML = `${myDisplayScore} <span style="font-size:0.75rem; color:#aaa; margin-left:3px;">(${myDevLabel} ${myDevIcon})</span>`;
+        }
 
-    if(myRankScoreEl) {
-        myRankScoreEl.innerHTML = `${myDisplayScore} <span style="font-size:0.75rem; color:#aaa; margin-left:3px;">(${myDevLabel} ${myDevIcon})</span>`;
-    }
-
-    // Calculate my rank
-    let myRank = 1;
-    for (let entry of board) {
-        if (currentRankMode === 'level') {
-            if (myDisplayScore < (entry.levelScores[currentLevel] || 0)) myRank++;
-        } else {
+        let myRank = 1;
+        for (let entry of board) {
             if (myDisplayScore < (entry.overallScore || 0)) myRank++;
         }
-    }
-    
-    if(myRankPosEl) {
-        if (myDevType === 'PC') {
-            myRankPosEl.innerHTML = `<span style="color:#aaa; font-size:0.75rem;">${isKor ? '순위 등록 불가 (PC)' : 'Unranked (PC)'}</span>`;
-        } else if (myDisplayScore === 0) {
-             myRankPosEl.innerText = `-`;
-        } else if(myRank <= 3) {
-            myRankPosEl.innerHTML = `<span style="color:#f1c40f;">${myRank}${isKor ? '위' : ''}</span>`;
-        } else {
-            myRankPosEl.innerText = `${myRank}${isKor ? '위' : ''}`;
+        if(myRankPosEl) {
+            if (myDevType === 'PC') {
+                myRankPosEl.innerHTML = `<span style="color:#aaa; font-size:0.75rem;">${isKor ? '순위 등록 불가 (PC)' : 'Unranked (PC)'}</span>`;
+            } else if (myDisplayScore === 0) {
+                myRankPosEl.innerText = `-`;
+            } else if(myRank <= 3) {
+                myRankPosEl.innerHTML = `<span style="color:#f1c40f;">${myRank}${isKor ? '위' : ''}</span>`;
+            } else {
+                myRankPosEl.innerText = `${myRank}${isKor ? '위' : ''}`;
+            }
         }
     }
+
+
 
     if (rankNicknameInput && submitRankBtn) {
         if (myDevType === 'PC') {
@@ -7477,7 +7613,6 @@ async function updateRankUI() {
         const top5 = board.slice(0, 5);
         const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
         for (let i = 0; i < top5.length; i++) {
-            const scoreToDisplay = currentRankMode === 'level' ? (top5[i].levelScores[currentLevel] || 0) : (top5[i].overallScore || 0);
             const userDev = (top5[i].device === 'PC') ? 'PC' : 'Mobile';
             const userDevIcon = (userDev === 'PC') ? '💻' : '📱';
             const userDevText = (userDev === 'PC') ? 'PC' : (isKor ? '폰' : 'Phone');
@@ -7488,21 +7623,38 @@ async function updateRankUI() {
             item.style.alignItems = 'center';
             item.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
             item.style.padding = '5px 0';
-            item.innerHTML = `<span>${medals[i]} &nbsp; <span title="${userDevTitle}">${userDevIcon}</span> ${top5[i].nickname}</span> <span style="color: #ffd32a; font-weight: normal;">${scoreToDisplay} <span style="font-size:0.7rem; color:#aaa; margin-left:3px;" title="${userDevTitle}">(${userDevText})</span></span>`;
+
+            if (currentRankMode === 'max_level') {
+                const entryMax = getEntryMaxLevel(top5[i]);
+                const entryOverall = (top5[i].overallScore || 0).toLocaleString();
+                item.innerHTML = `<span>${medals[i]} &nbsp; <span title="${userDevTitle}">${userDevIcon}</span> ${top5[i].nickname}</span> <span style="color: #2ecc71; font-weight: bold;">${entryMax.label} <span style="font-size:0.7rem; color:#ffd32a; font-weight:normal; margin-left:3px;" title="${userDevTitle}">(${entryOverall}C)</span></span>`;
+            } else {
+                const scoreToDisplay = currentRankMode === 'level' ? (top5[i].levelScores[currentLevel] || 0) : (top5[i].overallScore || 0);
+                item.innerHTML = `<span>${medals[i]} &nbsp; <span title="${userDevTitle}">${userDevIcon}</span> ${top5[i].nickname}</span> <span style="color: #ffd32a; font-weight: normal;">${scoreToDisplay} <span style="font-size:0.7rem; color:#aaa; margin-left:3px;" title="${userDevTitle}">(${userDevText})</span></span>`;
+            }
             rankListEl.appendChild(item);
         }
     }
 }
 
 // Add Rank Events
+const tabMaxLevelBtn = document.getElementById('tab-max-level');
 const tabLevelBtn = document.getElementById('tab-level');
 const tabOverallBtn = document.getElementById('tab-overall');
 
-if (tabLevelBtn && tabOverallBtn) {
+if (tabMaxLevelBtn) {
+    tabMaxLevelBtn.addEventListener('click', () => {
+        currentRankMode = 'max_level';
+        updateRankUI();
+    });
+}
+if (tabLevelBtn) {
     tabLevelBtn.addEventListener('click', () => {
         currentRankMode = 'level';
         updateRankUI();
     });
+}
+if (tabOverallBtn) {
     tabOverallBtn.addEventListener('click', () => {
         currentRankMode = 'overall';
         updateRankUI();
@@ -7542,6 +7694,7 @@ async function openRankModal(e) {
             rankNicknameInput.value = savedNick;
         }
         updateRankUI();
+        updateNextLevelButtonVisibility();
     }
 }
 
@@ -7634,6 +7787,7 @@ if (closeRankBtn) {
     closeRankBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (rankScreen) rankScreen.classList.add('hidden');
+        updateNextLevelButtonVisibility();
         if (gameState === 'PAUSED') {
             const isStoreHidden = !document.getElementById('store-screen') || document.getElementById('store-screen').classList.contains('hidden');
             const isSettingsHidden = !document.getElementById('settings-screen') || document.getElementById('settings-screen').classList.contains('hidden');
@@ -7688,11 +7842,15 @@ if (submitRankBtn) {
             const devType = getDeviceType(); // 'Mobile' or 'PC'
             const devDetail = getDeviceDetail(); // e.g. 'Mobile (iPhone)', 'Mobile (Android)', 'PC (Windows)'
 
+            const maxInfo = getMyMaxLevelInfo();
+
             await docRef.set({
                 nickname: nickname,
                 uid: deviceUid,
                 levelScores: Object.assign({}, myLevelBestScores),
                 overallScore: calculateMyOverallScore(),
+                maxLevel: maxInfo.levelIndex,
+                maxLevelDisplayName: maxInfo.displayName,
                 device: devType,
                 deviceDetail: devDetail,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()

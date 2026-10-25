@@ -161,7 +161,7 @@ body {
     font-size: 0.85rem;
     font-weight: bold;
     cursor: pointer;
-    z-index: 1000;
+    z-index: 1600 !important;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -3845,6 +3845,11 @@ button:hover {
 /* Leaderboard screen higher z-index to appear on top of clear screens */
 #rank-screen {
     z-index: 1500 !important;
+}
+
+#rank-screen:not(.hidden) ~ #prev-level-btn,
+#rank-screen:not(.hidden) ~ #next-level-btn {
+    display: none !important;
 }
 
 /* Score screen Rank Register Button (Text only, transparent background) */
