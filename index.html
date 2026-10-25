@@ -173,11 +173,16 @@
 
         <div class="target-line"></div>
         <div id="level-indicator">LV-1</div>
-        <div id="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 100; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px;">Rank</div>
+        <div id="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 100; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px;">기록</div>
         
         <div id="rank-screen" class="overlay hidden">
             <div class="rank-container" style="background: rgba(255, 255, 255, 0.1); padding: 25px 20px; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.2); width: 85%; max-width: 320px; text-align: center; backdrop-filter: blur(10px); color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                <h2 style="color: #2ecc71; margin-bottom: 15px; text-shadow: 0 0 10px rgba(46, 204, 113, 0.5); font-size: 1.05rem; font-weight: 500;">LEADERBOARD</h2>
+                <h2 style="color: #2ecc71; margin-bottom: 8px; text-shadow: 0 0 10px rgba(46, 204, 113, 0.5); font-size: 1.05rem; font-weight: 500;">LEADERBOARD</h2>
+                <div id="visitor-stats-badge" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 14px; padding: 4px 14px; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(46, 204, 113, 0.35); border-radius: 15px; font-size: 0.72rem; color: #dfe6e9;">
+                    <span style="font-size: 0.75rem;">👥</span>
+                    <span id="visitor-label">전체 방문자:</span>
+                    <span id="visitor-count-display" style="color: #2ecc71; font-weight: bold; font-size: 0.8rem;">-</span>
+                </div>
                 
                 <div style="display: flex; margin-bottom: 15px; background: rgba(0,0,0,0.5); border-radius: 20px;">
                     <button id="tab-level" style="flex:1; padding: 8px; background: #2ecc71; color: #000; border: none; border-radius: 20px; font-weight: normal; font-size: 0.7rem; cursor: pointer; transition: 0.2s;">Level Rank</button>
@@ -384,7 +389,7 @@
         <div id="coord-debugger" class="hidden"></div>
 
         <div id="clear-screen" class="overlay hidden">
-            <div id="clear-rank-btn" class="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 1001; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px; pointer-events: auto;">Rank</div>
+            <div id="clear-rank-btn" class="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 1001; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px; pointer-events: auto;">기록</div>
             <h1 id="clear-title">MISSION CLEAR!</h1>
             <div class="result-stats">
                 <div class="formula-label"><span style="color: #ffd32a;">C</span> = (GAS + (TIME * 10) + LANDING POINT)
@@ -404,7 +409,7 @@
         </div>
 
         <div id="event-clear-screen" class="overlay hidden">
-            <div id="event-clear-rank-btn" class="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 1001; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px; pointer-events: auto;">Rank</div>
+            <div id="event-clear-rank-btn" class="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 1001; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px; pointer-events: auto;">기록</div>
             <div class="event-clear-container">
                 <h1 class="event-title">EVENT CLEAR!</h1>
                 <div class="event-result-box">

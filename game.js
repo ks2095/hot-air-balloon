@@ -17,6 +17,58 @@ try {
 const db = firebase.firestore();
 // =============================================== //
 
+// ================= Visitor Stats System ================= //
+let cachedTotalVisitors = parseInt(localStorage.getItem('balloon_cached_total_visitors')) || 0;
+
+function updateVisitorDisplay() {
+    const visitorLabelEl = document.getElementById('visitor-label');
+    const visitorCountEl = document.getElementById('visitor-count-display');
+    const isKor = (typeof currentLanguage !== 'undefined' ? currentLanguage : 'kor') === 'kor';
+    if (visitorLabelEl) {
+        visitorLabelEl.innerText = isKor ? '전체 방문자:' : 'Total Visitors:';
+    }
+    if (visitorCountEl) {
+        if (cachedTotalVisitors > 0) {
+            const formatted = cachedTotalVisitors.toLocaleString();
+            visitorCountEl.innerText = isKor ? `${formatted}명` : formatted;
+        } else {
+            visitorCountEl.innerText = '-';
+        }
+    }
+}
+
+async function recordVisitorAndSync() {
+    try {
+        if (typeof db === 'undefined' || !db) return;
+        const statsDocRef = db.collection("leaderboard").doc("__stats_visitors__");
+        const hasVisitedSession = sessionStorage.getItem('balloon_visited_session');
+        if (!hasVisitedSession) {
+            sessionStorage.setItem('balloon_visited_session', 'true');
+            await statsDocRef.set({
+                totalVisitors: firebase.firestore.FieldValue.increment(1),
+                lastVisited: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
+        const docSnap = await statsDocRef.get();
+        if (docSnap.exists) {
+            const data = docSnap.data();
+            if (data && typeof data.totalVisitors === 'number') {
+                cachedTotalVisitors = data.totalVisitors;
+                localStorage.setItem('balloon_cached_total_visitors', cachedTotalVisitors);
+                updateVisitorDisplay();
+            }
+        }
+    } catch (e) {
+        console.warn("방문자 수 동기화 실패:", e);
+    }
+}
+// 페이지 로드 시 방문자 수 기록 및 동기화
+setTimeout(() => {
+    updateVisitorDisplay();
+    recordVisitorAndSync();
+}, 200);
+// ======================================================== //
+
 // 모바일 브라우저(아이폰, 갤럭시) 상/하단 바 고려한 동적 뷰포트 높이 계산 (--app-height)
 function setAppHeight() {
     const vh = window.innerHeight;
@@ -1199,13 +1251,25 @@ function init() {
         });
     }
 
+    let lastSettingsCloseTime = 0;
     if (closeSettingsBtn) {
-        closeSettingsBtn.addEventListener('click', () => {
+        const handleCloseSettings = (e) => {
+            if (e) {
+                e.stopPropagation();
+                if (e.cancelable && (e.type === 'touchend' || e.type === 'touchstart')) {
+                    e.preventDefault();
+                }
+            }
+            const now = Date.now();
+            if (now - lastSettingsCloseTime < 350) return;
+            lastSettingsCloseTime = now;
             settingsScreen.classList.add('hidden');
             if (gameState === 'PAUSED' && !storeScreen.classList.contains('hidden') === false) {
                 resumeGame();
             }
-        });
+        };
+        closeSettingsBtn.addEventListener('click', handleCloseSettings);
+        closeSettingsBtn.addEventListener('touchend', handleCloseSettings, { passive: false });
     }
 
     if (windToggleSettingsBtn) {
@@ -1285,6 +1349,7 @@ function init() {
                 localStorage.removeItem('balloon_real_credits');
                 localStorage.removeItem('balloon_real_upgrades');
                 localStorage.removeItem('balloon_current_level');
+                // 주의: 전체 방문자 수(balloon_cached_total_visitors 및 Firestore 카운트)는 초기화되지 않고 유지됩니다.
 
                 totalCredits = 0;
                 realCredits = 0;
@@ -1382,7 +1447,10 @@ function init() {
         soundMgr.init();
         await soundMgr.resume();
 
-        if (!settingsScreen.classList.contains('hidden')) return;
+        if (Date.now() - lastSettingsCloseTime < 400) return;
+        if (settingsScreen && !settingsScreen.classList.contains('hidden')) return;
+        if (storeScreen && !storeScreen.classList.contains('hidden')) return;
+        if (rankScreen && !rankScreen.classList.contains('hidden')) return;
         if (mainActionBtn.classList.contains('overheated')) return;
         if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || mainActionBtn.classList.contains('restart-mode')) {
             if (lives <= 0) {
@@ -1409,6 +1477,10 @@ function init() {
         soundMgr.init();
         await soundMgr.resume();
 
+        if (Date.now() - lastSettingsCloseTime < 400) return;
+        if (settingsScreen && !settingsScreen.classList.contains('hidden')) return;
+        if (storeScreen && !storeScreen.classList.contains('hidden')) return;
+        if (rankScreen && !rankScreen.classList.contains('hidden')) return;
         if (mainActionBtn.classList.contains('overheated')) return;
         if (gameState === 'START' || gameState === 'CLEAR' || gameState === 'GAMEOVER' || mainActionBtn.classList.contains('restart-mode')) {
             if (lives <= 0) {
@@ -1431,7 +1503,8 @@ function init() {
 
     if (event6Joystick) {
         const handleJoystickStart = (clientX, clientY) => {
-            if (!settingsScreen.classList.contains('hidden')) return;
+            if (Date.now() - lastSettingsCloseTime < 400) return;
+            if (settingsScreen && !settingsScreen.classList.contains('hidden')) return;
             if (!storeScreen.classList.contains('hidden')) return;
             if (mainActionBtn && mainActionBtn.classList.contains('overheated')) return;
 
@@ -1549,7 +1622,8 @@ function init() {
         soundMgr.init();
         await soundMgr.resume();
 
-        if (!settingsScreen.classList.contains('hidden')) return;
+        if (Date.now() - lastSettingsCloseTime < 400) return;
+        if (settingsScreen && !settingsScreen.classList.contains('hidden')) return;
         if (storeScreen && !storeScreen.classList.contains('hidden')) return;
         if (rankScreen && !rankScreen.classList.contains('hidden')) return;
         if (mainActionBtn && mainActionBtn.classList.contains('overheated')) return;
@@ -2537,7 +2611,7 @@ function updateTargetLine() {
         let pixelOffset = 12;
         if (config.displayName === "9") pixelOffset = 7;
         if (config.displayName === "10") pixelOffset = -3;
-        if (config.displayName === "19") pixelOffset = 2; // Lowered by 10px from 12
+        if (config.displayName === "19" || config.displayName === "20") pixelOffset = 2; // Lowered by 10px from 12
         targetLineEl.style.bottom = `calc(8.05% + ${targetYBottom * 0.9195}% + ${pixelOffset}px)`;
 
         targetLineEl.classList.toggle('wormhole', config.displayName === "31" || config.displayName === "32");
@@ -2677,7 +2751,7 @@ function handleMovement() {
     let pixelOffset = 12;
     if (config.displayName === "9") pixelOffset = 7;
     if (config.displayName === "10") pixelOffset = -3;
-    if (config.displayName === "19") pixelOffset = 2; // Lowered by 10px from 12
+    if (config.displayName === "19" || config.displayName === "20") pixelOffset = 2; // Lowered by 10px from 12
     if (config.displayName === "EVENT 2" || config.displayName === "EVENT 3" || config.displayName === "EVENT 4" || config.displayName === "EVENT 6") pixelOffset = 12 - 50; // 50px down
     const targetYBottom = (100 / 7) * platformY + (pixelOffset / skyHeight) * 100; // Visual bottom of the platform
     const targetYTop = targetYBottom + platformHeightPercentage; // Top of the grass
@@ -6524,11 +6598,12 @@ function updateLanguageUI() {
 
     updateSettingsUI();
 
-    // Rank -> 순위 라벨 언어 동기화
+    // Rank -> 기록 라벨 언어 동기화
     ['rank-btn', 'clear-rank-btn', 'event-clear-rank-btn'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.innerText = isKor ? '순위' : 'Rank';
+        if (el) el.innerText = isKor ? '기록' : 'Record';
     });
+    updateVisitorDisplay();
     if (adsBtn) {
         adsBtn.innerText = isKor ? '광고' : 'Ads';
         adsBtn.title = isKor ? '광고 시청 및 보상' : 'Watch Ads';
@@ -7235,6 +7310,15 @@ async function syncLeaderboardData() {
         const querySnapshot = await db.collection("leaderboard").get();
         let board = [];
         querySnapshot.forEach((doc) => {
+            if (doc.id === '__stats_visitors__') {
+                const data = doc.data();
+                if (data && typeof data.totalVisitors === 'number') {
+                    cachedTotalVisitors = data.totalVisitors;
+                    localStorage.setItem('balloon_cached_total_visitors', cachedTotalVisitors);
+                    if (typeof updateVisitorDisplay === 'function') updateVisitorDisplay();
+                }
+                return;
+            }
             const data = doc.data();
             if (data && data.nickname) {
                 if (!data.levelScores) data.levelScores = {};
@@ -7260,6 +7344,15 @@ async function updateRankUI() {
     try {
         const querySnapshot = await db.collection("leaderboard").get();
         querySnapshot.forEach((doc) => {
+            if (doc.id === '__stats_visitors__') {
+                const data = doc.data();
+                if (data && typeof data.totalVisitors === 'number') {
+                    cachedTotalVisitors = data.totalVisitors;
+                    localStorage.setItem('balloon_cached_total_visitors', cachedTotalVisitors);
+                    updateVisitorDisplay();
+                }
+                return;
+            }
             const data = doc.data();
             // Ensure necessary fields exist to avoid crashes
             if (data && data.nickname) {
@@ -7440,6 +7533,8 @@ async function openRankModal(e) {
 
     if (rankScreen) {
         rankScreen.classList.remove('hidden');
+        updateVisitorDisplay();
+        recordVisitorAndSync();
         const savedNick = localStorage.getItem('balloon_registered_nickname');
         if (rankNicknameInput && !rankNicknameInput.value && savedNick) {
             rankNicknameInput.value = savedNick;
