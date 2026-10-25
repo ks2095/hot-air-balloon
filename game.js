@@ -6614,6 +6614,8 @@ function updateLanguageUI() {
     if (tabOverallEl) tabOverallEl.innerText = isKor ? '전체 순위' : 'Overall Rank';
     const myRankPosLabelEl = document.getElementById('my-rank-pos-label');
     if (myRankPosLabelEl) myRankPosLabelEl.innerText = isKor ? '내 순위:' : 'My Rank:';
+    const copyUidTextEl = document.getElementById('copy-uid-text');
+    if (copyUidTextEl) copyUidTextEl.innerText = isKor ? 'UID 복사' : 'Copy UID';
     const closeRankBtnEl = document.getElementById('close-rank-btn');
     if (closeRankBtnEl) closeRankBtnEl.innerText = isKor ? '닫기' : 'CLOSE';
 
@@ -7582,6 +7584,50 @@ if (clearRankBtn) {
 const eventClearRankBtn = document.getElementById('event-clear-rank-btn');
 if (eventClearRankBtn) {
     eventClearRankBtn.addEventListener('click', openRankModal);
+}
+
+const copyUidBtn = document.getElementById('copy-uid-btn');
+const copyUidText = document.getElementById('copy-uid-text');
+if (copyUidBtn) {
+    copyUidBtn.addEventListener('click', async (e) => {
+        if (e) e.stopPropagation();
+        const uid = (typeof getDeviceUid === 'function') ? getDeviceUid() : (localStorage.getItem('balloon_device_uid') || '');
+        if (!uid) return;
+        const isKor = (currentLanguage === 'kor');
+
+        let copied = false;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+                await navigator.clipboard.writeText(uid);
+                copied = true;
+            } catch (err) {
+                console.warn('navigator.clipboard failed:', err);
+            }
+        }
+        if (!copied) {
+            try {
+                const textarea = document.createElement('textarea');
+                textarea.value = uid;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                copied = document.execCommand('copy');
+                document.body.removeChild(textarea);
+            } catch (err) {
+                console.warn('execCommand copy failed:', err);
+            }
+        }
+
+        if (copyUidText) {
+            copyUidText.innerText = isKor ? "복사 완료!" : "Copied!";
+            setTimeout(() => {
+                copyUidText.innerText = isKor ? "UID 복사" : "Copy UID";
+            }, 2000);
+        }
+        alert(isKor ? `UID가 클립보드에 복사되었습니다!\n\n[내 UID]\n${uid}` : `UID copied to clipboard!\n\n[My UID]\n${uid}`);
+    });
 }
 
 if (closeRankBtn) {
