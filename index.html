@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+        <title>열기구 모험 - Hot Air Balloon Adventure | 웹 비행 물리 시뮬레이션 게임</title>
+    <meta name="description" content="열기구의 부력과 7단계 대기 바람층을 활용하여 목표 지점에 도달하는 고정밀 물리 시뮬레이션 웹게임! 열기구 비행 원리, 층별 바람 공략, 다양한 미니게임을 무설치로 바로 즐기세요.">
+    <meta name="keywords" content="열기구게임, 웹게임, 비행시뮬레이션, 물리게임, HTML5게임, 부력의원리, 핫에어벌룬, Hot Air Balloon, Free Web Games">
+    <meta name="author" content="Hot Air Balloon Adventure">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hot-airballoon.com/">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://hot-airballoon.com/">
+    <meta property="og:title" content="열기구 모험 - Hot Air Balloon Adventure">
+    <meta property="og:description" content="고도별 대기 바람을 타고 비행하는 열기구 물리 웹게임! 버너 조절, 부력 제어, 바람 공략 가이드 제공.">
+    <meta property="og:image" content="https://hot-airballoon.com/balloon.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://hot-airballoon.com/">
+    <meta property="twitter:title" content="열기구 모험 - Hot Air Balloon Adventure">
+    <meta property="twitter:description" content="고도별 대기 바람을 타고 비행하는 열기구 물리 웹게임!">
+    <meta property="twitter:image" content="https://hot-airballoon.com/balloon.png">
+
+    <!-- Schema.org Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Hot Air Balloon Adventure",
+      "url": "https://hot-airballoon.com/",
+      "description": "웹 브라우저에서 바로 즐기는 대기 물리 기반 열기구 비행 시뮬레이션 게임",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "All",
+      "inLanguage": ["ko", "en"],
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+    <link rel="stylesheet" href="style.css?v=20261021_optimized1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="balloon.png">
+    <link rel="apple-touch-icon" href="balloon.png">
+    <link rel="manifest" href="manifest.json?v=5">
+    <!-- Google AdSense Account Verification Meta -->
+    <meta name="google-adsense-account" content="ca-pub-7730380647245141">
+    <!-- Google AdSense Official Snippet -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7730380647245141" crossorigin="anonymous"></script>
+    <!-- Google AdSense H5 Games Ads SDK -->
+    <script async
+        data-ad-client="ca-pub-7730380647245141"
+        data-ad-frequency-hint="30s"
+        data-ad-break-test="on"
+        crossorigin="anonymous"
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7730380647245141">
+    </script>
+    <script>
+        window.adsbygoogle = window.adsbygoogle || [];
+        const adBreak = function(o) { adsbygoogle.push(o); };
+        const adConfig = function(o) { adsbygoogle.push(o); };
+    </script>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a1128">
+</head>
+
+<body>
+    <div id="game-container">
+        <div id="level-hint" class="hidden"></div>
+        <div id="wind-countdown" class="hidden"></div>
+        <div id="sea-overlay" class="hidden"></div>
+        <!-- 7 Zones will be generated here or defined -->
+        <div id="sky-background">
+            <div class="zone" id="zone-7">
+                <div class="dev-control">
+                    <span>Z7</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="6">
+                    <span class="wind-val">1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="6">1.50</div>
+            </div>
+            <div class="zone" id="zone-6">
+                <div class="dev-control">
+                    <span>Z6</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="-1.5" class="wind-slider" data-zone="5">
+                    <span class="wind-val">-1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="5">-1.50</div>
+            </div>
+            <div class="zone" id="zone-5">
+                <div class="dev-control">
+                    <span>Z5</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="4">
+                    <span class="wind-val">1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="4">1.50</div>
+            </div>
+            <div class="zone" id="zone-4">
+                <div class="dev-control">
+                    <span>Z4</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="-1.5" class="wind-slider" data-zone="3">
+                    <span class="wind-val">-1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="3">-1.50</div>
+            </div>
+            <div class="zone" id="zone-3">
+                <div class="dev-control">
+                    <span>Z3</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="2">
+                    <span class="wind-val">1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="2">1.50</div>
+            </div>
+            <div class="zone" id="zone-2">
+                <div class="dev-control">
+                    <span>Z2</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="-1.5" class="wind-slider" data-zone="1">
+                    <span class="wind-val">-1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="1">-1.50</div>
+            </div>
+            <div class="zone" id="zone-1">
+                <div id="lives-display">
+                    <img src="balloon.png" alt="Life" class="life-icon" id="life-balloon-icon">
+                    <span id="lives-count">x6</span>
+                    <span id="ads-btn">광고</span>
+                </div>
+                <div class="dev-control">
+                    <span>Z1</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="0">
+                    <span class="wind-val">1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="0">1.50</div>
+                <div id="settings-btn" title="Settings">⚙</div>
+            </div>
+        </div>
+
+        <div id="ad-selection-overlay" class="overlay hidden">
+            <div class="selection-container">
+                <h2 class="selection-title">광고 보상 선택</h2>
+                <div class="selection-options">
+                    <button id="ad-select-life-btn" class="selection-btn">
+                        <span class="btn-title">생명 충전</span>
+                        <span class="btn-desc">20초 광고 시청 후<br>생명 2개 획득</span>
+                    </button>
+                    <button id="ad-select-event-btn" class="selection-btn">
+                        <span class="btn-title">이벤트 게임</span>
+                        <span class="btn-desc">30초 광고 시청 후<br>생명 1개 & 이벤트 게임</span>
+                    </button>
+                </div>
+                <button id="close-ad-selection-btn" class="close-btn-main">닫기</button>
+            </div>
+        </div>
+
+        <div id="ad-overlay" class="overlay hidden">
+            <div class="ad-content">
+                <h2 class="ad-title" id="ad-reward-title">광고시간</h2>
+                <p class="ad-message">열기구게임 많이 사랑해주세요!!!🎈🎈🎈</p>
+                <div class="ad-timer">20</div>
+                <button id="get-life-ad-btn" class="hidden">생명받기</button>
+                <div id="ad-event-rewards" class="hidden">
+                    <p class="reward-hint">원하는 이벤트 번호를 선택하세요!</p>
+                    <div class="event-reward-buttons">
+                        <button class="event-reward-btn" data-event="1">
+                            <span class="evt-num">1</span>
+                            <span class="evt-label">코인</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="2">
+                            <span class="evt-num">2</span>
+                            <span class="evt-label">스테이크</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="3">
+                            <span class="evt-num">3</span>
+                            <span class="evt-label">팝콘</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="4">
+                            <span class="evt-num">4</span>
+                            <span class="evt-label">낚시</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="5">
+                            <span class="evt-num">5</span>
+                            <span class="evt-label">피아노</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="6">
+                            <span class="evt-num">6</span>
+                            <span class="evt-label">운석</span>
+                        </button>
+                    </div>
+                </div>
+                <button id="close-ad-btn" class="close-ad-btn">닫기</button>
+            </div>
+        </div>
+
+        <div id="event-selection-overlay" class="overlay hidden">
+            <div class="selection-container">
+                <h2 class="selection-title">이벤트 게임 선택</h2>
+                <div id="event-buttons-container" class="selection-options vertical">
+                    <!-- Javascript will populate cleared events here -->
+                </div>
+                <button id="close-event-selection-btn" class="close-btn-main">닫기</button>
+            </div>
+        </div>
+
+        <div class="target-line"></div>
+        <div id="level-indicator">LV-1</div>
+        <div id="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 100; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px;">기록</div>
+        
+        <div id="rank-screen" class="overlay hidden">
+            <div class="rank-container" style="background: rgba(255, 255, 255, 0.1); padding: 25px 20px; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.2); width: 85%; max-width: 320px; text-align: center; backdrop-filter: blur(10px); color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <h2 style="color: #2ecc71; margin-bottom: 8px; text-shadow: 0 0 10px rgba(46, 204, 113, 0.5); font-size: 1.05rem; font-weight: 500;">LEADERBOARD</h2>
+                <div id="visitor-stats-badge" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 14px; padding: 4px 14px; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(46, 204, 113, 0.35); border-radius: 15px; font-size: 0.72rem; color: #dfe6e9;">
+                    <span style="font-size: 0.75rem;">👥</span>
+                    <span id="visitor-label">전체 방문자:</span>
+                    <span id="visitor-count-display" style="color: #2ecc71; font-weight: bold; font-size: 0.8rem;">-</span>
+                </div>
+                
+                <div style="display: flex; margin-bottom: 15px; background: rgba(0,0,0,0.5); border-radius: 20px; padding: 2px;">
+                    <button id="tab-max-level" style="flex:1; padding: 7px 2px; background: transparent; color: #fff; border: none; border-radius: 18px; font-weight: normal; font-size: 0.68rem; cursor: pointer; transition: 0.2s; white-space: nowrap;">최고레벨</button>
+                    <button id="tab-level" style="flex:1; padding: 7px 2px; background: #2ecc71; color: #000; border: none; border-radius: 18px; font-weight: normal; font-size: 0.68rem; cursor: pointer; transition: 0.2s; white-space: nowrap;">레벨순위</button>
+                    <button id="tab-overall" style="flex:1; padding: 7px 2px; background: transparent; color: #fff; border: none; border-radius: 18px; font-weight: normal; font-size: 0.68rem; cursor: pointer; transition: 0.2s; white-space: nowrap;">전체순위</button>
+                </div>
+
+                <div style="margin-bottom: 20px; background: rgba(0,0,0,0.3); padding: 12px 15px; border-radius: 10px;">
+                    <p style="font-size: 0.8rem; color: #ffd32a; font-weight: normal; margin-bottom: 5px;"><span id="rank-score-label">My Level Score:</span> <span id="my-rank-score">0</span></p>
+                    <p style="font-size: 0.8rem; font-weight: normal; margin-bottom: 8px;"><span id="my-rank-pos-label">My Rank:</span> <span id="my-rank-pos" style="color: #3498db;">-</span></p>
+                    <button id="copy-uid-btn" style="padding: 4px 14px; background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.4); border-radius: 15px; cursor: pointer; font-size: 0.68rem; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>📋</span> <span id="copy-uid-text">UID 복사</span>
+                    </button>
+                </div>
+                
+                <div style="margin-bottom: 25px; display: flex; justify-content: space-between;">
+                    <input type="text" id="rank-nickname" placeholder="Nickname" maxlength="8" style="padding: 8px; width: 65%; background: rgba(0,0,0,0.5); border: 1px solid #2ecc71; color: white; border-radius: 5px; outline: none; font-size: 0.7rem; font-family: inherit;">
+                    <button id="submit-rank-btn" style="padding: 8px; width: 30%; background: #2ecc71; color: #000; border: none; font-weight: normal; font-size: 0.7rem; border-radius: 5px; cursor: pointer; white-space: nowrap;">Submit</button>
+                </div>
+
+                <div class="rank-list" id="rank-list" style="text-align: left; margin-bottom: 25px; font-size: 0.75rem; line-height: 2; padding: 0 10px;">
+                    <!-- 1st to 5th place injected here -->
+                </div>
+
+                <button id="close-rank-btn" style="padding: 10px 25px; background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.3); border-radius: 25px; cursor: pointer; font-size: 0.7rem; font-weight: normal; transition: all 0.2s;">CLOSE</button>
+            </div>
+        </div>
+
+        <div id="settings-screen" class="overlay hidden">
+            <div class="settings-container">
+                <h2 class="settings-title" id="settings-title">Settings</h2>
+                <div class="settings-options">
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-notice-label">Notice</span>
+                        <button id="notice-settings-btn" class="toggle-btn" style="color: #2ecc71 !important; font-weight: bold; cursor: pointer;">OPEN 📢</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-lang-label">Language</span>
+                        <button id="lang-toggle-settings-btn" class="toggle-btn">KOR</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-wind-label">바람세기</span>
+                        <button id="wind-toggle-settings-btn" class="toggle-btn">OFF</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-music-label">Music</span>
+                        <button id="music-toggle-settings-btn" class="toggle-btn">ON</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-uiswap-label">버튼위치</span>
+                        <button id="ui-swap-settings-btn" class="toggle-btn">왼손</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-fullscreen-label">Full Screen</span>
+                        <button id="fullscreen-toggle-settings-btn" class="toggle-btn">GO ⛶</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-reset-label">Reset Record</span>
+                        <button id="reset-record-settings-btn" class="toggle-btn">RESET</button>
+                    </div>
+                </div>
+                <button id="close-settings-btn" class="close-btn-main">Close</button>
+            </div>
+        </div>
+
+        <div id="notice-screen" class="overlay hidden">
+            <div class="notice-container">
+                <h2 id="notice-title" class="notice-title">📢 공지사항</h2>
+                <div class="notice-tabs">
+                    <button id="notice-tab-news" class="notice-tab-btn active">NEWS</button>
+                    <button id="notice-tab-guide" class="notice-tab-btn">게임설명서</button>
+                </div>
+                <div class="notice-content" id="notice-content">
+                    <!-- 공지 내용 JS 주입 -->
+                </div>
+                <button id="close-notice-btn" class="close-btn-main">CLOSE</button>
+            </div>
+        </div>
+        <div id="event-credit-counter" class="hidden">
+            <img src="event_coin.png" alt="Coin">
+            <span id="event-credits-val">0</span>
+        </div>
+        <div id="event2-floating-score" class="hidden">
+            <div id="event2-cooked-pct">굽기: 0%</div>
+            <div id="event2-cooked-score-container">
+                <span id="event2-cooked-score">0</span><span class="unit-c">C</span>
+            </div>
+        </div>
+        <div id="event3-floating-score" class="hidden">
+            <div id="event3-popcorn-label">팝콘먹기</div>
+            <div id="event3-popcorn-score-container">
+                <span id="event3-popcorn-score">0</span><span class="unit-c">C</span>
+            </div>
+        </div>
+        <div id="event4-floating-score" class="hidden">
+            <div id="event4-fish-label">낚은 물고기</div>
+            <div id="event4-fish-score-container">
+                <span id="event4-fish-score">0</span><span class="unit-c">C</span>
+            </div>
+        </div>
+        <button id="prev-level-btn" class="hidden">◀</button>
+        <button id="next-level-btn" class="hidden">▶</button>
+
+
+        <div id="goal-area">
+            <div class="mission-text"></div>
+        </div>
+
+        <div id="ground">
+            <div class="item-label-container">
+                <span id="store-label-btn" class="item-label">
+                    <span class="label-text">STORE</span>
+                    <span id="ground-credits-display" class="credit-small">0C</span>
+                </span>
+                <span id="item-label-btn" class="item-label">ITEM</span>
+            </div>
+            <button id="main-action-btn">START</button>
+            <div id="event6-joystick" class="hidden">
+                <span class="joy-dir joy-up">▲</span>
+                <span class="joy-dir joy-down">▼</span>
+                <span class="joy-dir joy-left">◀</span>
+                <span class="joy-dir joy-right">▶</span>
+                <div id="event6-joystick-knob"></div>
+            </div>
+            <div id="status-bars">
+                <div class="status-row">
+                    <span class="status-label">GAS</span>
+                    <div class="progress-track">
+                        <div id="gas-fill" class="progress-fill"></div>
+                        <span id="gas-text" class="progress-text"></span>
+                    </div>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">TIME</span>
+                    <div class="progress-track">
+                        <div id="time-fill" class="progress-fill"></div>
+                        <span id="time-text" class="progress-text"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="balloon">
+            <div id="balloon-marker"></div>
+            <div id="basket-marker"></div>
+            <div class="burner-flame"></div>
+            <div class="space-flame space-flame-up"></div>
+            <div class="space-flame space-flame-down"></div>
+            <div class="space-flame space-flame-left"></div>
+            <div class="space-flame space-flame-right"></div>
+            <img src="balloon.png" alt="Hot Air Balloon" id="balloon-img">
+            <div id="fishing-gear" class="hidden">
+                <div class="fishing-rod"></div>
+                <div class="fishing-line">
+                    <img src="bait.png" class="fishing-bait">
+                </div>
+            </div>
+        </div>
+
+        <div id="steak-cooking-container" class="hidden">
+            <canvas id="steak-canvas"></canvas>
+        </div>
+
+        <div id="corn-container" class="hidden">
+            <img src="corn.png" id="corn-img">
+        </div>
+        <div id="piano-container" class="hidden">
+            <div class="piano-keys">
+                <div class="key white" data-note="do">도 <div class="key black" data-note="do-sharp"></div></div>
+                <div class="key white" data-note="re">레 <div class="key black" data-note="re-sharp"></div></div>
+                <div class="key white" data-note="mi">미</div>
+                <div class="key white" data-note="fa">파 <div class="key black" data-note="fa-sharp"></div></div>
+                <div class="key white" data-note="sol">솔 <div class="key black" data-note="sol-sharp"></div></div>
+                <div class="key white" data-note="la">라 <div class="key black" data-note="la-sharp"></div></div>
+                <div class="key white" data-note="si">시</div>
+                <div class="key white" data-note="do2">도</div>
+            </div>
+        </div>
+        <div id="music-staff" class="hidden">
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="note-container">
+                <div class="ledger-line"></div>
+                <div class="note-head"></div>
+                <div class="note-stem"></div>
+            </div>
+        </div>
+
+        <div id="fail-reason-bubble" class="hidden"></div>
+
+
+
+
+
+        <div id="music-score-board" class="hidden">
+            <div class="score-label">SOUND CREDITS</div>
+            <div id="music-credits-val">0</div>
+        </div>
+
+        <div id="ui-layer">
+            <div class="stat-item">GAS: <span id="gas-val">0</span></div>
+            <div class="stat-item">TIME: <span id="time-val">0</span>s</div>
+        </div>
+
+        <div id="coord-debugger" class="hidden"></div>
+
+        <div id="clear-screen" class="overlay hidden">
+            <div id="clear-rank-btn" class="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 1001; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px; pointer-events: auto;">기록</div>
+            <h1 id="clear-title">MISSION CLEAR!</h1>
+            <div class="result-stats">
+                <div class="formula-label"><span style="color: #ffd32a;">C</span> = (GAS + (TIME * 10) + LANDING POINT)
+                </div>
+                <div id="result-formula" class="score-formula">
+                    (0 + (0 * 10))
+                </div>
+                <div class="result-item total-score">
+                    <span id="result-score" class="value">0</span> <span class="unit">C</span>
+                </div>
+                <div class="total-credit-display">
+                    TOTAL: <span id="accumulated-total-credits">0</span>C
+                </div>
+                <button id="score-rank-register-btn" class="score-rank-btn">Rank Register</button>
+            </div>
+            <button id="close-clear-btn" class="close-btn">×</button>
+        </div>
+
+        <div id="event-clear-screen" class="overlay hidden">
+            <div id="event-clear-rank-btn" class="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 1001; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px; pointer-events: auto;">기록</div>
+            <div class="event-clear-container">
+                <h1 class="event-title">EVENT CLEAR!</h1>
+                <div class="event-result-box">
+                    <img src="event_coin.png" alt="Coin" class="event-result-coin">
+                    <div class="event-earned-label">EARNED CREDITS</div>
+                    <div id="event-result-score" class="event-earned-value">0</div>
+                </div>
+                <div class="total-credit-display">
+                    TOTAL: <span id="event-accumulated-total-credits">0</span>C
+                </div>
+                <button id="event-close-btn" class="event-btn">CONTINUE</button>
+                <button id="event-score-rank-register-btn" class="score-rank-btn">Rank Register</button>
+                <button id="event-close-clear-btn" class="close-btn">×</button>
+            </div>
+        </div>
+
+        <div id="store-screen" class="overlay hidden">
+            <div class="store-container">
+                <div class="store-instruction">hold and drop</div>
+                <h2 class="store-title-main" id="store-title">AIR STORE</h2>
+                <div class="store-mode-row">
+                    <button id="btn-buy-mode" class="mode-btn">BUY</button>
+                    <div class="currency-display-mini" id="store-currency">
+                        <span id="total-credits">0</span>
+                        <span class="unit-credit">C</span>
+                    </div>
+                    <button id="btn-sell-mode" class="mode-btn">SELL</button>
+                </div>
+                <div id="store-price-notice">Each item: 100C</div>
+                <div class="store-items" id="store-items-list">
+                    <!-- JS will populate these items -->
+                </div>
+                <button id="close-store-btn">CLOSE</button>
+            </div>
+        </div>
+
+        <div id="store-decorator" class="overlay hidden">
+            <div class="decorator-container">
+                <h2>DECORATE STORE (DEV)</h2>
+                <div class="decorator-scroll">
+                    <div class="decorator-field">
+                        <label>Store Title</label>
+                        <input type="text" id="edit-store-title" placeholder="AERO STORE">
+                    </div>
+                    <div class="decorator-field">
+                        <label>Theme Color</label>
+                        <input type="color" id="edit-store-color" value="#3498db">
+                    </div>
+                    <hr>
+                    <div id="edit-items-container">
+                        <!-- JS will inject item editors here -->
+                    </div>
+                </div>
+                <div class="decorator-actions">
+                    <button id="save-decoration" class="primary-btn">APPLY MODS</button>
+                    <button id="close-decorator" class="secondary-btn">CLOSE</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="fail-screen" class="overlay hidden">
+            <h1>MISSION FAILED!</h1>
+            <p>벽에 충돌하여 열기구가 터졌습니다.</p>
+        </div>
+    </div> <!-- #game-container -->
+
+        <!-- 구글 애드센스 승인 및 사용자 가이드를 위한 고품질 정보성 본문 -->
+        <div class="site-article-wrapper">
+            <!-- 섹션 1: 게임 소개 -->
+            <section id="game-guide-section" class="guide-card">
+                <div class="card-badge">GAME OVERVIEW</div>
+                <h2>🎮 열기구 모험 (Hot Air Balloon Adventure) 게임 소개</h2>
+                <p>
+                    <strong>열기구 모험(Hot Air Balloon Adventure)</strong>은 실제 대기 과학의 층별 바람 원리와 열역학적 부력 메커니즘을 결합한 <strong>HTML5 기반 고정밀 비행 물리 웹게임</strong>입니다. 
+                    플레이어는 열기구의 버너(Burner)를 조절하여 공기를 가열하거나 냉각시키며, 고도에 따라 서로 다른 방향과 속도로 부는 대기 기류(Wind Zones)를 전략적으로 활용해 목표 지점(Target Landing Zone)에 안전하게 착륙해야 합니다.
+                </p>
+                <div class="feature-bullets">
+                    <div class="bullet-item">
+                        <span class="bullet-icon">🚀</span>
+                        <div>
+                            <strong>설치 없는 즉각적 플레이</strong>
+                            <p>별도의 앱 설치나 회원가입 없이 PC 웹 브라우저와 모바일 스마트폰에서 1초 만에 무료로 플레이할 수 있습니다.</p>
+                        </div>
+                    </div>
+                    <div class="bullet-item">
+                        <span class="bullet-icon">🎯</span>
+                        <div>
+                            <strong>정밀한 물리 엔진 탑재</strong>
+                            <p>공기 밀도 변화에 따른 부력, 관성, 중력, 그리고 고도별 제트기류가 사실적으로 계산되어 깊이 있는 손맛을 제공합니다.</p>
+                        </div>
+                    </div>
+                    <div class="bullet-item">
+                        <span class="bullet-icon">🏆</span>
+                        <div>
+                            <strong>글로벌 랭킹 & 챌린지</strong>
+                            <p>전 세계 플레이어들과 실시간 최고 도달 레벨과 점수를 겨루며 도전 과제를 달성해 보세요.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 섹션 2: 조작법 및 비행 가이드 -->
+            <section id="controls-section" class="guide-card">
+                <div class="card-badge">FLIGHT MANUAL</div>
+                <h2>🕹️ 비행 조작법 및 핵심 물리 메커니즘</h2>
+                <p>
+                    열기구는 일반 비행기와 달리 방향타(Rudder)나 프로펠러 엔진이 없습니다. 오직 <strong>상승과 하강</strong>만을 제어할 수 있으며, 횡방향(좌/우) 이동은 원하는 방향으로 바람이 불고 있는 고도층으로 이동하여 바람을 타는 방식으로 비행합니다.
+                </p>
+                <div class="guide-grid">
+                    <div class="guide-box">
+                        <h3>🔥 버너 점화 (Burner Up)</h3>
+                        <p><strong>화면 터치 또는 마우스 클릭</strong>을 유지하면 버너가 점화되어 열기구 내부의 공기를 가열합니다. 가열된 공기는 밀도가 낮아져 강력한 부력(Lift)을 생성하며 열기구가 상승합니다. 단, 버너 사용 시 GAS(연료)가 소모되므로 효율적인 배분이 필수적입니다.</p>
+                    </div>
+                    <div class="guide-box">
+                        <h3>❄️ 자연 냉각 및 하강</h3>
+                        <p>터치를 떼면 버너가 꺼지고 외기와의 열교환을 통해 열기구 내부 공기가 서서히 냉각됩니다. 부력이 감소하면서 열기구는 중력에 의해 부드럽게 하강합니다. 급격한 하강은 착륙 충돌을 일으킬 수 있으니 완충 점화(Puffing)로 속도를 조절하세요.</p>
+                    </div>
+                    <div class="guide-box">
+                        <h3>⛽ 가스와 시간 관리 (Gas & Time)</h3>
+                        <p>화면 하단의 <strong>GAS 게이지</strong>와 <strong>TIME 게이지</strong>를 지속적으로 모니터링해야 합니다. 연료가 고갈되면 버너를 켤 수 없어 추락하게 되며, 제한 시간 내에 착륙선에 도달하지 못하면 미션에 실패합니다.</p>
+                    </div>
+                    <div class="guide-box">
+                        <h3>🛬 정밀 착륙 (Target Landing)</h3>
+                        <p>목표 지점에 정확한 속도로 안착하면 추가 착륙 보너스 점수를 획득합니다. 착륙 직전 역풍 구역을 활용해 수평 이동 속도를 0에 가깝게 줄인 후 천천히 접지하는 것이 고득점의 비결입니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 섹션 3: 7개 대기 구역 바람 지도 -->
+            <section id="wind-strategy-section" class="guide-card">
+                <div class="card-badge">METEOROLOGY</div>
+                <h2>🧭 7단계 대기 바람층 (Zone 1 ~ 7) 공략 가이드</h2>
+                <p>
+                    하늘은 고도에 따라 기온, 기압, 기류가 급격히 달라집니다. 본 게임은 현실의 대기 층위 구조를 7개의 고유 구역으로 세분화하여 구현했습니다. 각 구역의 바람 세기와 방향을 사전에 파악하고 비행 계획을 세우세요.
+                </p>
+                <div class="table-responsive">
+                    <table class="wind-table">
+                        <thead>
+                            <tr>
+                                <th>구역 (Zone)</th>
+                                <th>고도 영역</th>
+                                <th>주요 기류 및 환경 특성</th>
+                                <th>비행 공략 팁</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Zone 7</strong></td>
+                                <td>초고고도 (성층권 경계)</td>
+                                <td>극도로 희박한 공기, 빠른 고속 제트기류 (Jet Stream)</td>
+                                <td>단시간에 장거리 좌/우 이동이 필요할 때 급상승하여 편승</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Zone 6</strong></td>
+                                <td>고고도 순항층</td>
+                                <td>안정적이지만 지속적으로 한 방향으로 강하게 부는 바람</td>
+                                <td>중거리 횡단 시 최적의 연료 대비 이동 효율 구간</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Zone 5</strong></td>
+                                <td>중상층 대류권</td>
+                                <td>반대 방향의 역류가 자주 발생하는 난기류 혼합층</td>
+                                <td>원치 않는 방향으로 밀리지 않도록 신속히 통과 권장</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Zone 4</strong></td>
+                                <td>중간 기준 고도층</td>
+                                <td>비교적 잔잔하고 예측 가능한 순풍 기류</td>
+                                <td>착륙 목표 위치를 탐색하며 자세를 안정화하기 좋은 고도</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Zone 3</strong></td>
+                                <td>하층 대류권</td>
+                                <td>구름대 형성 및 약한 국지풍 교차</td>
+                                <td>수평 속도를 미세하게 보정하는 미세 조정 구간</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Zone 2</strong></td>
+                                <td>접근 및 진입층</td>
+                                <td>지표면 마찰로 인해 풍속이 급감하는 감속 구역</td>
+                                <td>착륙 전 최종 접근 경로를 정렬하는 필수 코스</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Zone 1</strong></td>
+                                <td>지표면 및 착륙 계류장</td>
+                                <td>지면 효과(Ground Effect) 및 안정적인 계류 환경</td>
+                                <td>수직 하강 속도를 초당 1~2m 이내로 낮춰 소프트 랜딩</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 섹션 4: 미니게임 및 스페셜 이벤트 -->
+            <section id="events-section" class="guide-card">
+                <div class="card-badge">MINI GAMES & EVENTS</div>
+                <h2>🍖 다채로운 미니게임 및 스페셜 이벤트 완벽 분석</h2>
+                <p>
+                    열기구 모험에는 일반 비행 외에도 플레이어의 순발력과 리듬감을 시험하는 흥미진진한 이벤트 모드가 마련되어 있습니다. 이벤트를 클리어하면 상점에서 유용한 아이템을 구매할 수 있는 <strong>크레딧(Credit)</strong>을 대량으로 획득할 수 있습니다.
+                </p>
+                <div class="events-grid">
+                    <div class="event-card">
+                        <h4>🥩 스테이크 조리 (Steak Cooking)</h4>
+                        <p>버너의 정밀한 화력 조절을 통해 스테이크의 앞뒤를 완벽한 굽기(Medium Rare)로 구워내세요. 과열되어 타지 않도록 불의 세기를 섬세하게 조절하는 감각이 핵심입니다.</p>
+                    </div>
+                    <div class="event-card">
+                        <h4>🍿 팝콘 튀기기 (Popcorn Pop)</h4>
+                        <p>달궈진 열기구 가열판에서 옥수수 알갱이가 터질 때 정확한 타이밍에 팝콘을 받아내세요! 연속으로 성공할수록 콤보 보너스가 누적됩니다.</p>
+                    </div>
+                    <div class="event-card">
+                        <h4>🎣 바다 낚시 (Sky Fishing)</h4>
+                        <p>해수면 근처까지 열기구를 낮추어 낚싯줄을 내리고 회유하는 물고기를 낚아채세요. 열기구가 바다에 빠지지 않도록 고도 유지가 가장 중요합니다.</p>
+                    </div>
+                    <div class="event-card">
+                        <h4>🎹 하늘의 피아노 (Sky Piano)</h4>
+                        <p>흘러나오는 아름다운 멜로디에 맞춰 악보의 음계를 건반으로 연주해보세요. 음악적 감수성과 리듬 타이밍을 동시에 겨룰 수 있습니다.</p>
+                    </div>
+                    <div class="event-card">
+                        <h4>☄️ 우주 운석 회피 (Meteor Avoidance)</h4>
+                        <p>고고도 우주 공간으로 진입하여 사방에서 쏟아지는 운석을 조이스틱으로 민첩하게 회피하세요. 극한의 반사신경이 요구되는 하이엔드 모드입니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 섹션 5: 과학적 원리와 항공 역사 -->
+            <section id="science-section" class="guide-card">
+                <div class="card-badge">SCIENCE & HISTORY</div>
+                <h2>🔬 열기구의 과학적 원리와 항공의 역사</h2>
+                <p>
+                    열기구는 인류가 하늘을 날기 위해 발명한 **최초의 유인 비행체**입니다. 그 작동 원리는 고전 열역학과 유체역학의 가장 아름다운 물리 법칙들을 기초로 하고 있습니다.
+                </p>
+                <h3>1. 샤를의 법칙과 아르키메데스의 부력 원리</h3>
+                <p>
+                    기체는 열을 받으면 분자 운동이 활발해지면서 팽창합니다(샤를의 법칙). 열기구의 거대한 공기 주머니(Envelope) 내부 공기를 가열하면 부피가 팽창하면서 내부 공기의 밀도(&rho;<sub>hot</sub>)가 주변 대기 찬 공기의 밀도(&rho;<sub>cold</sub>)보다 낮아집니다.
+                </p>
+                <div class="formula-box">
+                    <strong>부력(Lift Force) 공식:</strong><br>
+                    <code>F<sub>buoyant</sub> = (&rho;<sub>cold</sub> - &rho;<sub>hot</sub>) &times; V &times; g</code><br>
+                    <small>where V = 공기주머니 부피(m&sup3;), g = 중력가속도(9.8m/s&sup2;), &rho; = 공기 밀도(kg/m&sup3;)</small>
+                </div>
+                <p>
+                    이 부력이 열기구 본체, 바스켓, 탑승자의 전체 무게를 초과하는 순간 열기구는 중력을 극복하고 공중으로 떠오르게 됩니다.
+                </p>
+
+                <h3>2. 몽골피에 형제와 인류 첫 비행의 역사</h3>
+                <p>
+                    1783년 11월 21일, 프랑스 파리에서 조제프 몽골피에(Joseph Montgolfier)와 에티엔 몽골피에(Etienne Montgolfier) 형제가 제작한 종이와 린넨 소재의 열기구가 인류 역사상 최초로 사람을 태우고 25분 동안 약 9km를 비행하는 데 성공했습니다. 
+                    오늘날의 현대 열기구는 가볍고 튼튼한 립스탑 나일론 섬유와 고효율 프로판 가스 버너를 장착하여 전 세계 수많은 축제와 스포츠 대회에서 안전하고 경이로운 비행을 이어가고 있습니다.
+                </p>
+            </section>
+
+            <!-- 섹션 6: FAQ -->
+            <section id="faq-section" class="guide-card">
+                <div class="card-badge">FREQUENTLY ASKED QUESTIONS</div>
+                <h2>❓ 자주 묻는 질문 (FAQ)</h2>
+                <div class="faq-accordion">
+                    <div class="faq-item">
+                        <h4 class="faq-question">Q1. 게임을 플레이하기 위해 별도 프로그램이나 앱 설치가 필요한가요?</h4>
+                        <div class="faq-answer">
+                            <p>아닙니다. '열기구 모험'은 순수 HTML5, CSS3, JavaScript 표준 기술로 제작되어 크롬, 사파리, 엣지, 파이어폭스 등 최신 웹 브라우저가 있는 모든 PC와 모바일 기기에서 설치 없이 즉시 실행 가능합니다.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <h4 class="faq-question">Q2. 최고 기록과 점수는 어떻게 저장되나요?</h4>
+                        <div class="faq-answer">
+                            <p>플레이어의 개인 최고 기록은 브라우저의 로컬 저장소(LocalStorage)에 안전하게 자동 저장되며, 랭킹 등록을 진행하시면 Google Cloud Firestore 실시간 데이터베이스를 통해 글로벌 리더보드에 동기화되어 전 세계 순위와 비교할 수 있습니다.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <h4 class="faq-question">Q3. 모바일 스마트폰에서도 조작이 편리한가요?</h4>
+                        <div class="faq-answer">
+                            <p>네! 모바일 터치 환경에 최적화된 인터페이스를 제공하며, 설정(Settings) 메뉴에서 '왼손 / 오른손' 버튼 위치 변경 기능을 지원하여 한 손으로도 쾌적하게 비행을 즐기실 수 있습니다.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <h4 class="faq-question">Q4. 연료(GAS)가 부족할 때 어떻게 대처해야 하나요?</h4>
+                        <div class="faq-answer">
+                            <p>버너를 계속 누르고 있는 것보다, 원하는 고도에 도달한 후 짧게 톡톡 점화하는 '펄스 가열(Pulse Heating)' 방식을 사용하면 연료 소비량을 최대 40% 이상 절약할 수 있습니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 하단 글로벌 푸터 -->
+        <footer class="site-footer">
+            <div class="footer-container">
+                <div class="footer-brand-col">
+                    <div class="footer-brand">
+                        <img src="balloon.png" alt="열기구 로고" class="footer-logo">
+                        <span>Hot Air Balloon Adventure</span>
+                    </div>
+                    <p class="footer-desc">
+                        대기 기류와 부력 물리학을 즐기는 인터랙티브 비행 시뮬레이터 웹게임.
+                        웹 표준을 준수하여 전 세계 모든 사용자에게 무료로 제공됩니다.
+                    </p>
+                </div>
+                <div class="footer-links-col">
+                    <h4>빠른 이동 (Navigation)</h4>
+                    <ul>
+                        <li><a href="#game-view-area">게임 시작 (Play)</a></li>
+                        <li><a href="#game-guide-section">조작법 & 가이드 (Guide)</a></li>
+                        <li><a href="#wind-strategy-section">7구역 바람 지도 (Wind Map)</a></li>
+                        <li><a href="#science-section">열기구 과학 원리 (Science)</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links-col">
+                    <h4>정책 및 지원 (Legal & Info)</h4>
+                    <ul>
+                        <li><a href="about.html">사이트 소개 (About Us)</a></li>
+                        <li><a href="privacy.html">개인정보처리방침 (Privacy Policy)</a></li>
+                        <li><a href="terms.html">서비스 이용약관 (Terms of Service)</a></li>
+                        <li><a href="contact.html">문의하기 (Contact Us)</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Hot Air Balloon Adventure (hot-airballoon.com). All rights reserved.</p>
+                <p class="disclaimer">본 사이트는 건전한 웹 생태계와 Google AdSense 프로그램 정책을 엄격히 준수합니다.</p>
+            </div>
+        </footer>
+    <!-- Firebase SDK 불러오기 -->
+        <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+        <script src="game.js?v=20261021_fix_icons_v2"></script>
+        <script src="tutorial_guide.js?v=20261019_notice2"></script>
+        <script>
+            if ('serviceWorker' in navigator && !window.location.hostname.includes('crazygames')) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then(reg => {
+                            console.log('Service Worker Registered!', reg);
+                            reg.update();
+                        })
+                        .catch(err => console.log('Service Worker Registration Failed!', err));
+                });
+            }
+        </script>
+</body>
+
+</html>
