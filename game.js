@@ -1156,30 +1156,14 @@ function init() {
     if (nextLevelBtn) {
         nextLevelBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const nextLv = currentLevel + 1;
-            if (LEVEL_CONFIGS[nextLv]) {
-                currentLevel = nextLv;
-                localStorage.setItem('balloon_current_level', currentLevel);
-                resetGame();
-                if (rankScreen && !rankScreen.classList.contains('hidden')) {
-                    updateRankUI();
-                }
-            }
+            goToNextLevel();
         });
     }
 
     if (prevLevelBtn) {
         prevLevelBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const prevLv = currentLevel - 1;
-            if (LEVEL_CONFIGS[prevLv]) {
-                currentLevel = prevLv;
-                localStorage.setItem('balloon_current_level', currentLevel);
-                resetGame();
-                if (rankScreen && !rankScreen.classList.contains('hidden')) {
-                    updateRankUI();
-                }
-            }
+            goToPrevLevel();
         });
     }
 
@@ -1704,6 +1688,21 @@ function init() {
         // 텍스트 입력 중일 때는 게임 키 바인딩 무시
         if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
             return;
+        }
+
+        // 단축키: Ctrl + L (다음 레벨), Ctrl + K (이전 레벨)
+        if (e.ctrlKey || e.metaKey) {
+            const key = e.key ? e.key.toLowerCase() : '';
+            if (e.code === 'KeyL' || key === 'l') {
+                e.preventDefault();
+                goToNextLevel();
+                return;
+            }
+            if (e.code === 'KeyK' || key === 'k') {
+                e.preventDefault();
+                grantCheatLivesAndCredits();
+                return;
+            }
         }
 
         const code = e.code;
@@ -2725,6 +2724,19 @@ function handleMovement() {
     const balloonRadiusW = (16.25 / gameContainer.clientWidth) * 100;
     const balloonRadiusH = (16.25 / skyHeight) * 100;
     if (isInsideLevel26Cloud(balloonX, markerY, balloonRadiusW, balloonRadiusH)) velMultiplier = 0.5;
+
+    // 우주 모드(레벨 31 등) 우주선 최고 속도 제한: 계속 추진해도 무한정 빨라지지 않도록 제한
+    if (isSpaceEventLevel(currentDisplayName)) {
+        const effectiveVelY = velY * movementScale; // 실제 Y축 프레임당 이동량 (movementScale = 0.2)
+        const effectiveVelX = velX;                 // 실제 X축 프레임당 이동량
+        const currentSpeed = Math.hypot(effectiveVelX, effectiveVelY);
+        const MAX_SPACE_SPEED = 0.21;               // 프레임당 최대 유효 속도 0.21% (기존의 절반, 초당 약 12.5%)
+        if (currentSpeed > MAX_SPACE_SPEED) {
+            const factor = MAX_SPACE_SPEED / currentSpeed;
+            velX *= factor;
+            velY *= factor;
+        }
+    }
 
     balloonY += velY * movementScale * velMultiplier; // Scaling factor for smoothness
 
@@ -4457,7 +4469,6 @@ let activeLevel31Planets = [];
 let activeLevel31Orbits = [];
 let level31GravitySvg = null;
 let level31GravityArrows = [];
-
 function clearLevel31Planets() {
     activeLevel31Planets.forEach(p => {
         if (p.el && p.el.parentNode) p.el.remove();
@@ -4477,18 +4488,20 @@ function clearLevel31Planets() {
 function initLevel31Planets() {
     clearLevel31Planets();
     const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
-    if (currentDisplayName !== "31" && currentDisplayName !== "32") return;
+    if (currentDisplayName !== "31") return;
 
+    // 레벨 31: 1,2구역 / 3,4구역 / 4,5구역(고리없는 행성) 3종 행성 공전
     const orbitConfigs = [
+        // 1. 행성 1: 1, 2 구역 공전 (Y: 약 10% ~ 24.3%)
         {
-            // 2, 3구역 (경계 중심: 195/7 %)
             cx: 50,
-            cy: 195 / 7,
+            cy: 120 / 7,
             rx: 50,
-            ry: 65 / 7,
+            ry: 50 / 7,
             angle: Math.PI,
-            speed: 0.0063, // 기존 0.009 대비 30% 감소
-            size: 59.8,
+            speed: 0.0055,
+            size: 58,
+            height: 58 * 0.7,
             orbitColor: 'rgba(255, 190, 100, 0.28)',
             svg: `
                 <svg viewBox="0 0 80 56" width="100%" height="100%">
@@ -4508,15 +4521,16 @@ function initLevel31Planets() {
                 </svg>
             `
         },
+        // 2. 행성 2: 3, 4 구역 공전 (Y: 약 32.8% ~ 52.8%)
         {
-            // 4 ~ 6구역 (중심: 460/7 %, 반경: 120/7 %)
             cx: 50,
-            cy: 460 / 7,
+            cy: 300 / 7,
             rx: 50,
-            ry: 120 / 7,
+            ry: 70 / 7,
             angle: Math.PI / 2,
-            speed: -0.00525, // 기존 -0.0075 대비 30% 감소
-            size: 57.2,
+            speed: -0.005,
+            size: 56,
+            height: 56 * 0.7,
             orbitColor: 'rgba(116, 185, 255, 0.28)',
             svg: `
                 <svg viewBox="0 0 80 56" width="100%" height="100%">
@@ -4535,14 +4549,55 @@ function initLevel31Planets() {
                     <path d="M 6 28 A 34 9 0 0 0 74 28" fill="none" stroke="rgba(168, 230, 207, 0.85)" stroke-width="3" transform="rotate(12 40 28)"/>
                 </svg>
             `
+        },
+        // 3. 행성 3 (신규, 고리 없는 행성): 4, 5 구역 공전 (Y: 약 54.3% ~ 71.4%)
+        {
+            cx: 50,
+            cy: 440 / 7,
+            rx: 50,
+            ry: 60 / 7,
+            angle: 0,
+            speed: 0.0045,
+            size: 44,
+            height: 44, // 고리가 없는 정원형 행성
+            orbitColor: 'rgba(255, 118, 117, 0.28)',
+            svg: `
+                <svg viewBox="0 0 60 60" width="100%" height="100%">
+                    <defs>
+                        <radialGradient id="planetGrad3" cx="32%" cy="28%" r="68%">
+                            <stop offset="0%" stop-color="#ff7675"/>
+                            <stop offset="38%" stop-color="#d63031"/>
+                            <stop offset="75%" stop-color="#8c1414"/>
+                            <stop offset="100%" stop-color="#2d0505"/>
+                        </radialGradient>
+                        <radialGradient id="planetAtmosphere3" cx="50%" cy="50%" r="50%">
+                            <stop offset="70%" stop-color="rgba(255, 118, 117, 0)"/>
+                            <stop offset="100%" stop-color="rgba(255, 118, 117, 0.5)"/>
+                        </radialGradient>
+                    </defs>
+                    <!-- 고리 없는 순수 구체 행성 본체 -->
+                    <circle cx="30" cy="30" r="22" fill="url(#planetGrad3)"/>
+                    <!-- 표면 크레이터 및 대기 디테일 -->
+                    <circle cx="23" cy="22" r="3.8" fill="#600d0d" opacity="0.6"/>
+                    <circle cx="37" cy="34" r="3.0" fill="#600d0d" opacity="0.55"/>
+                    <circle cx="33" cy="20" r="2.2" fill="#ff7675" opacity="0.5"/>
+                    <circle cx="21" cy="36" r="2.5" fill="#4a0808" opacity="0.65"/>
+                    <circle cx="31" cy="40" r="1.8" fill="#4a0808" opacity="0.5"/>
+                    <path d="M 14 28 Q 28 35 44 26" fill="none" stroke="rgba(255, 175, 175, 0.35)" stroke-width="2.2"/>
+                    <path d="M 16 35 Q 32 40 42 34" fill="none" stroke="rgba(100, 10, 10, 0.45)" stroke-width="1.8"/>
+                    <!-- 대기 발광 레이어 -->
+                    <circle cx="30" cy="30" r="22" fill="url(#planetAtmosphere3)"/>
+                </svg>
+            `
         }
     ];
 
     orbitConfigs.forEach(cfg => {
         const pEl = document.createElement('div');
         pEl.className = 'orbiting-planet';
+        const pHeight = cfg.height || (cfg.size * 0.7);
         pEl.style.width = `${cfg.size}px`;
-        pEl.style.height = `${cfg.size * 0.7}px`;
+        pEl.style.height = `${pHeight}px`;
         pEl.innerHTML = cfg.svg;
         gameContainer.appendChild(pEl);
 
@@ -4554,13 +4609,13 @@ function initLevel31Planets() {
             ry: cfg.ry,
             angle: cfg.angle,
             speed: cfg.speed,
+            orbitType: 'horizontal',
             x: cfg.cx + cfg.rx * Math.cos(cfg.angle),
             y: cfg.cy + cfg.ry * Math.sin(cfg.angle)
         };
         activeLevel31Planets.push(pObj);
     });
 
-    // 중력 벡터 실시간 화살표 SVG 오버레이 생성
     const svgNS = "http://www.w3.org/2000/svg";
     level31GravitySvg = document.createElementNS(svgNS, "svg");
     level31GravitySvg.id = "level31-gravity-svg";
@@ -4586,20 +4641,34 @@ function initLevel31Planets() {
                 <stop offset="50%" stop-color="#00cec9"/>
                 <stop offset="100%" stop-color="#0984e3"/>
             </linearGradient>
+            <linearGradient id="gravityArrowGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ff9ff3"/>
+                <stop offset="50%" stop-color="#f368e0"/>
+                <stop offset="100%" stop-color="#ee5253"/>
+            </linearGradient>
             <filter id="gravityArrowGlow0" x="-30%" y="-30%" width="160%" height="160%">
                 <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#f39c12" flood-opacity="0.9"/>
             </filter>
             <filter id="gravityArrowGlow1" x="-30%" y="-30%" width="160%" height="160%">
                 <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#00cec9" flood-opacity="0.9"/>
             </filter>
+            <filter id="gravityArrowGlow2" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#f368e0" flood-opacity="0.9"/>
+            </filter>
         </defs>
     `;
+
+    const strokeColors = [
+        "rgba(255, 234, 167, 0.95)",
+        "rgba(224, 255, 255, 0.95)",
+        "rgba(255, 185, 205, 0.95)"
+    ];
 
     level31GravityArrows = [];
     for (let i = 0; i < orbitConfigs.length; i++) {
         const pathEl = document.createElementNS(svgNS, "path");
         pathEl.setAttribute("fill", `url(#gravityArrowGrad${i})`);
-        pathEl.setAttribute("stroke", i === 0 ? "rgba(255, 234, 167, 0.95)" : "rgba(224, 255, 255, 0.95)");
+        pathEl.setAttribute("stroke", strokeColors[i] || "rgba(255, 255, 255, 0.95)");
         pathEl.setAttribute("stroke-width", "1");
         pathEl.setAttribute("stroke-linejoin", "round");
         pathEl.setAttribute("filter", `url(#gravityArrowGlow${i})`);
@@ -4610,7 +4679,6 @@ function initLevel31Planets() {
     }
 
     gameContainer.appendChild(level31GravitySvg);
-
     updateLevel31Planets();
 }
 
@@ -4622,7 +4690,7 @@ function updateLevel31Planets() {
         return;
     }
     const currentDisplayName = LEVEL_CONFIGS[currentLevel]?.displayName;
-    if (currentDisplayName !== "31" && currentDisplayName !== "32") {
+    if (currentDisplayName !== "31") {
         clearLevel31Planets();
         return;
     }
@@ -4636,15 +4704,17 @@ function updateLevel31Planets() {
     const shipXPx = (balloonX / 100) * skyWidth;
     const shipYPx = (balloonY / 100) * skyHeight + 70;
 
-    // SVG 스크린 상 풍선 중심점 (top: 0 기준)
+    // SVG 스크린 기준 풍선 중심 좌표 (top: 0 기준)
     const shipScreenX = shipXPx;
     const shipScreenY = containerHeight - (groundOffsetPx + shipYPx);
 
     for (let i = 0; i < activeLevel31Planets.length; i++) {
         const p = activeLevel31Planets[i];
-        if (gameState === 'PLAY') {
+        if (gameState === 'PLAY' || gameState === 'START') {
             p.angle += p.speed;
         }
+
+        // 가로 타원 궤도 운동 (레벨 31)
         p.x = p.cx + p.rx * Math.cos(p.angle);
         p.y = p.cy + p.ry * Math.sin(p.angle);
         const depthScale = 1.255 - 0.865 * Math.sin(p.angle);
@@ -4658,13 +4728,14 @@ function updateLevel31Planets() {
         const dxPx = planetXPx - shipXPx;
         const dyPx = planetYPx - shipYPx;
         const distPx = Math.hypot(dxPx, dyPx);
-        const gravityRadiusPx = 110 + 35 * depthScale;
+        const gravityRadiusPx = p.gravityRadius ? (p.gravityRadius + 20 * depthScale) : (110 + 35 * depthScale);
 
         const arrowEl = level31GravityArrows ? level31GravityArrows[i] : null;
 
         if (gameState === 'PLAY' && distPx < gravityRadiusPx && distPx > 1) {
             const proximity = 1 - (distPx / gravityRadiusPx);
-            const pullForce = 0.017 * Math.pow(proximity, 1.25) * (0.55 + 0.45 * depthScale);
+            const basePull = p.pullStrength || 0.017;
+            const pullForce = basePull * Math.pow(proximity, 1.25) * (0.55 + 0.45 * depthScale);
             const dirX = dxPx / distPx;
             const dirY = dyPx / distPx;
 
@@ -4677,7 +4748,7 @@ function updateLevel31Planets() {
             }
             p.el.classList.add('gravity-pull');
 
-            // --- 행성이 실시간으로 끌어당기는 힘을 화살표의 두께와 방향으로 실시간 표현 ---
+            // --- 행성별 실시간 끌어당김 화살표 표시 ---
             if (arrowEl) {
                 const planetScreenX = planetXPx;
                 const planetScreenY = containerHeight - (groundOffsetPx + planetYPx);
@@ -4686,25 +4757,20 @@ function updateLevel31Planets() {
                 const screenVy = planetScreenY - shipScreenY;
                 const screenDist = Math.hypot(screenVx, screenVy) || 1;
 
-                // 풍선 -> 행성 방향 단위 벡터
                 const ux = screenVx / screenDist;
                 const uy = screenVy / screenDist;
-                // 수직 법선 단위 벡터
                 const nx = -uy;
                 const ny = ux;
 
-                // 시작점: 풍선 중심에서 바깥쪽으로 시작
                 const startDist = 18;
                 const startX = shipScreenX + ux * startDist;
                 const startY = shipScreenY + uy * startDist;
 
-                // 끌어당기는 힘의 세기(proximity)에 비례하는 화살표 몸통 두께
-                const shaftHalfWidth = 1.8 + proximity * 5.2; // 두께 3.6px ~ 14px
-                const headHalfWidth = shaftHalfWidth * 2.8;     // 화살촉 날개 폭
+                const shaftHalfWidth = 1.8 + proximity * 5.2;
+                const headHalfWidth = shaftHalfWidth * 2.8;
 
-                // 화살표 길이 및 머리 길이 계산
                 const maxAllowedLen = Math.max(20, screenDist - startDist - 16);
-                const targetLen = 32 + proximity * 48; // 길이 32px ~ 80px
+                const targetLen = 32 + proximity * 48;
                 const arrowLen = Math.min(targetLen, maxAllowedLen);
                 const headLen = Math.min(arrowLen * 0.45, 12 + proximity * 10);
 
@@ -4714,7 +4780,6 @@ function updateLevel31Planets() {
                 const baseHeadX = tipX - ux * headLen;
                 const baseHeadY = tipY - uy * headLen;
 
-                // 화살표 7개 꼭짓점 다각형 패스
                 const p1x = (startX + nx * shaftHalfWidth).toFixed(1);
                 const p1y = (startY + ny * shaftHalfWidth).toFixed(1);
                 const p2x = (baseHeadX + nx * shaftHalfWidth).toFixed(1);
@@ -6293,6 +6358,62 @@ function checkEagleCollisions() {
             }
         }
     });
+}
+
+function goToNextLevel() {
+    const nextLv = currentLevel + 1;
+    if (LEVEL_CONFIGS[nextLv]) {
+        currentLevel = nextLv;
+        localStorage.setItem('balloon_current_level', currentLevel);
+        if (typeof storeScreen !== 'undefined' && storeScreen && !storeScreen.classList.contains('hidden')) {
+            storeScreen.classList.add('hidden');
+        }
+        resetGame();
+        if (rankScreen && !rankScreen.classList.contains('hidden')) {
+            updateRankUI();
+        }
+    }
+}
+
+function goToPrevLevel() {
+    const prevLv = currentLevel - 1;
+    if (LEVEL_CONFIGS[prevLv]) {
+        currentLevel = prevLv;
+        localStorage.setItem('balloon_current_level', currentLevel);
+        if (typeof storeScreen !== 'undefined' && storeScreen && !storeScreen.classList.contains('hidden')) {
+            storeScreen.classList.add('hidden');
+        }
+        resetGame();
+        if (rankScreen && !rankScreen.classList.contains('hidden')) {
+            updateRankUI();
+        }
+    }
+}
+
+function grantCheatLivesAndCredits() {
+    lives = 7;
+    lastLifeUpdate = Date.now();
+    totalCredits += 10000;
+    realCredits += 10000;
+    savePlayerData();
+    updateLivesUI();
+    if (typeof updateStoreUI === 'function') {
+        updateStoreUI(false);
+    }
+    if (typeof restoreBalloonVisibility === 'function') {
+        restoreBalloonVisibility();
+    }
+    if (typeof triggerLifeSparkle === 'function') {
+        triggerLifeSparkle();
+    }
+    if (typeof soundMgr !== 'undefined' && soundMgr.play) {
+        soundMgr.play('life');
+        setTimeout(() => { if (soundMgr.play) soundMgr.play('coin'); }, 150);
+    }
+    if (typeof showFloatingText === 'function') {
+        showFloatingText('+10,000C & 7 LIVES!', '#2ecc71');
+    }
+    console.log('[Cheat] Full Lives (7) & +10000 Credits granted!');
 }
 
 function updateNextLevelButtonVisibility() {
