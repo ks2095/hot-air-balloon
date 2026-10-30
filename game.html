@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+            <title>열기구 모험 - Hot Air Balloon Adventure</title>
+    <link rel="stylesheet" href="style.css?v=20261021_optimized1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="balloon.png">
+    <link rel="apple-touch-icon" href="balloon.png">
+    <link rel="manifest" href="manifest.json?v=5">
+    <!-- Google AdSense Account Verification Meta -->
+    <meta name="google-adsense-account" content="ca-pub-7730380647245141">
+    <!-- Google AdSense Official Snippet -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7730380647245141" crossorigin="anonymous"></script>
+    <!-- Google AdSense H5 Games Ads SDK -->
+    <script async
+        data-ad-client="ca-pub-7730380647245141"
+        data-ad-frequency-hint="30s"
+        data-ad-break-test="on"
+        crossorigin="anonymous"
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7730380647245141">
+    </script>
+    <script>
+        window.adsbygoogle = window.adsbygoogle || [];
+        const adBreak = function(o) { adsbygoogle.push(o); };
+        const adConfig = function(o) { adsbygoogle.push(o); };
+    </script>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a1128">
+</head>
+
+<body>
+    <div id="game-container">
+        <div id="level-hint" class="hidden"></div>
+        <div id="wind-countdown" class="hidden"></div>
+        <div id="sea-overlay" class="hidden"></div>
+        <!-- 7 Zones will be generated here or defined -->
+        <div id="sky-background">
+            <div class="zone" id="zone-7">
+                <div class="dev-control">
+                    <span>Z7</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="6">
+                    <span class="wind-val">1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="6">1.50</div>
+            </div>
+            <div class="zone" id="zone-6">
+                <div class="dev-control">
+                    <span>Z6</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="-1.5" class="wind-slider" data-zone="5">
+                    <span class="wind-val">-1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="5">-1.50</div>
+            </div>
+            <div class="zone" id="zone-5">
+                <div class="dev-control">
+                    <span>Z5</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="4">
+                    <span class="wind-val">1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="4">1.50</div>
+            </div>
+            <div class="zone" id="zone-4">
+                <div class="dev-control">
+                    <span>Z4</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="-1.5" class="wind-slider" data-zone="3">
+                    <span class="wind-val">-1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="3">-1.50</div>
+            </div>
+            <div class="zone" id="zone-3">
+                <div class="dev-control">
+                    <span>Z3</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="2">
+                    <span class="wind-val">1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="2">1.50</div>
+            </div>
+            <div class="zone" id="zone-2">
+                <div class="dev-control">
+                    <span>Z2</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="-1.5" class="wind-slider" data-zone="1">
+                    <span class="wind-val">-1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="1">-1.50</div>
+            </div>
+            <div class="zone" id="zone-1">
+                <div id="lives-display">
+                    <img src="balloon.png" alt="Life" class="life-icon" id="life-balloon-icon">
+                    <span id="lives-count">x6</span>
+                    <span id="ads-btn">광고</span>
+                </div>
+                <div class="dev-control">
+                    <span>Z1</span>
+                    <input type="range" min="-8" max="8" step="0.25" value="1.5" class="wind-slider" data-zone="0">
+                    <span class="wind-val">1.5</span>
+                </div>
+                <div class="wind-label hidden" data-zone="0">1.50</div>
+                <div id="settings-btn" title="Settings">⚙</div>
+            </div>
+        </div>
+
+        <div id="ad-selection-overlay" class="overlay hidden">
+            <div class="selection-container">
+                <h2 class="selection-title">광고 보상 선택</h2>
+                <div class="selection-options">
+                    <button id="ad-select-life-btn" class="selection-btn">
+                        <span class="btn-title">생명 충전</span>
+                        <span class="btn-desc">20초 광고 시청 후<br>생명 2개 획득</span>
+                    </button>
+                    <button id="ad-select-event-btn" class="selection-btn">
+                        <span class="btn-title">이벤트 게임</span>
+                        <span class="btn-desc">30초 광고 시청 후<br>생명 1개 & 이벤트 게임</span>
+                    </button>
+                </div>
+                <button id="close-ad-selection-btn" class="close-btn-main">닫기</button>
+            </div>
+        </div>
+
+        <div id="ad-overlay" class="overlay hidden">
+            <div class="ad-content">
+                <h2 class="ad-title" id="ad-reward-title">광고시간</h2>
+                <p class="ad-message">열기구게임 많이 사랑해주세요!!!🎈🎈🎈</p>
+                <div class="ad-timer">20</div>
+                <button id="get-life-ad-btn" class="hidden">생명받기</button>
+                <div id="ad-event-rewards" class="hidden">
+                    <p class="reward-hint">원하는 이벤트 번호를 선택하세요!</p>
+                    <div class="event-reward-buttons">
+                        <button class="event-reward-btn" data-event="1">
+                            <span class="evt-num">1</span>
+                            <span class="evt-label">코인</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="2">
+                            <span class="evt-num">2</span>
+                            <span class="evt-label">스테이크</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="3">
+                            <span class="evt-num">3</span>
+                            <span class="evt-label">팝콘</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="4">
+                            <span class="evt-num">4</span>
+                            <span class="evt-label">낚시</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="5">
+                            <span class="evt-num">5</span>
+                            <span class="evt-label">피아노</span>
+                        </button>
+                        <button class="event-reward-btn" data-event="6">
+                            <span class="evt-num">6</span>
+                            <span class="evt-label">운석</span>
+                        </button>
+                    </div>
+                </div>
+                <button id="close-ad-btn" class="close-ad-btn">닫기</button>
+            </div>
+        </div>
+
+        <div id="event-selection-overlay" class="overlay hidden">
+            <div class="selection-container">
+                <h2 class="selection-title">이벤트 게임 선택</h2>
+                <div id="event-buttons-container" class="selection-options vertical">
+                    <!-- Javascript will populate cleared events here -->
+                </div>
+                <button id="close-event-selection-btn" class="close-btn-main">닫기</button>
+            </div>
+        </div>
+
+        <div class="target-line"></div>
+        <div id="level-indicator">LV-1</div>
+        <div id="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 100; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px;">기록</div>
+        
+        <div id="rank-screen" class="overlay hidden">
+            <div class="rank-container" style="background: rgba(255, 255, 255, 0.1); padding: 25px 20px; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.2); width: 85%; max-width: 320px; text-align: center; backdrop-filter: blur(10px); color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <h2 style="color: #2ecc71; margin-bottom: 8px; text-shadow: 0 0 10px rgba(46, 204, 113, 0.5); font-size: 1.05rem; font-weight: 500;">LEADERBOARD</h2>
+                <div id="visitor-stats-badge" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 14px; padding: 4px 14px; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(46, 204, 113, 0.35); border-radius: 15px; font-size: 0.72rem; color: #dfe6e9;">
+                    <span style="font-size: 0.75rem;">👥</span>
+                    <span id="visitor-label">전체 방문자:</span>
+                    <span id="visitor-count-display" style="color: #2ecc71; font-weight: bold; font-size: 0.8rem;">-</span>
+                </div>
+                
+                <div style="display: flex; margin-bottom: 15px; background: rgba(0,0,0,0.5); border-radius: 20px; padding: 2px;">
+                    <button id="tab-max-level" style="flex:1; padding: 7px 2px; background: transparent; color: #fff; border: none; border-radius: 18px; font-weight: normal; font-size: 0.68rem; cursor: pointer; transition: 0.2s; white-space: nowrap;">최고레벨</button>
+                    <button id="tab-level" style="flex:1; padding: 7px 2px; background: #2ecc71; color: #000; border: none; border-radius: 18px; font-weight: normal; font-size: 0.68rem; cursor: pointer; transition: 0.2s; white-space: nowrap;">레벨순위</button>
+                    <button id="tab-overall" style="flex:1; padding: 7px 2px; background: transparent; color: #fff; border: none; border-radius: 18px; font-weight: normal; font-size: 0.68rem; cursor: pointer; transition: 0.2s; white-space: nowrap;">전체순위</button>
+                </div>
+
+                <div style="margin-bottom: 20px; background: rgba(0,0,0,0.3); padding: 12px 15px; border-radius: 10px;">
+                    <p style="font-size: 0.8rem; color: #ffd32a; font-weight: normal; margin-bottom: 5px;"><span id="rank-score-label">My Level Score:</span> <span id="my-rank-score">0</span></p>
+                    <p style="font-size: 0.8rem; font-weight: normal; margin-bottom: 8px;"><span id="my-rank-pos-label">My Rank:</span> <span id="my-rank-pos" style="color: #3498db;">-</span></p>
+                    <button id="copy-uid-btn" style="padding: 4px 14px; background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.4); border-radius: 15px; cursor: pointer; font-size: 0.68rem; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>📋</span> <span id="copy-uid-text">UID 복사</span>
+                    </button>
+                </div>
+                
+                <div style="margin-bottom: 25px; display: flex; justify-content: space-between;">
+                    <input type="text" id="rank-nickname" placeholder="Nickname" maxlength="8" style="padding: 8px; width: 65%; background: rgba(0,0,0,0.5); border: 1px solid #2ecc71; color: white; border-radius: 5px; outline: none; font-size: 0.7rem; font-family: inherit;">
+                    <button id="submit-rank-btn" style="padding: 8px; width: 30%; background: #2ecc71; color: #000; border: none; font-weight: normal; font-size: 0.7rem; border-radius: 5px; cursor: pointer; white-space: nowrap;">Submit</button>
+                </div>
+
+                <div class="rank-list" id="rank-list" style="text-align: left; margin-bottom: 25px; font-size: 0.75rem; line-height: 2; padding: 0 10px;">
+                    <!-- 1st to 5th place injected here -->
+                </div>
+
+                <button id="close-rank-btn" style="padding: 10px 25px; background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.3); border-radius: 25px; cursor: pointer; font-size: 0.7rem; font-weight: normal; transition: all 0.2s;">CLOSE</button>
+            </div>
+        </div>
+
+        <div id="settings-screen" class="overlay hidden">
+            <div class="settings-container">
+                <h2 class="settings-title" id="settings-title">Settings</h2>
+                <div class="settings-options">
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-notice-label">Notice</span>
+                        <button id="notice-settings-btn" class="toggle-btn" style="color: #2ecc71 !important; font-weight: bold; cursor: pointer;">OPEN 📢</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-lang-label">Language</span>
+                        <button id="lang-toggle-settings-btn" class="toggle-btn">KOR</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-wind-label">바람세기</span>
+                        <button id="wind-toggle-settings-btn" class="toggle-btn">OFF</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-music-label">Music</span>
+                        <button id="music-toggle-settings-btn" class="toggle-btn">ON</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-uiswap-label">버튼위치</span>
+                        <button id="ui-swap-settings-btn" class="toggle-btn">왼손</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-fullscreen-label">Full Screen</span>
+                        <button id="fullscreen-toggle-settings-btn" class="toggle-btn">GO ⛶</button>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label" id="setting-reset-label">Reset Record</span>
+                        <button id="reset-record-settings-btn" class="toggle-btn">RESET</button>
+                    </div>
+                </div>
+                <button id="close-settings-btn" class="close-btn-main">Close</button>
+            </div>
+        </div>
+
+        <div id="notice-screen" class="overlay hidden">
+            <div class="notice-container">
+                <h2 id="notice-title" class="notice-title">📢 공지사항</h2>
+                <div class="notice-tabs">
+                    <button id="notice-tab-news" class="notice-tab-btn active">NEWS</button>
+                    <button id="notice-tab-guide" class="notice-tab-btn">게임설명서</button>
+                </div>
+                <div class="notice-content" id="notice-content">
+                    <!-- 공지 내용 JS 주입 -->
+                </div>
+                <button id="close-notice-btn" class="close-btn-main">CLOSE</button>
+            </div>
+        </div>
+        <div id="event-credit-counter" class="hidden">
+            <img src="event_coin.png" alt="Coin">
+            <span id="event-credits-val">0</span>
+        </div>
+        <div id="event2-floating-score" class="hidden">
+            <div id="event2-cooked-pct">굽기: 0%</div>
+            <div id="event2-cooked-score-container">
+                <span id="event2-cooked-score">0</span><span class="unit-c">C</span>
+            </div>
+        </div>
+        <div id="event3-floating-score" class="hidden">
+            <div id="event3-popcorn-label">팝콘먹기</div>
+            <div id="event3-popcorn-score-container">
+                <span id="event3-popcorn-score">0</span><span class="unit-c">C</span>
+            </div>
+        </div>
+        <div id="event4-floating-score" class="hidden">
+            <div id="event4-fish-label">낚은 물고기</div>
+            <div id="event4-fish-score-container">
+                <span id="event4-fish-score">0</span><span class="unit-c">C</span>
+            </div>
+        </div>
+        <button id="prev-level-btn" class="hidden">◀</button>
+        <button id="next-level-btn" class="hidden">▶</button>
+
+
+        <div id="goal-area">
+            <div class="mission-text"></div>
+        </div>
+
+        <div id="ground">
+            <div class="item-label-container">
+                <span id="store-label-btn" class="item-label">
+                    <span class="label-text">STORE</span>
+                    <span id="ground-credits-display" class="credit-small">0C</span>
+                </span>
+                <span id="item-label-btn" class="item-label">ITEM</span>
+            </div>
+            <button id="main-action-btn">START</button>
+            <div id="event6-joystick" class="hidden">
+                <span class="joy-dir joy-up">▲</span>
+                <span class="joy-dir joy-down">▼</span>
+                <span class="joy-dir joy-left">◀</span>
+                <span class="joy-dir joy-right">▶</span>
+                <div id="event6-joystick-knob"></div>
+            </div>
+            <div id="status-bars">
+                <div class="status-row">
+                    <span class="status-label">GAS</span>
+                    <div class="progress-track">
+                        <div id="gas-fill" class="progress-fill"></div>
+                        <span id="gas-text" class="progress-text"></span>
+                    </div>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">TIME</span>
+                    <div class="progress-track">
+                        <div id="time-fill" class="progress-fill"></div>
+                        <span id="time-text" class="progress-text"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="balloon">
+            <div id="balloon-marker"></div>
+            <div id="basket-marker"></div>
+            <div class="burner-flame"></div>
+            <div class="space-flame space-flame-up"></div>
+            <div class="space-flame space-flame-down"></div>
+            <div class="space-flame space-flame-left"></div>
+            <div class="space-flame space-flame-right"></div>
+            <img src="balloon.png" alt="Hot Air Balloon" id="balloon-img">
+            <div id="fishing-gear" class="hidden">
+                <div class="fishing-rod"></div>
+                <div class="fishing-line">
+                    <img src="bait.png" class="fishing-bait">
+                </div>
+            </div>
+        </div>
+
+        <div id="steak-cooking-container" class="hidden">
+            <canvas id="steak-canvas"></canvas>
+        </div>
+
+        <div id="corn-container" class="hidden">
+            <img src="corn.png" id="corn-img">
+        </div>
+        <div id="piano-container" class="hidden">
+            <div class="piano-keys">
+                <div class="key white" data-note="do">도 <div class="key black" data-note="do-sharp"></div></div>
+                <div class="key white" data-note="re">레 <div class="key black" data-note="re-sharp"></div></div>
+                <div class="key white" data-note="mi">미</div>
+                <div class="key white" data-note="fa">파 <div class="key black" data-note="fa-sharp"></div></div>
+                <div class="key white" data-note="sol">솔 <div class="key black" data-note="sol-sharp"></div></div>
+                <div class="key white" data-note="la">라 <div class="key black" data-note="la-sharp"></div></div>
+                <div class="key white" data-note="si">시</div>
+                <div class="key white" data-note="do2">도</div>
+            </div>
+        </div>
+        <div id="music-staff" class="hidden">
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="staff-line"></div>
+            <div class="note-container">
+                <div class="ledger-line"></div>
+                <div class="note-head"></div>
+                <div class="note-stem"></div>
+            </div>
+        </div>
+
+        <div id="fail-reason-bubble" class="hidden"></div>
+
+
+
+
+
+        <div id="music-score-board" class="hidden">
+            <div class="score-label">SOUND CREDITS</div>
+            <div id="music-credits-val">0</div>
+        </div>
+
+        <div id="ui-layer">
+            <div class="stat-item">GAS: <span id="gas-val">0</span></div>
+            <div class="stat-item">TIME: <span id="time-val">0</span>s</div>
+        </div>
+
+        <div id="coord-debugger" class="hidden"></div>
+
+        <div id="clear-screen" class="overlay hidden">
+            <div id="clear-rank-btn" class="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 1001; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px; pointer-events: auto;">기록</div>
+            <h1 id="clear-title">MISSION CLEAR!</h1>
+            <div class="result-stats">
+                <div class="formula-label"><span style="color: #ffd32a;">C</span> = (GAS + (TIME * 10) + LANDING POINT)
+                </div>
+                <div id="result-formula" class="score-formula">
+                    (0 + (0 * 10))
+                </div>
+                <div class="result-item total-score">
+                    <span id="result-score" class="value">0</span> <span class="unit">C</span>
+                </div>
+                <div class="total-credit-display">
+                    TOTAL: <span id="accumulated-total-credits">0</span>C
+                </div>
+                <button id="score-rank-register-btn" class="score-rank-btn">Rank Register</button>
+            </div>
+            <button id="close-clear-btn" class="close-btn">×</button>
+        </div>
+
+        <div id="event-clear-screen" class="overlay hidden">
+            <div id="event-clear-rank-btn" class="rank-btn" style="position: absolute; left: calc(4.45% - 5px); top: calc(5.23% - 5px); color: #2ecc71; font-weight: 500; cursor: pointer; z-index: 1001; font-size: 0.84rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); letter-spacing: 1px; pointer-events: auto;">기록</div>
+            <div class="event-clear-container">
+                <h1 class="event-title">EVENT CLEAR!</h1>
+                <div class="event-result-box">
+                    <img src="event_coin.png" alt="Coin" class="event-result-coin">
+                    <div class="event-earned-label">EARNED CREDITS</div>
+                    <div id="event-result-score" class="event-earned-value">0</div>
+                </div>
+                <div class="total-credit-display">
+                    TOTAL: <span id="event-accumulated-total-credits">0</span>C
+                </div>
+                <button id="event-close-btn" class="event-btn">CONTINUE</button>
+                <button id="event-score-rank-register-btn" class="score-rank-btn">Rank Register</button>
+                <button id="event-close-clear-btn" class="close-btn">×</button>
+            </div>
+        </div>
+
+        <div id="store-screen" class="overlay hidden">
+            <div class="store-container">
+                <div class="store-instruction">hold and drop</div>
+                <h2 class="store-title-main" id="store-title">AIR STORE</h2>
+                <div class="store-mode-row">
+                    <button id="btn-buy-mode" class="mode-btn">BUY</button>
+                    <div class="currency-display-mini" id="store-currency">
+                        <span id="total-credits">0</span>
+                        <span class="unit-credit">C</span>
+                    </div>
+                    <button id="btn-sell-mode" class="mode-btn">SELL</button>
+                </div>
+                <div id="store-price-notice">Each item: 100C</div>
+                <div class="store-items" id="store-items-list">
+                    <!-- JS will populate these items -->
+                </div>
+                <button id="close-store-btn">CLOSE</button>
+            </div>
+        </div>
+
+        <div id="store-decorator" class="overlay hidden">
+            <div class="decorator-container">
+                <h2>DECORATE STORE (DEV)</h2>
+                <div class="decorator-scroll">
+                    <div class="decorator-field">
+                        <label>Store Title</label>
+                        <input type="text" id="edit-store-title" placeholder="AERO STORE">
+                    </div>
+                    <div class="decorator-field">
+                        <label>Theme Color</label>
+                        <input type="color" id="edit-store-color" value="#3498db">
+                    </div>
+                    <hr>
+                    <div id="edit-items-container">
+                        <!-- JS will inject item editors here -->
+                    </div>
+                </div>
+                <div class="decorator-actions">
+                    <button id="save-decoration" class="primary-btn">APPLY MODS</button>
+                    <button id="close-decorator" class="secondary-btn">CLOSE</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="fail-screen" class="overlay hidden">
+            <h1>MISSION FAILED!</h1>
+            <p>벽에 충돌하여 열기구가 터졌습니다.</p>
+        </div>
+    </div> <!-- #game-container -->
+    <!-- Firebase SDK 불러오기 -->
+        <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+        <script src="game.js?v=20261021_fix_icons_v2"></script>
+        <script src="tutorial_guide.js?v=20261019_notice2"></script>
+        <script>
+            if ('serviceWorker' in navigator && !window.location.hostname.includes('crazygames')) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then(reg => {
+                            console.log('Service Worker Registered!', reg);
+                            reg.update();
+                        })
+                        .catch(err => console.log('Service Worker Registration Failed!', err));
+                });
+            }
+        </script>
+</body>
+
+</html>
