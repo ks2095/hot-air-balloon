@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>문의하기 (Contact Us) - Hot Air Balloon Adventure</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="balloon.png">
+    <style>
+        :root {
+            --bg-color: #0b1329;
+            --card-bg: #131e3d;
+            --text-color: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #4ecdc4;
+            --accent: #2ecc71;
+            --border: #23355d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans KR', 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.7;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .nav-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+            transition: color 0.2s;
+        }
+        .nav-back:hover { color: #fff; }
+        h1 {
+            font-size: 2rem;
+            color: #fff;
+            margin-bottom: 12px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 16px;
+        }
+        p {
+            margin-bottom: 20px;
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+        .contact-info {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 30px;
+        }
+        .contact-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 14px;
+            font-size: 1rem;
+        }
+        .contact-row:last-child { margin-bottom: 0; }
+        .contact-row strong {
+            width: 140px;
+            color: var(--primary);
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #fff;
+            font-size: 0.95rem;
+        }
+        input[type="text"], input[type="email"], textarea {
+            width: 100%;
+            padding: 12px 14px;
+            background: #0a1128;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus, input[type="email"]:focus, textarea:focus {
+            border-color: var(--primary);
+        }
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        .submit-btn {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: #fff;
+            border: none;
+            padding: 14px 28px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            width: 100%;
+        }
+        .submit-btn:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
+        #form-notice {
+            display: none;
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(46, 204, 113, 0.15);
+            border: 1px solid #2ecc71;
+            border-radius: 8px;
+            color: #2ecc71;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+        footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+        }
+        footer a { color: var(--primary); text-decoration: none; margin: 0 10px; }
+        footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="nav-back">← 게임으로 돌아가기 (Back to Game)</a>
+        <h1>문의하기 (Contact Us)</h1>
+        <p>게임 이용 중 발견하신 버그, 새로운 스테이지나 이벤트 아이디어, 제휴 및 광고 관련 문의 등 어떠한 의견이라도 환영합니다.</p>
+
+        <div class="contact-info">
+            <div class="contact-row">
+                <strong>이메일 문의:</strong>
+                <span><a href="mailto:support@hot-airballoon.com" style="color:var(--primary); text-decoration:none;">support@hot-airballoon.com</a></span>
+            </div>
+            <div class="contact-row">
+                <strong>운영 시간:</strong>
+                <span>평일 10:00 ~ 18:00 (KST) (영업일 기준 24~48시간 이내 회신)</span>
+            </div>
+            <div class="contact-row">
+                <strong>공식 도메인:</strong>
+                <span>https://hot-airballoon.com</span>
+            </div>
+        </div>
+
+        <form id="contact-form" onsubmit="handleContactSubmit(event)">
+            <div class="form-group">
+                <label for="name">이름 또는 닉네임 (Name / Nickname)</label>
+                <input type="text" id="name" required placeholder="이름을 입력해주세요">
+            </div>
+            <div class="form-group">
+                <label for="email">답변받으실 이메일 (Email Address)</label>
+                <input type="email" id="email" required placeholder="example@email.com">
+            </div>
+            <div class="form-group">
+                <label for="subject">문의 유형 (Category)</label>
+                <input type="text" id="subject" required placeholder="예: 게임 오류 제보, 신규 기능 제안, 광고/제휴 문의">
+            </div>
+            <div class="form-group">
+                <label for="message">문의 내용 (Message)</label>
+                <textarea id="message" required placeholder="상세한 문의 내용을 남겨주시면 정성껏 검토 후 답변드리겠습니다."></textarea>
+            </div>
+            <button type="submit" class="submit-btn">문의 메일 보내기</button>
+            <div id="form-notice">감사합니다! 문의가 정상적으로 접수되었습니다. (임시 안내: 메일 클라이언트로 이동하거나 직접 support@hot-airballoon.com 으로 보내실 수도 있습니다.)</div>
+        </form>
+
+        <footer>
+            <a href="/">홈 (Game)</a> | 
+            <a href="about.html">사이트 소개 (About)</a> | 
+            <a href="privacy.html">개인정보처리방침 (Privacy)</a> | 
+            <a href="terms.html">이용약관 (Terms)</a>
+            <p style="margin-top: 10px;">&copy; 2026 Hot Air Balloon Adventure. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        function handleContactSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const subject = document.getElementById('subject').value;
+            const message = document.getElementById('message').value;
+
+            // mailto fallback
+            const mailtoUri = `mailto:support@hot-airballoon.com?subject=${encodeURIComponent('[문의] ' + subject)}&body=${encodeURIComponent('보낸이: ' + name + ' (' + email + ')\n\n내용:\n' + message)}`;
+            
+            document.getElementById('form-notice').style.display = 'block';
+            setTimeout(() => {
+                window.location.href = mailtoUri;
+            }, 500);
+        }
+    </script>
+</body>
+</html>

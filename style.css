@@ -22,19 +22,19 @@ html {
 }
 
 body {
-    background-color: #0f0f0f;
+    background-color: #070d1e;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-    height: var(--app-height, 100dvh);
-    overflow: hidden;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
     color: white;
-    font-family: var(--font-main);
-    touch-action: manipulation;
-    /* Disable double-tap to zoom delay */
+    font-family: 'Noto Sans KR', var(--font-main);
+    touch-action: auto;
+    line-height: 1.6;
 }
 
 #game-container {
@@ -1321,6 +1321,11 @@ body {
 #balloon.space-mode.level31-mode .space-flame-left.active,
 #balloon.space-mode.level31-mode .space-flame-right.active {
     width: 19.5px;
+}
+
+/* 레벨 32: 궤도 각도(-12deg)에 맞춰 열기구 각도 기울임 */
+#balloon.level32-mode:not(.explosion) {
+    transform: translateX(-50%) rotate(-12deg) !important;
 }
 
 @keyframes spaceFlickerV {
@@ -3886,4 +3891,450 @@ button:hover {
 
 .score-rank-btn:active {
     transform: scale(0.96);
+}
+
+
+/* ==========================================================================
+   Google AdSense & Semantic Portal Layout Enhancement
+   ========================================================================== */
+
+html {
+    scroll-behavior: smooth;
+    min-height: 100%;
+}
+
+/* Site Global Header */
+.site-header {
+    width: 100%;
+    background: rgba(7, 13, 30, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 99999;
+}
+
+.header-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.site-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: -0.5px;
+}
+
+.site-logo-icon {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.site-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.nav-item {
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 500;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.nav-item:hover {
+    color: #4ecdc4;
+    background: rgba(78, 205, 196, 0.08);
+}
+
+/* Page Content Wrapper */
+.page-content-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Game Viewport Section */
+.game-viewport-section {
+    width: 100%;
+    min-height: calc(var(--app-height, 100dvh) - 55px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 15px 0 25px;
+}
+
+/* Information & Guide Articles Wrapper */
+.site-article-wrapper {
+    width: 100%;
+    max-width: 960px;
+    padding: 20px 20px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.guide-card {
+    background: #111b36;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    position: relative;
+    overflow: hidden;
+}
+
+.guide-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, #4ecdc4, #2ecc71);
+}
+
+.card-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #4ecdc4;
+    background: rgba(78, 205, 196, 0.12);
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+    border: 1px solid rgba(78, 205, 196, 0.25);
+}
+
+.guide-card h2 {
+    font-size: 1.45rem;
+    color: #ffffff;
+    margin-bottom: 16px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.guide-card h3 {
+    font-size: 1.15rem;
+    color: #ffd32a;
+    margin: 24px 0 10px;
+}
+
+.guide-card p {
+    color: #cbd5e1;
+    font-size: 0.96rem;
+    line-height: 1.75;
+    margin-bottom: 16px;
+}
+
+.guide-card p strong {
+    color: #ffffff;
+}
+
+/* Feature Bullets */
+.feature-bullets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.bullet-item {
+    display: flex;
+    gap: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.bullet-icon {
+    font-size: 1.6rem;
+    flex-shrink: 0;
+}
+
+.bullet-item strong {
+    display: block;
+    color: #4ecdc4;
+    font-size: 0.98rem;
+    margin-bottom: 4px;
+}
+
+.bullet-item p {
+    font-size: 0.88rem;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Guide Grid */
+.guide-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.guide-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 18px;
+}
+
+.guide-box h3 {
+    margin-top: 0;
+    font-size: 1.05rem;
+    color: #2ecc71;
+    margin-bottom: 8px;
+}
+
+.guide-box p {
+    font-size: 0.9rem;
+    color: #cbd5e1;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* Wind Table */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 18px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.wind-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.wind-table th {
+    background: #1a284c;
+    color: #4ecdc4;
+    padding: 12px 14px;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.wind-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+}
+
+.wind-table tr:last-child td {
+    border-bottom: none;
+}
+
+.wind-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* Events Grid */
+.events-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.event-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 18px;
+}
+
+.event-card h4 {
+    color: #ffd32a;
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.event-card p {
+    font-size: 0.88rem;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.55;
+}
+
+/* Formula Box */
+.formula-box {
+    background: rgba(78, 205, 196, 0.08);
+    border: 1px solid rgba(78, 205, 196, 0.25);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 18px 0;
+    color: #ffffff;
+}
+
+.formula-box code {
+    display: inline-block;
+    font-family: 'Courier New', monospace;
+    font-size: 1.05rem;
+    color: #2ecc71;
+    font-weight: bold;
+    margin: 6px 0;
+}
+
+/* FAQ Accordion */
+.faq-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.faq-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 18px 20px;
+}
+
+.faq-question {
+    font-size: 1rem;
+    color: #4ecdc4;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.faq-answer p {
+    font-size: 0.92rem;
+    color: #cbd5e1;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* Site Global Footer */
+.site-footer {
+    width: 100%;
+    background: #060b18;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 45px 20px 25px;
+    color: #94a3b8;
+}
+
+.footer-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 35px;
+    margin-bottom: 35px;
+}
+
+@media (max-width: 768px) {
+    .footer-container {
+        grid-template-columns: 1fr;
+        gap: 25px;
+    }
+}
+
+.footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1.15rem;
+    margin-bottom: 12px;
+}
+
+.footer-logo {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+}
+
+.footer-desc {
+    font-size: 0.88rem;
+    line-height: 1.65;
+    color: #64748b;
+    max-width: 420px;
+}
+
+.footer-links-col h4 {
+    color: #ffffff;
+    font-size: 0.95rem;
+    margin-bottom: 14px;
+    font-weight: 600;
+}
+
+.footer-links-col ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-links-col li {
+    margin-bottom: 10px;
+}
+
+.footer-links-col a {
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.88rem;
+    transition: color 0.2s;
+}
+
+.footer-links-col a:hover {
+    color: #4ecdc4;
+}
+
+.footer-bottom {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding-top: 25px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    text-align: center;
+    font-size: 0.82rem;
+    color: #64748b;
+}
+
+.footer-bottom .disclaimer {
+    margin-top: 6px;
+    font-size: 0.78rem;
+    color: #475569;
+}
+
+/* Mobile Responsiveness for Navigation & Guide */
+@media (max-width: 768px) {
+    .site-nav {
+        gap: 8px;
+    }
+    .nav-item {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+    .guide-card {
+        padding: 22px 18px;
+    }
+    .guide-card h2 {
+        font-size: 1.25rem;
+    }
 }
